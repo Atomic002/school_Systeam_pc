@@ -1,45 +1,227 @@
-// lib/presentation/screens/finance/new_payment_screen.dart
-// ================================================================================
-// YANGI TO'LOV QABUL QILISH - Tuzatilgan versiya
-// ================================================================================
-
+// lib/presentation/screens/finance/new_payment_screen_v4.dart
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_application_1/presentation/controllers/payment_controller.dart';
 import 'package:get/get.dart';
-import '../../../config/constants.dart';
+import 'package:intl/intl.dart';
 
-class NewPaymentScreen extends StatelessWidget {
-  // MUHIM: final o'rniga to'g'ridan-to'g'ri Get.put
-  NewPaymentScreen({Key? key}) : super(key: key);
+import '../../widgets/payment_widgets.dart';
+
+class NewPaymentScreenV4 extends StatelessWidget {
+  NewPaymentScreenV4({Key? key}) : super(key: key);
+
+  final primaryBlue = Color(0xFF2196F3);
+  final darkBlue = Color(0xFF1565C0);
+  final lightBlue = Color(0xFFBBDEFB);
+  final paleBlue = Color(0xFFE3F2FD);
 
   @override
   Widget build(BuildContext context) {
-    // Controller ni bu yerda yaratamiz
-    final controller = Get.put(NewPaymentController());
+    final controller = Get.put(NewPaymentControllerV4());
 
     return Scaffold(
-      backgroundColor: AppConstants.backgroundLight,
-      body: Row(
+      backgroundColor: Colors.grey[50],
+      body: Column(
         children: [
-          // Main content
+          _buildHeader(controller, context),
           Expanded(
-            child: Column(
-              children: [
-                _buildAppBar(controller),
-                Expanded(
-                  child: Obx(() {
-                    if (controller.isLoading.value) {
-                      return Center(
-                        child: CircularProgressIndicator(
-                          color: AppConstants.primaryColor,
+            child: Obx(() {
+              if (controller.isLoading.value) {
+                return Center(
+                  child: CircularProgressIndicator(color: primaryBlue),
+                );
+              }
+              return _buildMainContent(controller, context);
+            }),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHeader(NewPaymentControllerV4 controller, BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [primaryBlue, darkBlue],
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: primaryBlue.withOpacity(0.3),
+            blurRadius: 15,
+            offset: Offset(0, 5),
+          ),
+        ],
+      ),
+      child: SafeArea(
+        child: Padding(
+          padding: EdgeInsets.all(20),
+          child: Column(
+            children: [
+              Row(
+                children: [
+                  _buildIconButton(
+                    icon: Icons.arrow_back_ios_new,
+                    onPressed: () => Get.back(),
+                  ),
+                  SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'TO\'LOV QABUL QILISH',
+                          style: TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
                         ),
-                      );
-                    }
-                    return _buildContent(controller);
-                  }),
-                ),
-              ],
+                        SizedBox(height: 4),
+                        Text(
+                          DateFormat('dd MMMM yyyy, HH:mm', 'uz_UZ')
+                              .format(DateTime.now()),
+                          style: TextStyle(
+                            color: Colors.white.withOpacity(0.9),
+                            fontSize: 13,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  _buildIconButton(
+                    icon: Icons.refresh_rounded,
+                    onPressed: () => controller.refreshData(),
+                  ),
+                ],
+              ),
+              SizedBox(height: 20),
+              _buildMonthSelector(controller, context),
+              SizedBox(height: 20),
+              _buildStatsCards(controller),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildIconButton({required IconData icon, required VoidCallback onPressed}) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.2),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: IconButton(
+        onPressed: onPressed,
+        icon: Icon(icon, color: Colors.white, size: 22),
+      ),
+    );
+  }
+
+  Widget _buildMonthSelector(NewPaymentControllerV4 controller, BuildContext context) {
+    return Obx(() => InkWell(
+      onTap: () => controller.selectMonth(context),
+      child: Container(
+        padding: EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.15),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.white.withOpacity(0.3), width: 2),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.calendar_today_rounded, color: Colors.white, size: 24),
+            SizedBox(width: 12),
+            Text(
+              controller.currentMonthYear,
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            SizedBox(width: 8),
+            Icon(Icons.arrow_drop_down_rounded, color: Colors.white, size: 28),
+          ],
+        ),
+      ),
+    ));
+  }
+
+  Widget _buildStatsCards(NewPaymentControllerV4 controller) {
+    return Obx(() => Row(
+      children: [
+        Expanded(
+          child: _buildStatCard(
+            icon: Icons.check_circle_outline,
+            label: 'To\'ladi',
+            value: '${controller.currentMonthPaymentsCount.value}',
+            color: Colors.white,
+          ),
+        ),
+        SizedBox(width: 12),
+        Expanded(
+          child: _buildStatCard(
+            icon: Icons.pending_actions_outlined,
+            label: 'To\'lamadi',
+            value: '${controller.unpaidStudentsCount.value}',
+            color: Colors.white,
+          ),
+        ),
+        SizedBox(width: 12),
+        Expanded(
+          child: _buildStatCard(
+            icon: Icons.warning_amber_rounded,
+            label: 'Qarzdor',
+            value: '${controller.currentMonthDebtorsCount.value}',
+            color: Colors.white,
+          ),
+        ),
+        SizedBox(width: 12),
+        Expanded(
+          child: _buildStatCard(
+            icon: Icons.attach_money_rounded,
+            label: 'Tushum',
+            value: _formatShortCurrency(controller.currentMonthRevenue.value),
+            color: Colors.white,
+          ),
+        ),
+      ],
+    ));
+  }
+
+  Widget _buildStatCard({
+    required IconData icon,
+    required String label,
+    required String value,
+    required Color color,
+  }) {
+    return Container(
+      padding: EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.15),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: color.withOpacity(0.3), width: 2),
+      ),
+      child: Column(
+        children: [
+          Icon(icon, color: color, size: 28),
+          SizedBox(height: 8),
+          Text(
+            value,
+            style: TextStyle(
+              color: color,
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          SizedBox(height: 4),
+          Text(
+            label,
+            style: TextStyle(
+              color: color.withOpacity(0.9),
+              fontSize: 11,
             ),
           ),
         ],
@@ -47,15 +229,31 @@ class NewPaymentScreen extends StatelessWidget {
     );
   }
 
-  // ============================================================================
-  // APP BAR
-  // ============================================================================
+  String _formatShortCurrency(double amount) {
+    if (amount >= 1000000) {
+      return '${(amount / 1000000).toStringAsFixed(1)}M';
+    } else if (amount >= 1000) {
+      return '${(amount / 1000).toStringAsFixed(0)}K';
+    }
+    return amount.toStringAsFixed(0);
+  }
 
-  Widget _buildAppBar(NewPaymentController controller) {
+  Widget _buildMainContent(NewPaymentControllerV4 controller, BuildContext context) {
+    return Row(
+      children: [
+        Expanded(flex: 35, child: _buildStudentsPanel(controller)),
+        SizedBox(width: 16),
+        Expanded(flex: 65, child: _buildPaymentPanel(controller, context)),
+      ],
+    );
+  }
+
+  Widget _buildStudentsPanel(NewPaymentControllerV4 controller) {
     return Container(
-      padding: EdgeInsets.all(AppConstants.paddingLarge),
+      margin: EdgeInsets.only(left: 16, top: 16, bottom: 16),
       decoration: BoxDecoration(
         color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.05),
@@ -64,262 +262,117 @@ class NewPaymentScreen extends StatelessWidget {
           ),
         ],
       ),
-      child: Row(
-        children: [
-          IconButton(
-            onPressed: () => Get.back(),
-            icon: Icon(Icons.arrow_back, color: AppConstants.textPrimaryColor),
-          ),
-          SizedBox(width: AppConstants.paddingMedium),
-          Icon(Icons.payment, color: AppConstants.primaryColor, size: 28),
-          SizedBox(width: AppConstants.paddingMedium),
-          Text(
-            'Yangi to\'lov qabul qilish',
-            style: TextStyle(
-              fontSize: AppConstants.fontSizeXXLarge,
-              fontWeight: FontWeight.bold,
-              color: AppConstants.textPrimaryColor,
-            ),
-          ),
-          Spacer(),
-          _buildQuickStats(controller),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildQuickStats(NewPaymentController controller) {
-    return Obx(
-      () => Container(
-        padding: EdgeInsets.symmetric(
-          horizontal: AppConstants.paddingLarge,
-          vertical: AppConstants.paddingSmall,
-        ),
-        decoration: BoxDecoration(
-          color: AppConstants.primaryColor.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(AppConstants.borderRadiusMedium),
-        ),
-        child: Row(
-          children: [
-            Icon(
-              Icons.calendar_today,
-              size: 16,
-              color: AppConstants.primaryColor,
-            ),
-            SizedBox(width: 8),
-            Text(
-              'Bugun: ${controller.todayPaymentsCount.value} ta to\'lov',
-              style: TextStyle(
-                fontWeight: FontWeight.w600,
-                color: AppConstants.primaryColor,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // ============================================================================
-  // MAIN CONTENT
-  // ============================================================================
-
-  Widget _buildContent(NewPaymentController controller) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Left side - Student search
-        Expanded(flex: 2, child: _buildStudentSearchSection(controller)),
-
-        SizedBox(width: AppConstants.paddingLarge),
-
-        // Right side - Payment form
-        Expanded(flex: 3, child: _buildPaymentFormSection(controller)),
-      ],
-    );
-  }
-
-  // ============================================================================
-  // STUDENT SEARCH SECTION
-  // ============================================================================
-
-  Widget _buildStudentSearchSection(NewPaymentController controller) {
-    return Container(
-      margin: EdgeInsets.all(AppConstants.paddingLarge),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Search header
           Container(
-            padding: EdgeInsets.all(AppConstants.paddingLarge),
+            padding: EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: paleBlue,
               borderRadius: BorderRadius.only(
-                topLeft: Radius.circular(AppConstants.borderRadiusMedium),
-                topRight: Radius.circular(AppConstants.borderRadiusMedium),
+                topLeft: Radius.circular(20),
+                topRight: Radius.circular(20),
               ),
             ),
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
                   children: [
-                    Container(
-                      padding: EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: AppConstants.primaryColor.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(
-                          AppConstants.borderRadiusSmall,
-                        ),
-                      ),
-                      child: Icon(
-                        Icons.search,
-                        color: AppConstants.primaryColor,
-                        size: 20,
-                      ),
-                    ),
-                    SizedBox(width: AppConstants.paddingMedium),
+                    Icon(Icons.search_rounded, color: primaryBlue, size: 28),
+                    SizedBox(width: 12),
                     Text(
-                      'O\'quvchini tanlash',
+                      'O\'quvchi qidirish',
                       style: TextStyle(
-                        fontSize: AppConstants.fontSizeXLarge,
+                        fontSize: 18,
                         fontWeight: FontWeight.bold,
-                        color: AppConstants.textPrimaryColor,
+                        color: darkBlue,
                       ),
                     ),
                   ],
                 ),
-                SizedBox(height: AppConstants.paddingLarge),
-
-                // Search field
-                // Ism / Familiya qidirish
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextFormField(
-                        controller: controller.firstNameController,
-                        decoration: InputDecoration(
-                          labelText: 'Ism',
-                          hintText: 'Masalan: Ali',
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(
-                              AppConstants.borderRadiusMedium,
-                            ),
-                          ),
-                          isDense: true,
-                        ),
-                        textInputAction: TextInputAction.search,
-                        onFieldSubmitted: (_) => controller.searchStudents,
+                SizedBox(height: 16),
+                TextField(
+                  controller: controller.searchController,
+                  decoration: InputDecoration(
+                    hintText: 'Ism, familiya yoki telefon...',
+                    prefixIcon: Icon(Icons.search_rounded, color: primaryBlue),
+                    suffixIcon: IconButton(
+                      icon: Icon(Icons.clear_rounded, color: Colors.grey),
+                      onPressed: () => controller.clearSearch(),
+                    ),
+                    filled: true,
+                    fillColor: Colors.white,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide.none,
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: primaryBlue, width: 2),
+                    ),
+                  ),
+                  onSubmitted: (_) => controller.searchStudents(),
+                ),
+                SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: () => controller.searchStudents(),
+                    icon: Icon(Icons.search_rounded),
+                    label: Text('QIDIRISH'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: primaryBlue,
+                      padding: EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
                       ),
                     ),
-                    SizedBox(width: AppConstants.paddingMedium),
-                    Expanded(
-                      child: TextFormField(
-                        controller: controller.lastNameController,
-                        decoration: InputDecoration(
-                          labelText: 'Familiya',
-                          hintText: 'Masalan: Karimov',
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(
-                              AppConstants.borderRadiusMedium,
-                            ),
-                          ),
-                          isDense: true,
-                        ),
-                        textInputAction: TextInputAction.search,
-                        onFieldSubmitted: (_) {
-                          controller.searchStudents; // ← shu yer
-                        },
-                      ),
-                    ),
-                    SizedBox(width: AppConstants.paddingMedium),
-                    IconButton(
-                      icon: Icon(
-                        Icons.search,
-                        color: AppConstants.primaryColor,
-                      ),
-                      tooltip: 'Qidirish',
-                      onPressed: () => controller.searchStudents,
-                    ),
-                    IconButton(
-                      icon: Icon(Icons.clear, color: Colors.grey[600]),
-                      tooltip: 'Tozalash',
-                      onPressed: () {
-                        controller.firstNameController.clear();
-                        controller.lastNameController.clear();
-                        controller.loadAllStudents();
-                      },
-                    ),
-                  ],
+                  ),
                 ),
               ],
             ),
           ),
-
-          // Search results
           Expanded(
-            child: Container(
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.only(
-                  bottomLeft: Radius.circular(AppConstants.borderRadiusMedium),
-                  bottomRight: Radius.circular(AppConstants.borderRadiusMedium),
-                ),
-              ),
-              child: Obx(() {
-                if (controller.isSearching.value) {
-                  return Center(
-                    child: Padding(
-                      padding: EdgeInsets.all(AppConstants.paddingLarge),
-                      child: CircularProgressIndicator(),
-                    ),
-                  );
-                }
-
-                if (controller.searchResults.isEmpty) {
-                  return Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.search_off,
-                          size: 64,
-                          color: Colors.grey[300],
-                        ),
-                        SizedBox(height: AppConstants.paddingMedium),
-                        Text(
-                          'O\'quvchi topilmadi',
-                          style: TextStyle(
-                            fontSize: AppConstants.fontSizeLarge,
-                            color: AppConstants.textSecondaryColor,
-                          ),
-                        ),
-                        SizedBox(height: AppConstants.paddingSmall),
-                        Text(
-                          'Ism, familiya yoki telefon raqam kiriting',
-                          style: TextStyle(
-                            color: AppConstants.textSecondaryColor,
-                          ),
-                        ),
-                      ],
-                    ),
-                  );
-                }
-
-                return ListView.separated(
-                  padding: EdgeInsets.all(AppConstants.paddingMedium),
-                  itemCount: controller.searchResults.length,
-                  separatorBuilder: (_, __) => Divider(height: 1),
-                  itemBuilder: (context, index) {
-                    final student = controller.searchResults[index];
-                    final isSelected =
-                        controller.selectedStudentId.value == student.id;
-
-                    return _buildStudentCard(controller, student, isSelected);
-                  },
+            child: Obx(() {
+              if (controller.isSearching.value) {
+                return Center(
+                  child: CircularProgressIndicator(color: primaryBlue),
                 );
-              }),
-            ),
+              }
+
+              if (controller.searchResults.isEmpty) {
+                return Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.search_off_rounded, 
+                          size: 80, color: Colors.grey[300]),
+                      SizedBox(height: 20),
+                      Text(
+                        'O\'quvchi topilmadi',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }
+
+              return ListView.separated(
+                padding: EdgeInsets.all(16),
+                itemCount: controller.searchResults.length,
+                separatorBuilder: (_, __) => SizedBox(height: 12),
+                itemBuilder: (context, index) {
+                  final student = controller.searchResults[index];
+                  final isSelected = controller.selectedStudentId.value == student.id;
+                  final hasPaid = student.toJson()['has_paid_current_month'] == true;
+                  
+                  return _buildStudentCard(controller, student, isSelected, hasPaid);
+                },
+              );
+            }),
           ),
         ],
       ),
@@ -327,55 +380,63 @@ class NewPaymentScreen extends StatelessWidget {
   }
 
   Widget _buildStudentCard(
-    NewPaymentController controller,
+    NewPaymentControllerV4 controller,
     dynamic student,
     bool isSelected,
+    bool hasPaid,
   ) {
     return InkWell(
       onTap: () => controller.selectStudent(student),
+      borderRadius: BorderRadius.circular(16),
       child: Container(
-        padding: EdgeInsets.all(AppConstants.paddingMedium),
+        padding: EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: isSelected
-              ? AppConstants.primaryColor.withOpacity(0.1)
-              : Colors.transparent,
-          borderRadius: BorderRadius.circular(AppConstants.borderRadiusSmall),
-          border: isSelected
-              ? Border.all(color: AppConstants.primaryColor, width: 2)
-              : null,
+          color: isSelected ? paleBlue : Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: isSelected ? primaryBlue : Colors.grey[200]!,
+            width: isSelected ? 2 : 1,
+          ),
         ),
         child: Row(
           children: [
-            // Avatar
-            Container(
-              width: 50,
-              height: 50,
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    AppConstants.primaryColor,
-                    AppConstants.primaryColor.withOpacity(0.7),
-                  ],
-                ),
-                borderRadius: BorderRadius.circular(
-                  AppConstants.borderRadiusSmall,
-                ),
-              ),
-              child: Center(
-                child: Text(
-                  student.firstName[0].toUpperCase(),
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: AppConstants.fontSizeXLarge,
-                    fontWeight: FontWeight.bold,
+            Stack(
+              children: [
+                Container(
+                  width: 50,
+                  height: 50,
+                  decoration: BoxDecoration(
+                    color: hasPaid ? Colors.green : Colors.grey[400],
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Center(
+                    child: Text(
+                      student.firstName[0].toUpperCase(),
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                   ),
                 ),
-              ),
+                if (hasPaid)
+                  Positioned(
+                    top: 0,
+                    right: 0,
+                    child: Container(
+                      padding: EdgeInsets.all(3),
+                      decoration: BoxDecoration(
+                        color: Colors.green,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white, width: 2),
+                      ),
+                      child: Icon(Icons.check, color: Colors.white, size: 12),
+                    ),
+                  ),
+              ],
             ),
-
-            SizedBox(width: AppConstants.paddingMedium),
-
-            // Info
+            SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -383,54 +444,52 @@ class NewPaymentScreen extends StatelessWidget {
                   Text(
                     student.fullName,
                     style: TextStyle(
-                      fontSize: AppConstants.fontSizeMedium,
+                      fontSize: 15,
                       fontWeight: FontWeight.bold,
-                      color: AppConstants.textPrimaryColor,
+                      color: isSelected ? darkBlue : Colors.black87,
                     ),
                   ),
                   SizedBox(height: 4),
                   Row(
                     children: [
-                      Icon(Icons.phone, size: 14, color: Colors.grey[600]),
+                      Icon(Icons.class_rounded, size: 14, color: primaryBlue),
                       SizedBox(width: 4),
-                      Text(
-                        student.phone ?? student.parentPhone ?? '-',
-                        style: TextStyle(
-                          fontSize: AppConstants.fontSizeSmall,
-                          color: AppConstants.textSecondaryColor,
+                      Expanded(
+                        child: Text(
+                          student.classFullName,
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: primaryBlue,
+                            fontWeight: FontWeight.w600,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
                     ],
                   ),
-                  SizedBox(height: 4),
-                  Container(
-                    padding: EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: AppConstants.successColor.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: Text(
-                      'Oylik: ${_formatCurrency(student.monthlyFee)} so\'m',
-                      style: TextStyle(
-                        fontSize: AppConstants.fontSizeSmall,
-                        color: AppConstants.successColor,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
                 ],
               ),
             ),
-
-            // Selection indicator
-            if (isSelected)
-              Container(
-                padding: EdgeInsets.all(4),
-                decoration: BoxDecoration(
-                  color: AppConstants.primaryColor,
-                  shape: BoxShape.circle,
+            Container(
+              padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: hasPaid ? Colors.green[100] : Colors.orange[100],
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                hasPaid ? 'To\'ladi' : 'To\'lamadi',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: hasPaid ? Colors.green[700] : Colors.orange[700],
                 ),
-                child: Icon(Icons.check, color: Colors.white, size: 16),
+              ),
+            ),
+            if (isSelected)
+              Padding(
+                padding: EdgeInsets.only(left: 8),
+                child: Icon(Icons.check_circle, color: primaryBlue),
               ),
           ],
         ),
@@ -438,68 +497,26 @@ class NewPaymentScreen extends StatelessWidget {
     );
   }
 
-  // ============================================================================
-  // PAYMENT FORM SECTION
-  // ============================================================================
-
-  Widget _buildPaymentFormSection(NewPaymentController controller) {
+  Widget _buildPaymentPanel(NewPaymentControllerV4 controller, BuildContext context) {
     return Obx(() {
       if (controller.selectedStudent.value == null) {
-        return Container(
-          margin: EdgeInsets.all(AppConstants.paddingLarge),
-          padding: EdgeInsets.all(AppConstants.paddingXXLarge),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(
-              AppConstants.borderRadiusMedium,
-            ),
-          ),
-          child: Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.person_search, size: 100, color: Colors.grey[300]),
-                SizedBox(height: AppConstants.paddingLarge),
-                Text(
-                  'O\'quvchini tanlang',
-                  style: TextStyle(
-                    fontSize: AppConstants.fontSizeXXLarge,
-                    fontWeight: FontWeight.bold,
-                    color: AppConstants.textSecondaryColor,
-                  ),
-                ),
-                SizedBox(height: AppConstants.paddingSmall),
-                Text(
-                  'To\'lov qabul qilish uchun chapdan o\'quvchini tanlang',
-                  style: TextStyle(color: AppConstants.textSecondaryColor),
-                ),
-              ],
-            ),
-          ),
-        );
+        return _buildEmptyState();
       }
 
       return SingleChildScrollView(
-        padding: EdgeInsets.all(AppConstants.paddingLarge),
+        padding: EdgeInsets.only(right: 16, top: 16, bottom: 16),
         child: Form(
           key: controller.formKey,
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               _buildSelectedStudentCard(controller),
-              SizedBox(height: AppConstants.paddingLarge),
-              _buildPaymentTypeSelector(controller),
-              SizedBox(height: AppConstants.paddingLarge),
-              _buildPaymentMethodSelector(controller),
-              SizedBox(height: AppConstants.paddingLarge),
-              _buildAmountSection(controller),
-              SizedBox(height: AppConstants.paddingLarge),
-              _buildDiscountSection(controller),
-              SizedBox(height: AppConstants.paddingLarge),
-              _buildDebtSection(controller),
-              SizedBox(height: AppConstants.paddingLarge),
-              _buildNotesField(controller),
-              SizedBox(height: AppConstants.paddingXXLarge),
+              SizedBox(height: 16),
+              _buildPaymentHistoryCard(controller),
+              SizedBox(height: 16),
+              _buildDebtsSection(controller),
+              SizedBox(height: 16),
+              _buildPaymentDetailsCard(controller),
+              SizedBox(height: 16),
               _buildSaveButton(controller),
             ],
           ),
@@ -508,29 +525,55 @@ class NewPaymentScreen extends StatelessWidget {
     });
   }
 
-  // ============================================================================
-  // SELECTED STUDENT CARD
-  // ============================================================================
-
-  Widget _buildSelectedStudentCard(NewPaymentController controller) {
-    return Obx(() {
-      final student = controller.selectedStudent.value!;
-      return Container(
-        padding: EdgeInsets.all(AppConstants.paddingLarge),
-        decoration: BoxDecoration(
-          color: Colors.blueAccent,
-          borderRadius: BorderRadius.circular(AppConstants.borderRadiusMedium),
-          border: Border.all(color: AppConstants.primaryColor.withOpacity(0.2)),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 8,
-              offset: Offset(0, 2),
+  Widget _buildEmptyState() {
+    return Container(
+      margin: EdgeInsets.only(right: 16, top: 16, bottom: 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: EdgeInsets.all(40),
+              decoration: BoxDecoration(
+                color: paleBlue,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.person_search_rounded,
+                size: 80,
+                color: primaryBlue,
+              ),
+            ),
+            SizedBox(height: 30),
+            Text(
+              'O\'quvchini tanlang',
+              style: TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: darkBlue,
+              ),
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildSelectedStudentCard(NewPaymentControllerV4 controller) {
+    return Obx(() {
+      final student = controller.selectedStudent.value!;
+      return Container(
+        padding: EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: primaryBlue, width: 2),
+        ),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
@@ -538,23 +581,21 @@ class NewPaymentScreen extends StatelessWidget {
                   width: 60,
                   height: 60,
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(
-                      AppConstants.borderRadiusMedium,
-                    ),
+                    color: primaryBlue,
+                    borderRadius: BorderRadius.circular(15),
                   ),
                   child: Center(
                     child: Text(
                       student.firstName[0].toUpperCase(),
                       style: TextStyle(
                         color: Colors.white,
-                        fontSize: 28,
+                        fontSize: 32,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
                   ),
                 ),
-                SizedBox(width: AppConstants.paddingLarge),
+                SizedBox(width: 16),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -562,47 +603,67 @@ class NewPaymentScreen extends StatelessWidget {
                       Text(
                         student.fullName,
                         style: TextStyle(
-                          color: Colors.white,
-                          fontSize: AppConstants.fontSizeXXLarge,
+                          fontSize: 20,
                           fontWeight: FontWeight.bold,
+                          color: darkBlue,
                         ),
                       ),
                       SizedBox(height: 4),
-                      Text(
-                        'ID: ${student.id.substring(0, 8)}...',
-                        style: TextStyle(
-                          color: Colors.white.withOpacity(0.9),
-                          fontSize: AppConstants.fontSizeSmall,
-                        ),
+                      Row(
+                        children: [
+                          Icon(Icons.class_rounded, size: 16, color: primaryBlue),
+                          SizedBox(width: 6),
+                          Text(
+                            student.classFullName,
+                            style: TextStyle(
+                              color: primaryBlue,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
                       ),
+                      if (student.mainTeacherName != null) ...[
+                        SizedBox(height: 4),
+                        Row(
+                          children: [
+                            Icon(Icons.person_outline, size: 16, color: Colors.grey[600]),
+                            SizedBox(width: 6),
+                            Text(
+                              'Rahbar: ${student.mainTeacherName}',
+                              style: TextStyle(
+                                color: Colors.grey[700],
+                                fontSize: 13,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
                     ],
                   ),
                 ),
                 IconButton(
                   onPressed: () => controller.clearSelection(),
-                  icon: Icon(Icons.close, color: Colors.white),
-                  tooltip: 'Boshqasini tanlash',
+                  icon: Icon(Icons.close_rounded, color: Colors.grey),
                 ),
               ],
             ),
-            SizedBox(height: AppConstants.paddingLarge),
-            Divider(color: Colors.white.withOpacity(0.3), height: 1),
-            SizedBox(height: AppConstants.paddingLarge),
+            SizedBox(height: 16),
+            Divider(),
+            SizedBox(height: 12),
             Row(
               children: [
                 Expanded(
                   child: _buildInfoChip(
-                    Icons.phone,
-                    'Telefon',
-                    student.phone ?? student.parentPhone,
+                    icon: Icons.phone,
+                    label: student.parentPhone ?? 'Telefon yo\'q',
                   ),
                 ),
-                SizedBox(width: AppConstants.paddingMedium),
+                SizedBox(width: 12),
                 Expanded(
                   child: _buildInfoChip(
-                    Icons.attach_money,
-                    'Oylik to\'lov',
-                    '${_formatCurrency(student.monthlyFee)} so\'m',
+                    icon: Icons.attach_money_rounded,
+                    label: '${controller.formatCurrency(student.monthlyFee)} so\'m/oy',
                   ),
                 ),
               ],
@@ -613,37 +674,27 @@ class NewPaymentScreen extends StatelessWidget {
     });
   }
 
-  Widget _buildInfoChip(IconData icon, String label, String value) {
+  Widget _buildInfoChip({required IconData icon, required String label}) {
     return Container(
-      padding: EdgeInsets.all(AppConstants.paddingMedium),
+      padding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.2),
-        borderRadius: BorderRadius.circular(AppConstants.borderRadiusSmall),
+        color: paleBlue,
+        borderRadius: BorderRadius.circular(10),
       ),
       child: Row(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, color: Colors.white, size: 16),
+          Icon(icon, size: 18, color: primaryBlue),
           SizedBox(width: 8),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  label,
-                  style: TextStyle(
-                    color: Colors.white.withOpacity(0.8),
-                    fontSize: AppConstants.fontSizeSmall,
-                  ),
-                ),
-                Text(
-                  value,
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w600,
-                  ),
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
+          Flexible(
+            child: Text(
+              label,
+              style: TextStyle(
+                fontSize: 13,
+                color: darkBlue,
+                fontWeight: FontWeight.w600,
+              ),
+              overflow: TextOverflow.ellipsis,
             ),
           ),
         ],
@@ -651,605 +702,401 @@ class NewPaymentScreen extends StatelessWidget {
     );
   }
 
-  // ============================================================================
-  // PAYMENT TYPE
-  // ============================================================================
-
-  Widget _buildPaymentTypeSelector(NewPaymentController controller) {
-    return Card(
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(AppConstants.borderRadiusMedium),
-        side: BorderSide(color: Colors.grey[200]!),
+  Widget _buildPaymentHistoryCard(NewPaymentControllerV4 controller) {
+    return Container(
+      padding: EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
       ),
-      child: Padding(
-        padding: EdgeInsets.all(AppConstants.paddingLarge),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildSectionTitle('To\'lov turi', Icons.category),
-            SizedBox(height: AppConstants.paddingMedium),
-            Obx(
-              () => Wrap(
-                spacing: 8,
-                runSpacing: 8,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
                 children: [
-                  _buildTypeChip(
-                    controller,
-                    'Oylik to\'lov',
-                    'tuition',
-                    Icons.calendar_month,
-                  ),
-                  _buildTypeChip(
-                    controller,
-                    'Ro\'yxatga olish',
-                    'registration',
-                    Icons.app_registration,
-                  ),
-                  _buildTypeChip(controller, 'Imtihon', 'exam', Icons.quiz),
-                  _buildTypeChip(
-                    controller,
-                    'Boshqa',
-                    'other',
-                    Icons.more_horiz,
+                  Icon(Icons.history_rounded, color: primaryBlue, size: 24),
+                  SizedBox(width: 12),
+                  Text(
+                    'TO\'LOV TARIXI',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: darkBlue,
+                    ),
                   ),
                 ],
               ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildTypeChip(
-    NewPaymentController controller,
-    String label,
-    String value,
-    IconData icon,
-  ) {
-    final isSelected = controller.paymentType.value == value;
-    return InkWell(
-      onTap: () => controller.paymentType.value = value,
-      borderRadius: BorderRadius.circular(AppConstants.borderRadiusMedium),
-      child: Container(
-        padding: EdgeInsets.symmetric(
-          horizontal: AppConstants.paddingMedium,
-          vertical: AppConstants.paddingSmall,
-        ),
-        decoration: BoxDecoration(
-          color: isSelected ? AppConstants.primaryColor : Colors.grey[100],
-          borderRadius: BorderRadius.circular(AppConstants.borderRadiusMedium),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              icon,
-              size: 18,
-              color: isSelected ? Colors.white : Colors.grey[700],
-            ),
-            SizedBox(width: 8),
-            Text(
-              label,
-              style: TextStyle(
-                color: isSelected ? Colors.white : Colors.grey[700],
-                fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+              TextButton.icon(
+                onPressed: () => controller.showPaymentHistory(),
+                icon: Icon(Icons.open_in_new_rounded, size: 18),
+                label: Text('BARCHASI'),
+                style: TextButton.styleFrom(
+                  foregroundColor: primaryBlue,
+                ),
               ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // ============================================================================
-  // PAYMENT METHOD
-  // ============================================================================
-
-  Widget _buildPaymentMethodSelector(NewPaymentController controller) {
-    return Card(
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(AppConstants.borderRadiusMedium),
-        side: BorderSide(color: Colors.grey[200]!),
-      ),
-      child: Padding(
-        padding: EdgeInsets.all(AppConstants.paddingLarge),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildSectionTitle('To\'lov usuli', Icons.payment),
-            SizedBox(height: AppConstants.paddingMedium),
-            Obx(
-              () => GridView.count(
-                shrinkWrap: true,
-                physics: NeverScrollableScrollPhysics(),
-                crossAxisCount: 2,
-                mainAxisSpacing: 12,
-                crossAxisSpacing: 12,
-                childAspectRatio: 3,
-                children: [
-                  _buildMethodCard(
-                    controller,
-                    'Naqd',
-                    'cash',
-                    Icons.money,
-                    Colors.green,
-                  ),
-                  _buildMethodCard(
-                    controller,
-                    'Click',
-                    'click',
-                    Icons.phone_android,
-                    Colors.blue,
-                  ),
-                  _buildMethodCard(
-                    controller,
-                    'Terminal',
-                    'terminal',
-                    Icons.credit_card,
-                    Colors.purple,
-                  ),
-                  _buildMethodCard(
-                    controller,
-                    'Ega kassasi',
-                    'owner_fund',
-                    Icons.account_balance_wallet,
-                    Colors.orange,
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildMethodCard(
-    NewPaymentController controller,
-    String title,
-    String value,
-    IconData icon,
-    Color color,
-  ) {
-    final isSelected = controller.paymentMethod.value == value;
-    return InkWell(
-      onTap: () => controller.paymentMethod.value = value,
-      borderRadius: BorderRadius.circular(AppConstants.borderRadiusSmall),
-      child: Container(
-        padding: EdgeInsets.symmetric(
-          horizontal: AppConstants.paddingMedium,
-          vertical: AppConstants.paddingSmall,
-        ),
-        decoration: BoxDecoration(
-          color: isSelected ? color.withOpacity(0.1) : Colors.grey[50],
-          borderRadius: BorderRadius.circular(AppConstants.borderRadiusSmall),
-          border: Border.all(
-            color: isSelected ? color : Colors.grey[200]!,
-            width: isSelected ? 2 : 1,
+            ],
           ),
-        ),
-        child: Row(
-          children: [
-            Container(
-              padding: EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: color.withOpacity(0.2),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Icon(icon, color: color, size: 20),
-            ),
-            SizedBox(width: AppConstants.paddingSmall),
-            Expanded(
-              child: Text(
-                title,
-                style: TextStyle(
-                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                  color: isSelected ? color : AppConstants.textPrimaryColor,
-                ),
-              ),
-            ),
-            if (isSelected) Icon(Icons.check_circle, color: color, size: 20),
-          ],
-        ),
+          SizedBox(height: 16),
+          Obx(() {
+            if (controller.isLoadingHistory.value) {
+              return Center(child: CircularProgressIndicator(color: primaryBlue));
+            }
+            
+            if (controller.paymentHistory.isEmpty) {
+              return Text('Hali to\'lov qilinmagan',
+                  style: TextStyle(color: Colors.grey));
+            }
+            
+            return ListView.separated(
+              shrinkWrap: true,
+              physics: NeverScrollableScrollPhysics(),
+              itemCount: controller.paymentHistory.length > 3 
+                  ? 3 
+                  : controller.paymentHistory.length,
+              separatorBuilder: (_, __) => Divider(),
+              itemBuilder: (context, index) {
+                final payment = controller.paymentHistory[index];
+                return ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: Icon(Icons.check_circle, color: Colors.green),
+                  title: Text(
+                    payment.periodText,
+                    style: TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                  subtitle: Text(
+                    DateFormat('dd.MM.yyyy').format(payment.paymentDate),
+                  ),
+                  trailing: Text(
+                    '${controller.formatCurrency(payment.finalAmount)} so\'m',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: primaryBlue,
+                    ),
+                  ),
+                );
+              },
+            );
+          }),
+        ],
       ),
     );
   }
 
-  // ============================================================================
-  // AMOUNT SECTION
-  // ============================================================================
+  Widget _buildDebtsSection(NewPaymentControllerV4 controller) {
+    return Obx(() {
+      if (controller.studentDebts.isEmpty) return SizedBox.shrink();
 
-  Widget _buildAmountSection(NewPaymentController controller) {
-    return Card(
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(AppConstants.borderRadiusMedium),
-        side: BorderSide(color: Colors.grey[200]!),
-      ),
-      child: Padding(
-        padding: EdgeInsets.all(AppConstants.paddingLarge),
+      return Container(
+        padding: EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.orange[200]!, width: 2),
+        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildSectionTitle('To\'lov summasi', Icons.attach_money),
-            SizedBox(height: AppConstants.paddingMedium),
-            TextFormField(
-              controller: controller.amountController,
-              readOnly: true, // ← MUHIM
-              enableInteractiveSelection: false,
-              keyboardType: TextInputType.number,
-              style: TextStyle(
-                fontSize: AppConstants.fontSizeXLarge,
-                fontWeight: FontWeight.bold,
-              ),
-              decoration: InputDecoration(
-                labelText: 'Asosiy oylik to\'lov',
-                hintText: '0',
-                suffixText: 'so\'m',
-                filled: true,
-                fillColor: Colors.grey[50],
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(
-                    AppConstants.borderRadiusMedium,
-                  ),
-                  borderSide: BorderSide.none,
-                ),
-                contentPadding: EdgeInsets.all(AppConstants.paddingLarge),
-              ),
-              validator: (value) {
-                if (controller.selectedStudent.value == null) {
-                  return 'O\'quvchini tanlang';
-                }
-                if (value == null || value.isEmpty) {
-                  return 'Summani avtomatik hisoblashda xatolik';
-                }
-                return null;
-              },
-              // onChanged kerak emas, chunki foydalanuvchi o'zgartira olmaydi
-            ),
-            SizedBox(height: AppConstants.paddingMedium),
-            Obx(
-              () => Container(
-                padding: EdgeInsets.all(AppConstants.paddingLarge),
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [
-                      AppConstants.successColor,
-                      AppConstants.successColor.withOpacity(0.8),
-                    ],
-                  ),
-                  borderRadius: BorderRadius.circular(
-                    AppConstants.borderRadiusMedium,
-                  ),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'Yakuniy summa:',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: AppConstants.fontSizeMedium,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    Text(
-                      '${_formatCurrency(controller.finalAmount.value)} so\'m',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: AppConstants.fontSizeXLarge,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // ============================================================================
-  // DISCOUNT SECTION
-  // ============================================================================
-
-  Widget _buildDiscountSection(NewPaymentController controller) {
-    return Card(
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(AppConstants.borderRadiusMedium),
-        side: BorderSide(color: Colors.grey[200]!),
-      ),
-      child: Padding(
-        padding: EdgeInsets.all(AppConstants.paddingLarge),
-        child: Column(
-          children: [
             Row(
               children: [
-                _buildSectionTitle('Chegirma', Icons.local_offer),
-                Spacer(),
-                Obx(
-                  () => Switch(
-                    value: controller.hasDiscount.value,
-                    onChanged: (value) => controller.hasDiscount.value = value,
-                    activeColor: AppConstants.successColor,
+                Icon(Icons.warning_amber_rounded, color: Colors.orange[700]),
+                SizedBox(width: 12),
+                Text(
+                  'QARZLAR (${controller.studentDebts.length})',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.orange[900],
                   ),
                 ),
               ],
             ),
-            Obx(() {
-              if (!controller.hasDiscount.value) return SizedBox.shrink();
-
-              return Column(
-                children: [
-                  SizedBox(height: AppConstants.paddingMedium),
-                  TextFormField(
-                    controller: controller.discountController,
-                    keyboardType: TextInputType.number,
-                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                    decoration: InputDecoration(
-                      labelText: 'Chegirma summasi',
-                      suffixText: 'so\'m',
-                      filled: true,
-                      fillColor: Colors.grey[50],
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(
-                          AppConstants.borderRadiusMedium,
-                        ),
-                        borderSide: BorderSide.none,
-                      ),
+            SizedBox(height: 16),
+            
+            ListView.builder(
+              shrinkWrap: true,
+              physics: NeverScrollableScrollPhysics(),
+              itemCount: controller.studentDebts.length,
+              itemBuilder: (context, index) {
+                final debt = controller.studentDebts[index];
+                final isSelected = controller.selectedDebts.contains(debt.id);
+                
+                return CheckboxListTile(
+                  value: isSelected,
+                  onChanged: (_) => controller.toggleDebtSelection(debt.id),
+                  title: Text(debt.periodText),
+                  subtitle: Text(
+                    debt.isOverdue 
+                        ? '${debt.daysOverdue} kun kechikkan'
+                        : debt.dueDate != null 
+                            ? 'Muddati: ${DateFormat('dd.MM.yyyy').format(debt.dueDate!)}'
+                            : 'Muddati belgilanmagan',
+                    style: TextStyle(
+                      color: debt.isOverdue ? Colors.red : Colors.grey,
                     ),
-                    onChanged: (value) => controller.calculateFinalAmount(),
                   ),
-                  SizedBox(height: AppConstants.paddingMedium),
-                  TextFormField(
-                    controller: controller.discountReasonController,
-                    decoration: InputDecoration(
-                      labelText: 'Chegirma sababi',
-                      hintText: 'Masalan: Ikkinchi farzand',
-                      filled: true,
-                      fillColor: Colors.grey[50],
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(
-                          AppConstants.borderRadiusMedium,
-                        ),
-                        borderSide: BorderSide.none,
-                      ),
+                  secondary: Text(
+                    '${controller.formatCurrency(debt.remainingAmount)}',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.orange[700],
+                    ),
+                  ),
+                  activeColor: Colors.orange[700],
+                );
+              },
+            ),
+            
+            if (controller.selectedDebts.isNotEmpty) ...[
+              Divider(),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Jami tanlangan:',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  Text(
+                    '${controller.formatCurrency(controller.totalSelectedDebts.value)} so\'m',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.orange[700],
                     ),
                   ),
                 ],
-              );
-            }),
+              ),
+            ],
           ],
         ),
-      ),
-    );
+      );
+    });
   }
 
-  // ============================================================================
-  // DEBT SECTION
-  // ============================================================================
-
-  Widget _buildDebtSection(NewPaymentController controller) {
-    return Card(
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(AppConstants.borderRadiusMedium),
-        side: BorderSide(color: Colors.grey[200]!),
+  Widget _buildPaymentDetailsCard(NewPaymentControllerV4 controller) {
+    return Container(
+      padding: EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
       ),
-      child: Padding(
-        padding: EdgeInsets.all(AppConstants.paddingLarge),
-        child: Column(
-          children: [
-            Row(
-              children: [
-                _buildSectionTitle('Qarz qoldirish', Icons.account_balance),
-                Spacer(),
-                Obx(
-                  () => Switch(
-                    value: controller.isPartialPayment.value,
-                    onChanged: (value) =>
-                        controller.isPartialPayment.value = value,
-                    activeColor: AppConstants.warningColor,
-                  ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.payment_rounded, color: primaryBlue, size: 24),
+              SizedBox(width: 12),
+              Text(
+                'TO\'LOV MA\'LUMOTLARI',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: darkBlue,
                 ),
-              ],
-            ),
-            Obx(() {
-              if (!controller.isPartialPayment.value) return SizedBox.shrink();
+              ),
+            ],
+          ),
+          SizedBox(height: 20),
 
-              return Column(
-                children: [
-                  SizedBox(height: AppConstants.paddingMedium),
-                  TextFormField(
-                    controller: controller.paidAmountController,
-                    keyboardType: TextInputType.number,
-                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                    decoration: InputDecoration(
-                      labelText: 'Hozir to\'lanadigan summa',
-                      suffixText: 'so\'m',
-                      filled: true,
-                      fillColor: Colors.grey[50],
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(
-                          AppConstants.borderRadiusMedium,
-                        ),
-                        borderSide: BorderSide.none,
-                      ),
+          TextFormField(
+            controller: controller.amountController,
+            keyboardType: TextInputType.number,
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            decoration: InputDecoration(
+              labelText: 'Summa *',
+              hintText: '500000',
+              suffixText: 'so\'m',
+              prefixIcon: Icon(Icons.attach_money_rounded, color: primaryBlue),
+              filled: true,
+              fillColor: paleBlue,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: lightBlue, width: 2),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: primaryBlue, width: 2),
+              ),
+            ),
+            validator: (v) {
+              if (v == null || v.isEmpty) return 'Summani kiriting';
+              final amount = double.tryParse(v);
+              if (amount == null || amount <= 0) return 'Noto\'g\'ri summa';
+              return null;
+            },
+            onChanged: (_) => controller.calculateFinalAmount(),
+          ),
+
+          SizedBox(height: 16),
+
+          Row(
+            children: [
+              Expanded(
+                child: Obx(() => DropdownButtonFormField<String>(
+                  value: controller.paymentMethod.value,
+                  decoration: InputDecoration(
+                    labelText: 'To\'lov usuli *',
+                    prefixIcon: Icon(Icons.payment_rounded, color: primaryBlue),
+                    filled: true,
+                    fillColor: paleBlue,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
                     ),
-                    onChanged: (value) => controller.calculateDebtAmount(),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: lightBlue, width: 2),
+                    ),
                   ),
-                  SizedBox(height: AppConstants.paddingMedium),
-                  Obx(
-                    () => Container(
-                      padding: EdgeInsets.all(AppConstants.paddingLarge),
-                      decoration: BoxDecoration(
-                        color: AppConstants.warningColor.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(
-                          AppConstants.borderRadiusMedium,
-                        ),
-                        border: Border.all(
-                          color: AppConstants.warningColor.withOpacity(0.3),
-                        ),
-                      ),
+                  items: [
+                    DropdownMenuItem(
+                      value: 'cash',
                       child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Row(
-                            children: [
-                              Icon(
-                                Icons.warning_amber,
-                                color: AppConstants.warningColor,
-                              ),
-                              SizedBox(width: 8),
-                              Text(
-                                'Qarz summasi:',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  color: AppConstants.warningColor,
-                                ),
-                              ),
-                            ],
-                          ),
-                          Text(
-                            '${_formatCurrency(controller.debtAmount.value)} so\'m',
-                            style: TextStyle(
-                              fontSize: AppConstants.fontSizeLarge,
-                              fontWeight: FontWeight.bold,
-                              color: AppConstants.warningColor,
-                            ),
-                          ),
+                          Icon(Icons.money_rounded, size: 20, color: Colors.green),
+                          SizedBox(width: 8),
+                          Text('Naqd'),
                         ],
                       ),
                     ),
+                    DropdownMenuItem(
+                      value: 'click',
+                      child: Row(
+                        children: [
+                          Icon(Icons.phone_android_rounded, size: 20, color: primaryBlue),
+                          SizedBox(width: 8),
+                          Text('Click'),
+                        ],
+                      ),
+                    ),
+                    DropdownMenuItem(
+                      value: 'terminal',
+                      child: Row(
+                        children: [
+                          Icon(Icons.credit_card_rounded, size: 20, color: Colors.purple),
+                          SizedBox(width: 8),
+                          Text('Terminal'),
+                        ],
+                      ),
+                    ),
+                    DropdownMenuItem(
+                      value: 'owner_fund',
+                      child: Row(
+                        children: [
+                          Icon(Icons.account_balance_wallet_rounded, size: 20, color: Colors.orange),
+                          SizedBox(width: 8),
+                          Text('Ega kassasi'),
+                        ],
+                      ),
+                    ),
+                  ],
+                  onChanged: (v) => controller.paymentMethod.value = v!,
+                )),
+              ),
+              SizedBox(width: 12),
+              Expanded(
+                child: Obx(() => DropdownButtonFormField<String>(
+                  value: controller.paymentType.value,
+                  decoration: InputDecoration(
+                    labelText: 'To\'lov turi *',
+                    prefixIcon: Icon(Icons.category_rounded, color: primaryBlue),
+                    filled: true,
+                    fillColor: paleBlue,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: lightBlue, width: 2),
+                    ),
                   ),
-                ],
-              );
-            }),
-          ],
-        ),
-      ),
-    );
-  }
+                  items: [
+                    DropdownMenuItem(value: 'tuition', child: Text('Oylik to\'lov')),
+                    DropdownMenuItem(value: 'registration', child: Text('Ro\'yxatga olish')),
+                    DropdownMenuItem(value: 'exam', child: Text('Imtihon')),
+                    DropdownMenuItem(value: 'other', child: Text('Boshqa')),
+                  ],
+                  onChanged: (v) => controller.paymentType.value = v!,
+                )),
+              ),
+            ],
+          ),
 
-  // ============================================================================
-  // NOTES FIELD
-  // ============================================================================
+          SizedBox(height: 20),
 
-  Widget _buildNotesField(NewPaymentController controller) {
-    return Card(
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(AppConstants.borderRadiusMedium),
-        side: BorderSide(color: Colors.grey[200]!),
-      ),
-      child: Padding(
-        padding: EdgeInsets.all(AppConstants.paddingLarge),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildSectionTitle('Izohlar', Icons.note),
-            SizedBox(height: AppConstants.paddingMedium),
-            TextFormField(
-              controller: controller.notesController,
+          PaymentDetailsWidgets.buildDiscountSection(controller),
 
-              maxLines: 3,
-              decoration: InputDecoration(
-                hintText: 'Qo\'shimcha ma\'lumotlar...',
-                filled: true,
-                fillColor: Colors.grey[50],
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(
-                    AppConstants.borderRadiusMedium,
-                  ),
-                  borderSide: BorderSide.none,
-                ),
+          SizedBox(height: 20),
+
+          PaymentDetailsWidgets.buildFinalAmountDisplay(controller),
+
+          SizedBox(height: 20),
+
+          PaymentDetailsWidgets.buildPartialPaymentSection(controller),
+
+          SizedBox(height: 20),
+
+          TextFormField(
+            controller: controller.notesController,
+            decoration: InputDecoration(
+              labelText: 'Qo\'shimcha izoh (ixtiyoriy)',
+              hintText: 'Qo\'shimcha ma\'lumot...',
+              prefixIcon: Icon(Icons.note_alt_rounded, color: primaryBlue),
+              filled: true,
+              fillColor: paleBlue,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: lightBlue, width: 2),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: primaryBlue, width: 2),
               ),
             ),
-          ],
-        ),
+            maxLines: 3,
+          ),
+        ],
       ),
     );
   }
 
-  // ============================================================================
-  // SAVE BUTTON
-  // ============================================================================
-
-  Widget _buildSaveButton(NewPaymentController controller) {
-    return SizedBox(
+  Widget _buildSaveButton(NewPaymentControllerV4 controller) {
+    return Obx(() => SizedBox(
       width: double.infinity,
-      height: 56,
-      child: ElevatedButton(
-        onPressed: () => controller.savePayment(),
-        style: ElevatedButton.styleFrom(
-          backgroundColor: AppConstants.successColor,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(
-              AppConstants.borderRadiusMedium,
-            ),
-          ),
-          elevation: 4,
+      height: 60,
+      child: ElevatedButton.icon(
+        onPressed: controller.isLoading.value
+            ? null
+            : () => controller.savePayment(),
+        icon: controller.isLoading.value
+            ? SizedBox(
+                width: 24,
+                height: 24,
+                child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+              )
+            : Icon(Icons.check_circle_rounded, size: 28),
+        label: Text(
+          controller.isLoading.value ? 'SAQLANMOQDA...' : 'TO\'LOVNI QABUL QILISH',
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
         ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.check_circle, size: 24),
-            SizedBox(width: 12),
-            Text(
-              'TO\'LOVNI QABUL QILISH',
-              style: TextStyle(
-                fontSize: AppConstants.fontSizeLarge,
-                fontWeight: FontWeight.bold,
-                letterSpacing: 0.5,
-              ),
-            ),
-          ],
+        style: ElevatedButton.styleFrom(
+          backgroundColor: primaryBlue,
+          foregroundColor: Colors.white,
+          disabledBackgroundColor: Colors.grey[400],
+          padding: EdgeInsets.symmetric(vertical: 16),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
         ),
       ),
-    );
-  }
-
-  // ============================================================================
-  // HELPER WIDGETS
-  // ============================================================================
-
-  Widget _buildSectionTitle(String title, IconData icon) {
-    return Row(
-      children: [
-        Container(
-          padding: EdgeInsets.all(6),
-          decoration: BoxDecoration(
-            color: AppConstants.primaryColor.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(6),
-          ),
-          child: Icon(icon, size: 18, color: AppConstants.primaryColor),
-        ),
-        SizedBox(width: 12),
-        Text(
-          title,
-          style: TextStyle(
-            fontSize: AppConstants.fontSizeLarge,
-            fontWeight: FontWeight.bold,
-            color: AppConstants.textPrimaryColor,
-          ),
-        ),
-      ],
-    );
-  }
-
-  String _formatCurrency(double amount) {
-    return amount
-        .toStringAsFixed(0)
-        .replaceAllMapped(
-          RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
-          (Match m) => '${m[1]} ',
-        )
-        .trim();
+    ));
   }
 }

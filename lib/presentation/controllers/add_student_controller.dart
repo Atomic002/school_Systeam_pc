@@ -1,4 +1,5 @@
-// lib/controllers/add_student_controller.dart
+// lib/controllers/add_student_controller.dart - TO'LIQ TUZATILGAN
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -15,7 +16,7 @@ import 'auth_controller.dart';
 class AddStudentController extends GetxController {
   final StudentRepository _studentRepo = StudentRepository();
   final VisitorRepository _visitorRepo = VisitorRepository();
-  final ClassRepository _classRepo = ClassRepository();
+  final ClassRepository _classRepo = ClassRepository(); // ✅ YANGI REPOSITORY
   final BranchRepository _branchRepo = BranchRepository();
   final AuthController _authController = Get.find<AuthController>();
   final ImagePicker _imagePicker = ImagePicker();
@@ -70,8 +71,7 @@ class AddStudentController extends GetxController {
   // SINF MA'LUMOTLARI
   final RxList<Map<String, dynamic>> classLevels = <Map<String, dynamic>>[].obs;
   final RxList<Map<String, dynamic>> classes = <Map<String, dynamic>>[].obs;
-  final RxList<Map<String, dynamic>> filteredClasses =
-      <Map<String, dynamic>>[].obs;
+  final RxList<Map<String, dynamic>> filteredClasses = <Map<String, dynamic>>[].obs;
   final RxList<Map<String, dynamic>> teachers = <Map<String, dynamic>>[].obs;
   final RxList<Map<String, dynamic>> rooms = <Map<String, dynamic>>[].obs;
 
@@ -86,14 +86,12 @@ class AddStudentController extends GetxController {
   final RxString selectedTeacherName = ''.obs;
   final RxString selectedClassName = ''.obs;
 
-  final RxString selectionMode = 'class'.obs; // 'class', 'teacher', 'room'
+  final RxString selectionMode = 'class'.obs;
 
   // HOLATLAR
   final RxBool isLoading = false.obs;
   final RxBool isSaving = false.obs;
   final RxBool isUploadingImage = false.obs;
-
-  get selectedMainTeacherName => null;
 
   @override
   void onInit() {
@@ -174,8 +172,7 @@ class AddStudentController extends GetxController {
       final prefs = await SharedPreferences.getInstance();
       final savedBranchId = prefs.getString('selected_branch_id');
 
-      if (savedBranchId != null &&
-          branches.any((b) => b['id'] == savedBranchId)) {
+      if (savedBranchId != null && branches.any((b) => b['id'] == savedBranchId)) {
         await selectBranch(savedBranchId, showMessage: false);
       } else if (branches.isNotEmpty) {
         showBranchSelector.value = true;
@@ -242,13 +239,13 @@ class AddStudentController extends GetxController {
     }
   }
 
-  // AddStudentController ichidagi load metodlarini to'g'rilang:
-
+  // ========== BRANCH DATA YUKLASH - TO'LIQ TUZATILGAN ==========
   Future<void> _loadBranchData(String branchId) async {
     try {
       print('🔄 ========== LOADING BRANCH DATA ==========');
       print('Branch ID: $branchId');
 
+      // Parallel yuklash
       await Future.wait([
         _loadVisitors(branchId),
         _loadClassLevels(),
@@ -263,7 +260,7 @@ class AddStudentController extends GetxController {
       print('📊 Teachers: ${teachers.length}');
       print('📊 Rooms: ${rooms.length}');
       print('📊 Visitors: ${visitors.length}');
-      print('============================================');
+      print('============================================\n');
     } catch (e) {
       print('❌ _loadBranchData error: $e');
       _showError('Xatolik', 'Filial ma\'lumotlarini yuklashda xatolik');
@@ -284,10 +281,15 @@ class AddStudentController extends GetxController {
 
   Future<void> _loadClasses(String branchId) async {
     try {
-      print('🔄 Loading classes...');
+      print('🔄 Loading classes for branch...');
       final result = await _classRepo.getClassesWithDetails(branchId);
       classes.value = result;
       print('✅ Loaded ${result.length} classes');
+      
+      if (result.isNotEmpty) {
+        final firstClass = result.first;
+        print('   Example: ${firstClass['name']} - ${firstClass['teacher']} - ${firstClass['room']}');
+      }
     } catch (e) {
       print('❌ Load classes error: $e');
       classes.value = [];
@@ -296,10 +298,15 @@ class AddStudentController extends GetxController {
 
   Future<void> _loadTeachers(String branchId) async {
     try {
-      print('🔄 Loading teachers...');
+      print('🔄 Loading teachers for branch...');
       final result = await _classRepo.getTeachers(branchId);
       teachers.value = result;
       print('✅ Loaded ${result.length} teachers');
+      
+      if (result.isNotEmpty) {
+        final firstTeacher = result.first;
+        print('   Example: ${firstTeacher['full_name']} - ${firstTeacher['class_name'] ?? 'Sinf yo\'q'}');
+      }
     } catch (e) {
       print('❌ Load teachers error: $e');
       teachers.value = [];
@@ -308,129 +315,87 @@ class AddStudentController extends GetxController {
 
   Future<void> _loadRooms(String branchId) async {
     try {
-      print('🔄 Loading rooms...');
+      print('🔄 Loading rooms for branch...');
       final result = await _classRepo.getRooms(branchId);
       rooms.value = result;
       print('✅ Loaded ${result.length} rooms');
+      
+      if (result.isNotEmpty) {
+        final firstRoom = result.first;
+        print('   Example: ${firstRoom['name']} - ${firstRoom['class_name'] ?? 'Sinf yo\'q'}');
+      }
     } catch (e) {
       print('❌ Load rooms error: $e');
       rooms.value = [];
     }
   }
 
-  // SINF ORQALI TANLASH
+  // ========== SINF ORQALI TANLASH ==========
   void selectClassLevel(String? levelId) {
-    print('🎯 ========== SELECT CLASS LEVEL ==========');
-    print('Selected Level ID: $levelId');
-
+    print('🎯 SELECT CLASS LEVEL: $levelId');
     selectedClassLevelId.value = levelId;
     selectedClassId.value = null;
 
     if (levelId == null) {
       filteredClasses.value = [];
       _clearClassInfo();
-      print('⚠️ Level is null, cleared');
       return;
     }
 
-    filteredClasses.value = classes
-        .where((c) => c['class_level_id'] == levelId)
-        .toList();
-
+    filteredClasses.value = classes.where((c) => c['class_level_id'] == levelId).toList();
     print('📋 Filtered ${filteredClasses.length} classes');
-    for (var cls in filteredClasses) {
-      print(
-        '  - ${cls['name']}: Teacher=${cls['teacher']}, Room=${cls['room']}',
-      );
-    }
-    print('==========================================');
   }
 
   void selectClass(String? classId) {
-    print('🎯 ========== SELECT CLASS ==========');
-    print('Selected Class ID: $classId');
-
+    print('🎯 SELECT CLASS: $classId');
     selectedClassId.value = classId;
 
     if (classId == null) {
       _clearClassInfo();
-      print('⚠️ Class is null, cleared');
       return;
     }
 
     final selectedClass = classes.firstWhereOrNull((c) => c['id'] == classId);
 
     if (selectedClass != null) {
-      print('📦 Class found:');
-      print('  - Name: ${selectedClass['name']}');
-      print('  - Teacher ID: ${selectedClass['main_teacher_id']}');
-      print('  - Teacher Name: ${selectedClass['teacher']}');
-      print('  - Room ID: ${selectedClass['default_room_id']}');
-      print('  - Room Name: ${selectedClass['room']}');
-      print('  - Monthly Fee: ${selectedClass['monthly_fee']}');
-
       selectedClassName.value = selectedClass['name'] ?? '';
       selectedTeacherId.value = selectedClass['main_teacher_id'];
-      selectedTeacherName.value = selectedClass['teacher'] ?? '';
+      selectedTeacherName.value = selectedClass['teacher'] ?? 'Tayinlanmagan';
       selectedRoomId.value = selectedClass['default_room_id'];
-      selectedClassRoom.value = selectedClass['room'] ?? '';
+      selectedClassRoom.value = selectedClass['room'] ?? 'Tayinlanmagan';
 
       if (selectedClass['monthly_fee'] != null) {
-        final classFee =
-            double.tryParse(selectedClass['monthly_fee'].toString()) ?? 900000;
+        final classFee = double.tryParse(selectedClass['monthly_fee'].toString()) ?? 900000;
         monthlyFeeController.text = classFee.toStringAsFixed(0);
         updateDiscountAmount();
-        print('  - Fee set to: $classFee');
       }
 
-      print('✅ Updated UI values:');
-      print('  - selectedClassName: ${selectedClassName.value}');
-      print('  - selectedTeacherName: ${selectedTeacherName.value}');
-      print('  - selectedClassRoom: ${selectedClassRoom.value}');
-    } else {
-      print('❌ Class not found in list!');
-      print('Available classes: ${classes.map((c) => c['id']).toList()}');
+      print('✅ Updated: ${selectedClassName.value} | ${selectedTeacherName.value} | ${selectedClassRoom.value}');
     }
-    print('====================================');
   }
 
-  // O'QITUVCHI ORQALI TANLASH
+  // ========== O'QITUVCHI ORQALI TANLASH ==========
   void selectTeacher(String? teacherId) {
-    print('🎯 ========== SELECT TEACHER ==========');
-    print('Selected Teacher ID: $teacherId');
-
+    print('🎯 SELECT TEACHER: $teacherId');
     selectedTeacherId.value = teacherId;
 
     if (teacherId == null) {
       _clearClassInfo();
-      print('⚠️ Teacher is null, cleared');
       return;
     }
 
     final teacher = teachers.firstWhereOrNull((t) => t['id'] == teacherId);
 
     if (teacher != null) {
-      print('📦 Teacher found:');
-      print('  - Name: ${teacher['full_name']}');
-      print('  - Class ID: ${teacher['class_id']}');
-      print('  - Class Name: ${teacher['class_name']}');
-      print('  - Room ID: ${teacher['room_id']}');
-      print('  - Room Name: ${teacher['room_name']}');
-
       selectedTeacherName.value = teacher['full_name'] ?? '';
 
       if (teacher['class_id'] != null) {
         selectedClassId.value = teacher['class_id'];
         selectedClassName.value = teacher['class_name'] ?? '';
 
-        final selectedClass = classes.firstWhereOrNull(
-          (c) => c['id'] == teacher['class_id'],
-        );
+        final selectedClass = classes.firstWhereOrNull((c) => c['id'] == teacher['class_id']);
         if (selectedClass != null) {
           selectedClassLevelId.value = selectedClass['class_level_id'];
-          print(
-            '  - Class Level ID set to: ${selectedClass['class_level_id']}',
-          );
         }
       }
 
@@ -439,54 +404,32 @@ class AddStudentController extends GetxController {
         selectedClassRoom.value = teacher['room_name'] ?? '';
       }
 
-      print('✅ Updated UI values:');
-      print('  - selectedTeacherName: ${selectedTeacherName.value}');
-      print('  - selectedClassName: ${selectedClassName.value}');
-      print('  - selectedClassRoom: ${selectedClassRoom.value}');
-    } else {
-      print('❌ Teacher not found in list!');
-      print('Available teachers: ${teachers.map((t) => t['id']).toList()}');
+      print('✅ Updated: ${selectedTeacherName.value} | ${selectedClassName.value} | ${selectedClassRoom.value}');
     }
-    print('======================================');
   }
 
-  // XONA ORQALI TANLASH
+  // ========== XONA ORQALI TANLASH ==========
   void selectRoom(String? roomId) {
-    print('🎯 ========== SELECT ROOM ==========');
-    print('Selected Room ID: $roomId');
-
+    print('🎯 SELECT ROOM: $roomId');
     selectedRoomId.value = roomId;
 
     if (roomId == null) {
       _clearClassInfo();
-      print('⚠️ Room is null, cleared');
       return;
     }
 
     final room = rooms.firstWhereOrNull((r) => r['id'] == roomId);
 
     if (room != null) {
-      print('📦 Room found:');
-      print('  - Name: ${room['name']}');
-      print('  - Class ID: ${room['class_id']}');
-      print('  - Class Name: ${room['class_name']}');
-      print('  - Teacher ID: ${room['teacher_id']}');
-      print('  - Teacher Name: ${room['teacher_name']}');
-
       selectedClassRoom.value = room['name'] ?? '';
 
       if (room['class_id'] != null) {
         selectedClassId.value = room['class_id'];
         selectedClassName.value = room['class_name'] ?? '';
 
-        final selectedClass = classes.firstWhereOrNull(
-          (c) => c['id'] == room['class_id'],
-        );
+        final selectedClass = classes.firstWhereOrNull((c) => c['id'] == room['class_id']);
         if (selectedClass != null) {
           selectedClassLevelId.value = selectedClass['class_level_id'];
-          print(
-            '  - Class Level ID set to: ${selectedClass['class_level_id']}',
-          );
         }
       }
 
@@ -495,22 +438,14 @@ class AddStudentController extends GetxController {
         selectedTeacherName.value = room['teacher_name'] ?? '';
       }
 
-      print('✅ Updated UI values:');
-      print('  - selectedClassRoom: ${selectedClassRoom.value}');
-      print('  - selectedClassName: ${selectedClassName.value}');
-      print('  - selectedTeacherName: ${selectedTeacherName.value}');
-    } else {
-      print('❌ Room not found in list!');
-      print('Available rooms: ${rooms.map((r) => r['id']).toList()}');
+      print('✅ Updated: ${selectedClassRoom.value} | ${selectedClassName.value} | ${selectedTeacherName.value}');
     }
-    print('===================================');
   }
 
   void _clearClassInfo() {
     selectedClassName.value = '';
     selectedTeacherName.value = '';
     selectedClassRoom.value = '';
-    print('🧹 Cleared class info');
   }
 
   // ========== VISITOR ==========
@@ -563,7 +498,6 @@ class AddStudentController extends GetxController {
   }
 
   // ========== SINF BOSHQARUVI ==========
-
   void changeSelectionMode(String mode) {
     selectionMode.value = mode;
     _clearSelection();
@@ -580,15 +514,11 @@ class AddStudentController extends GetxController {
     selectedClassRoom.value = '';
   }
 
-  // SINF ORQALI TANLASH
-
   // ========== TUG'ILGAN SANA ==========
   Future<void> selectBirthDate(BuildContext context) async {
     final picked = await showDatePicker(
       context: context,
-      initialDate:
-          birthDate.value ??
-          DateTime.now().subtract(const Duration(days: 365 * 7)),
+      initialDate: birthDate.value ?? DateTime.now().subtract(const Duration(days: 365 * 7)),
       firstDate: DateTime(2000),
       lastDate: DateTime.now(),
       builder: (context, child) {
@@ -668,19 +598,14 @@ class AddStudentController extends GetxController {
     try {
       isUploadingImage.value = true;
 
-      final fileName =
-          'student_${studentId}_${DateTime.now().millisecondsSinceEpoch}.jpg';
+      final fileName = 'student_${studentId}_${DateTime.now().millisecondsSinceEpoch}.jpg';
       final filePath = 'students/$fileName';
 
       final bytes = await selectedImage.value!.readAsBytes();
 
-      await Supabase.instance.client.storage
-          .from('student-photos')
-          .uploadBinary(filePath, bytes);
+      await Supabase.instance.client.storage.from('student-photos').uploadBinary(filePath, bytes);
 
-      final url = Supabase.instance.client.storage
-          .from('student-photos')
-          .getPublicUrl(filePath);
+      final url = Supabase.instance.client.storage.from('student-photos').getPublicUrl(filePath);
 
       return url;
     } catch (e) {
@@ -694,11 +619,9 @@ class AddStudentController extends GetxController {
 
   // ========== MOLIYAVIY ==========
   void updateDiscountAmount() {
-    final fee =
-        double.tryParse(
+    final fee = double.tryParse(
           monthlyFeeController.text.replaceAll(',', '').replaceAll(' ', ''),
-        ) ??
-        0;
+        ) ?? 0;
     final percent = double.tryParse(discountPercentController.text) ?? 0;
 
     final discount = fee * (percent / 100);
@@ -738,9 +661,7 @@ class AddStudentController extends GetxController {
         parentPhoneSecondary: parentPhone2Controller.text.trim(),
         parentWorkplace: parentWorkplaceController.text.trim(),
         parentRelation: parentRelation.value,
-        monthlyFee:
-            double.tryParse(monthlyFeeController.text.replaceAll(',', '')) ??
-            0.0,
+        monthlyFee: double.tryParse(monthlyFeeController.text.replaceAll(',', '')) ?? 0.0,
         discountPercent: double.tryParse(discountPercentController.text) ?? 0.0,
         discountAmount: double.tryParse(discountAmountController.text) ?? 0.0,
         discountReason: discountReasonController.text.trim(),
@@ -752,11 +673,10 @@ class AddStudentController extends GetxController {
       );
 
       if (student != null) {
-        // Rasmni yuklash
         if (selectedImage.value != null) {
           final imageUrl = await _uploadImage(student.id);
           if (imageUrl != null) {
-            await _studentRepo.updateStudent(studentId: student.id);
+            await _studentRepo.updateStudent(studentId: student.id, photoUrl: imageUrl);
           }
         }
 

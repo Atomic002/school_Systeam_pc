@@ -82,4 +82,6 @@ class ExpenseCategory {
     required this.color,
     required this.subCategories,
   });
+
+  static getCategoryById(String key) {}
 }

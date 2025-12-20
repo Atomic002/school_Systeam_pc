@@ -52,26 +52,7 @@ class Sidebar extends StatelessWidget {
                   route: AppRoutes.branches,
                 ),
 
-                // YANGI: O'quv jarayoni
-                _buildMenuSection('O\'quv jarayoni'),
-                _buildMenuItem(
-                  icon: Icons.book_outlined,
-                  activeIcon: Icons.book,
-                  title: 'Fanlar',
-                  route: AppRoutes.subjects,
-                ),
-                _buildMenuItem(
-                  icon: Icons.stairs_outlined,
-                  activeIcon: Icons.stairs,
-                  title: 'Sinf darajalari',
-                  route: AppRoutes.classLevels,
-                ),
-                _buildMenuItem(
-                  icon: Icons.school_outlined,
-                  activeIcon: Icons.school,
-                  title: 'O\'qituvchi fanlari',
-                  route: AppRoutes.teacherSubjects,
-                ),
+             
 
                 // Moliya bo'limi
                 _buildMenuSection('Moliya'),
@@ -185,6 +166,39 @@ class Sidebar extends StatelessWidget {
                   title: 'Yangi sinf',
                   route: AppRoutes.addClass,
                 ),
+                   // YANGI: O'quv jarayoni
+                _buildMenuSection('O\'quv jarayoni'),
+                _buildMenuItem(
+                  icon: Icons.book_outlined,
+                  activeIcon: Icons.book,
+                  title: 'Fanlar',
+                  route: AppRoutes.subjects,
+                ),
+                _buildMenuItem(
+                  icon: Icons.stairs_outlined,
+                  activeIcon: Icons.stairs,
+                  title: 'Sinf darajalari',
+                  route: AppRoutes.classLevels,
+                ),
+                _buildMenuItem(
+                  icon: Icons.school_outlined,
+                  activeIcon: Icons.school,
+                  title: 'O\'qituvchi fanlari',
+                  route: AppRoutes.teacherSubjects,
+                ),
+                 _buildMenuSection('Sozlamalar'),
+    _buildMenuItem(
+      icon: Icons.school_outlined,
+      activeIcon: Icons.school,
+      title: 'O\'quv yillari',
+      route: AppRoutes.academicYears,
+    ),
+    _buildMenuItem(
+      icon: Icons.settings_outlined,
+      activeIcon: Icons.settings,
+      title: 'Tizim sozlamalari',
+      route: AppRoutes.systemSettings,
+    ),
               ],
             ),
           ),

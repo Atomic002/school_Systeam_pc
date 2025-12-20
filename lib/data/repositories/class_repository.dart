@@ -1,117 +1,136 @@
-// lib/data/repositories/class_repository.dart
+// lib/data/repositories/class_repository.dart - YAKUNIY TUZATILGAN
+
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class ClassRepository {
   final _supabase = Supabase.instance.client;
 
-  // ==================== SINF DARAJALARI ====================
-
-  /// Barcha sinf daraja larini olish (1-sinf, 2-sinf, ...)
+  /// Sinf darajalarini olish
   Future<List<Map<String, dynamic>>> getClassLevels() async {
     try {
+      print('🔄 Fetching class levels...');
+
       final response = await _supabase
           .from('class_levels')
-          .select('id, level_name, level_number, description')
-          .order('level_number');
+          .select('id, name, order_number')
+          .eq('is_active', true)
+          .order('order_number');
 
-      print('✅ Class Levels: ${response.length}');
-      return List<Map<String, dynamic>>.from(response);
+      print('✅ Class levels fetched: ${response.length}');
+
+      return response
+          .map<Map<String, dynamic>>((item) => {
+                'id': item['id'] as String,
+                'name': item['name'] as String,
+                'order_number': item['order_number'] as int,
+              })
+          .toList();
     } catch (e) {
       print('❌ getClassLevels error: $e');
       return [];
     }
   }
 
-  // ==================== SINFLAR ====================
-
-  /// Filialning barcha sinflarini olish
-  Future<List<Map<String, dynamic>>> getClasses(String branchId) async {
-    try {
-      final response = await _supabase
-          .from('classes')
-          .select('id, name, class_level_id, capacity, is_active')
-          .eq('branch_id', branchId)
-          .eq('is_active', true)
-          .order('name');
-
-      return List<Map<String, dynamic>>.from(response);
-    } catch (e) {
-      print('getClasses error: $e');
-      return [];
-    }
-  }
-
-  /// Sinflarni to'liq ma'lumotlar bilan olish (o'qituvchi, xona, va h.k.)
+  /// Sinflarni BATAFSIL olish - HAR BIR SINF UCHUN ALOHIDA SO'ROVLAR
   Future<List<Map<String, dynamic>>> getClassesWithDetails(
     String branchId,
   ) async {
     try {
-      print('🔍 Loading classes for branch: $branchId');
+      print('🔄 ========== LOADING CLASSES ==========');
+      print('Branch ID: $branchId');
 
-      final response = await _supabase
+      // 1. Faqat sinflarni olish
+      final classesResponse = await _supabase
           .from('classes')
-          .select('''
-          id,
-          name,
-          class_level_id,
-          capacity,
-          monthly_fee,
-          is_active,
-          default_room_id,
-          main_teacher_id,
-          class_levels:class_level_id (
-            level_name,
-            level_number
-          ),
-          rooms:default_room_id (
-            name,
-            room_number
-          ),
-          users:main_teacher_id (
-            first_name,
-            last_name
-          )
-        ''')
+          .select('id, name, code, class_level_id, main_teacher_id, default_room_id, monthly_fee, max_students')
           .eq('branch_id', branchId)
           .eq('is_active', true)
           .order('name');
 
-      print('📦 Classes raw response: $response');
+      print('📦 Classes raw: ${classesResponse.length}');
 
-      // Ma'lumotlarni flatten qilish
-      final classes = <Map<String, dynamic>>[];
-
-      for (var classData in response) {
-        final classLevel = classData['class_levels'] as Map<String, dynamic>?;
-        final room = classData['rooms'] as Map<String, dynamic>?;
-        final teacher = classData['users'] as Map<String, dynamic>?;
-
-        final processedClass = {
-          'id': classData['id'],
-          'name': classData['name'],
-          'class_level_id': classData['class_level_id'],
-          'capacity': classData['capacity'],
-          'monthly_fee': classData['monthly_fee'],
-          'is_active': classData['is_active'],
-          'default_room_id': classData['default_room_id'],
-          'main_teacher_id': classData['main_teacher_id'],
-          // Flatten qilingan ma'lumotlar
-          'level_name': classLevel?['level_name'],
-          'level_number': classLevel?['level_number'],
-          'room': room?['name'] ?? room?['room_number'] ?? '',
-          'teacher': teacher != null
-              ? '${teacher['last_name']} ${teacher['first_name']}'
-              : '',
-        };
-
-        classes.add(processedClass);
-
-        print('  📌 Class: ${processedClass['name']}');
-        print('     - Teacher: ${processedClass['teacher']}');
-        print('     - Room: ${processedClass['room']}');
+      if (classesResponse.isEmpty) {
+        print('⚠️ No classes found for this branch');
+        return [];
       }
 
-      print('✅ Loaded ${classes.length} classes');
+      final List<Map<String, dynamic>> classes = [];
+
+      // 2. Har bir sinf uchun to'liq ma'lumotlarni yig'ish
+      for (var classData in classesResponse) {
+        final Map<String, dynamic> processedClass = {
+          'id': classData['id'],
+          'name': classData['name'],
+          'code': classData['code'],
+          'class_level_id': classData['class_level_id'],
+          'main_teacher_id': classData['main_teacher_id'],
+          'default_room_id': classData['default_room_id'],
+          'monthly_fee': classData['monthly_fee'],
+          'max_students': classData['max_students'],
+          'teacher': 'Tayinlanmagan',
+          'room': 'Tayinlanmagan',
+        };
+
+        // Sinf darajasini olish
+        if (classData['class_level_id'] != null) {
+          try {
+            final levelResponse = await _supabase
+                .from('class_levels')
+                .select('name, order_number')
+                .eq('id', classData['class_level_id'])
+                .maybeSingle();
+
+            if (levelResponse != null) {
+              processedClass['class_level_name'] = levelResponse['name'];
+              processedClass['class_level_order'] = levelResponse['order_number'];
+            }
+          } catch (e) {
+            print('⚠️ Level fetch error: $e');
+          }
+        }
+
+        // O'qituvchini olish (staff jadvalidan)
+        if (classData['main_teacher_id'] != null) {
+          try {
+            final teacherResponse = await _supabase
+                .from('staff')
+                .select('first_name, last_name, middle_name')
+                .eq('id', classData['main_teacher_id'])
+                .maybeSingle();
+
+            if (teacherResponse != null) {
+              processedClass['teacher'] = '${teacherResponse['last_name']} ${teacherResponse['first_name']} ${teacherResponse['middle_name'] ?? ''}'.trim();
+              processedClass['teacher_first_name'] = teacherResponse['first_name'];
+              processedClass['teacher_last_name'] = teacherResponse['last_name'];
+            }
+          } catch (e) {
+            print('⚠️ Teacher fetch error: $e');
+          }
+        }
+
+        // Xonani olish
+        if (classData['default_room_id'] != null) {
+          try {
+            final roomResponse = await _supabase
+                .from('rooms')
+                .select('name, capacity')
+                .eq('id', classData['default_room_id'])
+                .maybeSingle();
+
+            if (roomResponse != null) {
+              processedClass['room'] = roomResponse['name'];
+              processedClass['room_capacity'] = roomResponse['capacity'];
+            }
+          } catch (e) {
+            print('⚠️ Room fetch error: $e');
+          }
+        }
+
+        classes.add(processedClass);
+        print('✅ ${processedClass['name']}: ${processedClass['teacher']} | ${processedClass['room']}');
+      }
+
+      print('✅ ========== LOADED ${classes.length} CLASSES ==========\n');
       return classes;
     } catch (e) {
       print('❌ getClassesWithDetails error: $e');
@@ -119,73 +138,77 @@ class ClassRepository {
     }
   }
 
-  // ==================== O'QITUVCHILAR ====================
-
-  /// Filialning barcha o'qituvchilarini olish
+  /// O'qituvchilarni BATAFSIL olish
   Future<List<Map<String, dynamic>>> getTeachers(String branchId) async {
     try {
-      print('🔍 Loading teachers for branch: $branchId');
+      print('🔄 ========== LOADING TEACHERS ==========');
+      print('Branch ID: $branchId');
 
-      // 1. Barcha faol xodimlarni olish
+      // 1. Faol o'qituvchilarni olish
       final staffResponse = await _supabase
           .from('staff')
-          .select('id, first_name, last_name, middle_name, phone')
+          .select('id, first_name, last_name, middle_name, phone, position')
           .eq('branch_id', branchId)
-          .eq('is_active', true)
+          .eq('is_teacher', true)
           .eq('status', 'active')
           .order('last_name');
 
-      print('📦 Staff response: ${staffResponse.length}');
+      print('📦 Teachers raw: ${staffResponse.length}');
+
+      if (staffResponse.isEmpty) {
+        print('⚠️ No teachers found');
+        return [];
+      }
 
       final List<Map<String, dynamic>> teachers = [];
 
       for (var staff in staffResponse) {
-        final teacherMap = Map<String, dynamic>.from(staff);
+        final Map<String, dynamic> teacher = {
+          'id': staff['id'],
+          'first_name': staff['first_name'],
+          'last_name': staff['last_name'],
+          'middle_name': staff['middle_name'],
+          'phone': staff['phone'],
+          'position': staff['position'],
+          'full_name': '${staff['last_name']} ${staff['first_name']} ${staff['middle_name'] ?? ''}'.trim(),
+        };
 
-        teacherMap['full_name'] =
-            '${teacherMap['last_name']} ${teacherMap['first_name']} ${teacherMap['middle_name'] ?? ''}'
-                .trim();
-
-        // Bu o'qituvchining sinfini topish
+        // O'qituvchining sinfini topish
         try {
           final classResponse = await _supabase
               .from('classes')
               .select('id, name, default_room_id')
-              .eq('main_teacher_id', teacherMap['id'])
+              .eq('main_teacher_id', staff['id'])
               .eq('is_active', true)
               .maybeSingle();
 
           if (classResponse != null) {
-            teacherMap['class_id'] = classResponse['id'];
-            teacherMap['class_name'] = classResponse['name'];
+            teacher['class_id'] = classResponse['id'];
+            teacher['class_name'] = classResponse['name'];
 
-            // Sinf xonasini olish
+            // Xonani olish
             if (classResponse['default_room_id'] != null) {
               final roomResponse = await _supabase
                   .from('rooms')
-                  .select('id, name, room_number')
+                  .select('name')
                   .eq('id', classResponse['default_room_id'])
                   .maybeSingle();
 
               if (roomResponse != null) {
-                teacherMap['room_id'] = roomResponse['id'];
-                teacherMap['room_name'] =
-                    roomResponse['name'] ?? roomResponse['room_number'];
+                teacher['room_id'] = classResponse['default_room_id'];
+                teacher['room_name'] = roomResponse['name'];
               }
             }
           }
         } catch (e) {
-          print('⚠️ No class found for teacher: ${teacherMap['full_name']}');
+          print('⚠️ Class fetch error for ${teacher['full_name']}: $e');
         }
 
-        teachers.add(teacherMap);
-
-        print('  📌 Teacher: ${teacherMap['full_name']}');
-        print('     - Class: ${teacherMap['class_name'] ?? 'Yo\'q'}');
-        print('     - Room: ${teacherMap['room_name'] ?? 'Yo\'q'}');
+        teachers.add(teacher);
+        print('✅ ${teacher['full_name']}: ${teacher['class_name'] ?? 'Yo\'q'}');
       }
 
-      print('✅ Loaded ${teachers.length} teachers');
+      print('✅ ========== LOADED ${teachers.length} TEACHERS ==========\n');
       return teachers;
     } catch (e) {
       print('❌ getTeachers error: $e');
@@ -193,67 +216,74 @@ class ClassRepository {
     }
   }
 
-  // ==================== XONALAR ====================
-
-  /// Filialning barcha xonalarini olish
+  /// Xonalarni BATAFSIL olish
   Future<List<Map<String, dynamic>>> getRooms(String branchId) async {
     try {
-      print('🔍 Loading rooms for branch: $branchId');
+      print('🔄 ========== LOADING ROOMS ==========');
+      print('Branch ID: $branchId');
 
+      // 1. Xonalarni olish
       final roomsResponse = await _supabase
           .from('rooms')
-          .select('id, name, room_number, capacity, floor, room_type')
+          .select('id, name, capacity, floor, room_type')
           .eq('branch_id', branchId)
           .eq('is_active', true)
           .order('name');
 
-      print('📦 Rooms response: ${roomsResponse.length}');
+      print('📦 Rooms raw: ${roomsResponse.length}');
+
+      if (roomsResponse.isEmpty) {
+        print('⚠️ No rooms found');
+        return [];
+      }
 
       final List<Map<String, dynamic>> rooms = [];
 
-      for (var room in roomsResponse) {
-        final roomMap = Map<String, dynamic>.from(room);
+      for (var roomData in roomsResponse) {
+        final Map<String, dynamic> room = {
+          'id': roomData['id'],
+          'name': roomData['name'],
+          'capacity': roomData['capacity'],
+          'floor': roomData['floor'],
+          'room_type': roomData['room_type'],
+        };
 
-        // Bu xonada qaysi sinf ekanligini topish
+        // Xonadagi sinfni topish
         try {
           final classResponse = await _supabase
               .from('classes')
               .select('id, name, main_teacher_id')
-              .eq('default_room_id', roomMap['id'])
+              .eq('default_room_id', roomData['id'])
               .eq('is_active', true)
               .maybeSingle();
 
           if (classResponse != null) {
-            roomMap['class_id'] = classResponse['id'];
-            roomMap['class_name'] = classResponse['name'];
+            room['class_id'] = classResponse['id'];
+            room['class_name'] = classResponse['name'];
 
-            // Sinf o'qituvchisini olish
+            // O'qituvchini olish
             if (classResponse['main_teacher_id'] != null) {
               final teacherResponse = await _supabase
                   .from('staff')
-                  .select('id, first_name, last_name')
+                  .select('first_name, last_name')
                   .eq('id', classResponse['main_teacher_id'])
                   .maybeSingle();
 
               if (teacherResponse != null) {
-                roomMap['teacher_id'] = teacherResponse['id'];
-                roomMap['teacher_name'] =
-                    '${teacherResponse['last_name']} ${teacherResponse['first_name']}';
+                room['teacher_id'] = classResponse['main_teacher_id'];
+                room['teacher_name'] = '${teacherResponse['last_name']} ${teacherResponse['first_name']}';
               }
             }
           }
         } catch (e) {
-          print('⚠️ No class found for room: ${roomMap['name']}');
+          print('⚠️ Class fetch error for ${room['name']}: $e');
         }
 
-        rooms.add(roomMap);
-
-        print('  📌 Room: ${roomMap['name']}');
-        print('     - Class: ${roomMap['class_name'] ?? 'Yo\'q'}');
-        print('     - Teacher: ${roomMap['teacher_name'] ?? 'Yo\'q'}');
+        rooms.add(room);
+        print('✅ ${room['name']}: ${room['class_name'] ?? 'Yo\'q'}');
       }
 
-      print('✅ Loaded ${rooms.length} rooms');
+      print('✅ ========== LOADED ${rooms.length} ROOMS ==========\n');
       return rooms;
     } catch (e) {
       print('❌ getRooms error: $e');
@@ -266,351 +296,14 @@ class ClassRepository {
     try {
       final response = await _supabase
           .from('classes')
-          .select('''
-          id,
-          name,
-          branch_id,
-          class_level_id,
-          capacity,
-          monthly_fee,
-          is_active,
-          default_room_id,
-          main_teacher_id,
-          description,
-          created_at,
-          class_levels:class_level_id (
-            level_name,
-            level_number
-          ),
-          rooms:default_room_id (
-            name,
-            room_number,
-            capacity
-          ),
-          users:main_teacher_id (
-            id,
-            first_name,
-            last_name,
-            phone
-          )
-        ''')
+          .select('*')
           .eq('id', classId)
           .maybeSingle();
 
-      if (response == null) return null;
-
-      // Ma'lumotlarni flatten qilish
-      final classLevel = response['class_levels'] as Map<String, dynamic>?;
-      final room = response['rooms'] as Map<String, dynamic>?;
-      final teacher = response['users'] as Map<String, dynamic>?;
-
-      return {
-        ...response,
-        'level_name': classLevel?['level_name'],
-        'level_number': classLevel?['level_number'],
-        'room_name': room?['name'],
-        'room_number': room?['room_number'],
-        'room_capacity': room?['capacity'],
-        'teacher_name': teacher != null
-            ? '${teacher['last_name']} ${teacher['first_name']}'
-            : null,
-        'teacher_phone': teacher?['phone'],
-      };
+      return response;
     } catch (e) {
-      print('getClassById error: $e');
+      print('❌ getClassById error: $e');
       return null;
-    }
-  }
-
-  // ==================== SINF YARATISH VA YANGILASH ====================
-
-  /// Yangi sinf yaratish
-  Future<Map<String, dynamic>?> createClass({
-    required String branchId,
-    required String name,
-    required String classLevelId,
-    int? capacity,
-    double? monthlyFee,
-    String? defaultRoomId,
-    String? mainTeacherId,
-    String? description,
-  }) async {
-    try {
-      final data = {
-        'branch_id': branchId,
-        'name': name,
-        'class_level_id': classLevelId,
-        'capacity': capacity ?? 30,
-        'monthly_fee': monthlyFee ?? 900000,
-        'default_room_id': defaultRoomId,
-        'main_teacher_id': mainTeacherId,
-        'description': description,
-        'is_active': true,
-      };
-
-      final response = await _supabase
-          .from('classes')
-          .insert(data)
-          .select()
-          .single();
-
-      return response;
-    } catch (e) {
-      print('createClass error: $e');
-      throw Exception('Sinf yaratishda xatolik: $e');
-    }
-  }
-
-  /// Sinfni yangilash
-  Future<bool> updateClass({
-    required String classId,
-    String? name,
-    String? classLevelId,
-    int? capacity,
-    double? monthlyFee,
-    String? defaultRoomId,
-    String? mainTeacherId,
-    String? description,
-    bool? isActive,
-  }) async {
-    try {
-      final Map<String, dynamic> updates = {};
-
-      if (name != null) updates['name'] = name;
-      if (classLevelId != null) updates['class_level_id'] = classLevelId;
-      if (capacity != null) updates['capacity'] = capacity;
-      if (monthlyFee != null) updates['monthly_fee'] = monthlyFee;
-      if (defaultRoomId != null) updates['default_room_id'] = defaultRoomId;
-      if (mainTeacherId != null) updates['main_teacher_id'] = mainTeacherId;
-      if (description != null) updates['description'] = description;
-      if (isActive != null) updates['is_active'] = isActive;
-
-      updates['updated_at'] = DateTime.now().toIso8601String();
-
-      await _supabase.from('classes').update(updates).eq('id', classId);
-
-      return true;
-    } catch (e) {
-      print('updateClass error: $e');
-      throw Exception('Sinfni yangilashda xatolik: $e');
-    }
-  }
-
-  /// Sinfni o'chirish (soft delete)
-  Future<bool> deleteClass(String classId) async {
-    try {
-      await _supabase
-          .from('classes')
-          .update({
-            'is_active': false,
-            'updated_at': DateTime.now().toIso8601String(),
-          })
-          .eq('id', classId);
-
-      return true;
-    } catch (e) {
-      print('deleteClass error: $e');
-      throw Exception('Sinfni o\'chirishda xatolik: $e');
-    }
-  }
-
-  // ==================== SINF O'QUVCHILARI ====================
-
-  /// Sinf o'quvchilarini olish
-  Future<List<Map<String, dynamic>>> getClassStudents(String classId) async {
-    try {
-      final response = await _supabase
-          .from('enrollments')
-          .select('''
-          id,
-          enrolled_at,
-          is_active,
-          students:student_id (
-            id,
-            first_name,
-            last_name,
-            middle_name,
-            phone,
-            status,
-            monthly_fee
-          )
-        ''')
-          .eq('class_id', classId)
-          .eq('is_active', true)
-          .order('enrolled_at');
-
-      final students = <Map<String, dynamic>>[];
-
-      for (var enrollment in response) {
-        final student = enrollment['students'] as Map<String, dynamic>?;
-        if (student != null) {
-          students.add({
-            'enrollment_id': enrollment['id'],
-            'enrolled_at': enrollment['enrolled_at'],
-            'student_id': student['id'],
-            'first_name': student['first_name'],
-            'last_name': student['last_name'],
-            'middle_name': student['middle_name'],
-            'phone': student['phone'],
-            'status': student['status'],
-            'monthly_fee': student['monthly_fee'],
-            'full_name':
-                '${student['last_name']} ${student['first_name']} ${student['middle_name'] ?? ''}',
-          });
-        }
-      }
-
-      return students;
-    } catch (e) {
-      print('getClassStudents error: $e');
-      return [];
-    }
-  }
-
-  /// Sinf o'quvchilari sonini olish
-  Future<int> getClassStudentsCount(String classId) async {
-    try {
-      final response = await _supabase
-          .from('enrollments')
-          .select('id')
-          .eq('class_id', classId)
-          .eq('is_active', true);
-
-      return (response as List).length;
-    } catch (e) {
-      print('getClassStudentsCount error: $e');
-      return 0;
-    }
-  }
-
-  // ==================== SINF STATISTIKASI ====================
-
-  /// Sinf statistikasi
-  Future<Map<String, dynamic>> getClassStatistics(String classId) async {
-    try {
-      // O'quvchilar soni
-      final studentsCount = await getClassStudentsCount(classId);
-
-      // Sinf ma'lumotlari
-      final classData = await getClassById(classId);
-      final capacity = classData?['capacity'] ?? 30;
-
-      // To'lovlar statistikasi (joriy oy)
-      final now = DateTime.now();
-      final startOfMonth = DateTime(now.year, now.month, 1);
-
-      final paymentsResponse = await _supabase
-          .from('payments')
-          .select('amount, status')
-          .eq('class_id', classId)
-          .gte('payment_date', startOfMonth.toIso8601String());
-
-      double totalPaid = 0;
-      double totalPending = 0;
-
-      for (var payment in paymentsResponse) {
-        final amount = (payment['amount'] as num?)?.toDouble() ?? 0;
-        if (payment['status'] == 'paid') {
-          totalPaid += amount;
-        } else {
-          totalPending += amount;
-        }
-      }
-
-      return {
-        'students_count': studentsCount,
-        'capacity': capacity,
-        'available_seats': capacity - studentsCount,
-        'occupancy_rate': capacity > 0 ? (studentsCount / capacity * 100) : 0,
-        'monthly_paid': totalPaid,
-        'monthly_pending': totalPending,
-      };
-    } catch (e) {
-      print('getClassStatistics error: $e');
-      return {
-        'students_count': 0,
-        'capacity': 0,
-        'available_seats': 0,
-        'occupancy_rate': 0,
-        'monthly_paid': 0,
-        'monthly_pending': 0,
-      };
-    }
-  }
-
-  // ==================== SINF DARAJALARI BILAN ISHLASH ====================
-
-  /// Sinf darajasini yaratish
-  Future<Map<String, dynamic>?> createClassLevel({
-    required String levelName,
-    required int levelNumber,
-    String? description,
-  }) async {
-    try {
-      final data = {
-        'level_name': levelName,
-        'level_number': levelNumber,
-        'description': description,
-      };
-
-      final response = await _supabase
-          .from('class_levels')
-          .insert(data)
-          .select()
-          .single();
-
-      return response;
-    } catch (e) {
-      print('createClassLevel error: $e');
-      throw Exception('Sinf darajasini yaratishda xatolik: $e');
-    }
-  }
-
-  /// Sinf darajasini yangilash
-  Future<bool> updateClassLevel({
-    required String levelId,
-    String? levelName,
-    int? levelNumber,
-    String? description,
-  }) async {
-    try {
-      final Map<String, dynamic> updates = {};
-
-      if (levelName != null) updates['level_name'] = levelName;
-      if (levelNumber != null) updates['level_number'] = levelNumber;
-      if (description != null) updates['description'] = description;
-
-      await _supabase.from('class_levels').update(updates).eq('id', levelId);
-
-      return true;
-    } catch (e) {
-      print('updateClassLevel error: $e');
-      throw Exception('Sinf darajasini yangilashda xatolik: $e');
-    }
-  }
-
-  /// Sinf darajasini o'chirish
-  Future<bool> deleteClassLevel(String levelId) async {
-    try {
-      // Tekshirish: bu darajada sinflar bor-yo'qligini
-      final classesResponse = await _supabase
-          .from('classes')
-          .select('id')
-          .eq('class_level_id', levelId)
-          .limit(1);
-
-      if (classesResponse.isNotEmpty) {
-        throw Exception(
-          'Bu sinf darajasida sinflar mavjud. Avval sinflarni o\'chiring.',
-        );
-      }
-
-      await _supabase.from('class_levels').delete().eq('id', levelId);
-
-      return true;
-    } catch (e) {
-      print('deleteClassLevel error: $e');
-      throw Exception('Sinf darajasini o\'chirishda xatolik: $e');
     }
   }
 }

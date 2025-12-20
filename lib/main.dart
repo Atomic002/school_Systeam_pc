@@ -5,6 +5,9 @@ import 'package:get/get.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:intl/date_symbol_data_local.dart';
 
+// YANGI QO'SHILGAN IMPORT (Xatoni tuzatish uchun kerak)
+import 'package:flutter_localizations/flutter_localizations.dart';
+
 import 'config/supabase_config.dart';
 import 'config/app_routes.dart';
 import 'config/app_bindings.dart';
@@ -38,6 +41,22 @@ class SchoolSystemApp extends StatelessWidget {
       // GLOBAL bindlar (SupabaseService, AuthController va h.k.)
       initialBinding: AppBindings(),
 
+      // ========================================================
+      // 1. LOCALIZATION SOZLAMALARI (DatePicker xatosini tuzatadi)
+      // ========================================================
+      localizationsDelegates: const [
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+      supportedLocales: const [
+        Locale('uz', 'UZ'), // O'zbek tili
+        Locale('en', 'US'), // Ingliz tili
+        Locale('ru', 'RU'), // Rus tili
+      ],
+      // ========================================================
+
+      // Asosiy til
       locale: const Locale('uz', 'UZ'),
 
       theme: AppTheme.lightTheme,

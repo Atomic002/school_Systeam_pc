@@ -164,7 +164,9 @@ class StudentDetailController extends GetxController {
       print('Load enrollment error: $e');
     }
   }
-
+void showStudentDetails(String studentId) {
+  Get.toNamed('/student-detail', arguments: {'studentId': studentId});
+}
   // ==================== TO'LOVLAR TARIXI ====================
   Future<void> loadPaymentHistory() async {
     if (studentId == null) return;

@@ -36,17 +36,21 @@ class BranchController extends GetxController {
     try {
       isLoading.value = true;
 
-      final result = await _repository.getAllBranches();
+      // Repository'dan to'liq statistika bilan filiallarni olamiz
+      final result = await _repository.getAllBranchesWithStats();
 
-      branches.value = result.cast<BranchModel>();
-      filteredBranches.value = result.cast<BranchModel>();
+      branches.value = result;
+      filteredBranches.value = result;
 
       _calculateStatistics();
     } catch (e) {
+      print('❌ loadBranches error: $e');
       Get.snackbar(
         'Xatolik',
         'Filiallarni yuklashda xatolik: $e',
         snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
         duration: const Duration(seconds: 3),
       );
     } finally {
@@ -85,10 +89,13 @@ class BranchController extends GetxController {
         selectedBranch.value = branch;
       }
     } catch (e) {
+      print('❌ loadBranchDetails error: $e');
       Get.snackbar(
         'Xatolik',
         'Filial ma\'lumotlarini yuklashda xatolik: $e',
         snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
       );
     } finally {
       isLoading.value = false;
@@ -103,9 +110,8 @@ class BranchController extends GetxController {
       final result = await _repository.createBranch(branch);
 
       if (result != null) {
-        branches.add(result);
-        filteredBranches.add(result);
-        _calculateStatistics();
+        // Yangi filial qo'shilgandan keyin barcha filiallarni qayta yuklash
+        await loadBranches();
 
         Get.back();
         Get.snackbar(
@@ -114,15 +120,18 @@ class BranchController extends GetxController {
           snackPosition: SnackPosition.BOTTOM,
           backgroundColor: const Color(0xFF4CAF50),
           colorText: Colors.white,
+          duration: const Duration(seconds: 2),
         );
       }
     } catch (e) {
+      print('❌ addBranch error: $e');
       Get.snackbar(
         'Xatolik',
         'Filial qo\'shishda xatolik: $e',
         snackPosition: SnackPosition.BOTTOM,
         backgroundColor: const Color(0xFFF44336),
         colorText: Colors.white,
+        duration: const Duration(seconds: 3),
       );
     } finally {
       isLoading.value = false;
@@ -137,21 +146,8 @@ class BranchController extends GetxController {
       final result = await _repository.updateBranch(id, branch);
 
       if (result != null) {
-        final index = branches.indexWhere((b) => b.id == id);
-        if (index != -1) {
-          branches[index] = result;
-
-          final filteredIndex = filteredBranches.indexWhere((b) => b.id == id);
-          if (filteredIndex != -1) {
-            filteredBranches[filteredIndex] = result;
-          }
-        }
-
-        if (selectedBranch.value?.id == id) {
-          selectedBranch.value = result;
-        }
-
-        _calculateStatistics();
+        // Yangilangandan keyin barcha filiallarni qayta yuklash
+        await loadBranches();
 
         Get.back();
         Get.snackbar(
@@ -160,15 +156,18 @@ class BranchController extends GetxController {
           snackPosition: SnackPosition.BOTTOM,
           backgroundColor: const Color(0xFF4CAF50),
           colorText: Colors.white,
+          duration: const Duration(seconds: 2),
         );
       }
     } catch (e) {
+      print('❌ updateBranch error: $e');
       Get.snackbar(
         'Xatolik',
         'Filialni yangilashda xatolik: $e',
         snackPosition: SnackPosition.BOTTOM,
         backgroundColor: const Color(0xFFF44336),
         colorText: Colors.white,
+        duration: const Duration(seconds: 3),
       );
     } finally {
       isLoading.value = false;
@@ -209,6 +208,7 @@ class BranchController extends GetxController {
         );
       }
     } catch (e) {
+      print('❌ toggleBranchStatus error: $e');
       Get.snackbar(
         'Xatolik',
         'Statusni o\'zgartirishda xatolik: $e',
@@ -261,6 +261,7 @@ class BranchController extends GetxController {
         );
       }
     } catch (e) {
+      print('❌ deleteBranch error: $e');
       Get.back();
       Get.snackbar(
         'Xatolik',
@@ -311,8 +312,8 @@ class BranchController extends GetxController {
     return branches.reduce(
       (current, next) =>
           (current.totalStudents ?? 0) > (next.totalStudents ?? 0)
-          ? current
-          : next,
+              ? current
+              : next,
     );
   }
 
@@ -323,8 +324,8 @@ class BranchController extends GetxController {
     return branches.reduce(
       (current, next) =>
           (current.yearlyRevenue ?? 0) > (next.yearlyRevenue ?? 0)
-          ? current
-          : next,
+              ? current
+              : next,
     );
   }
 

@@ -601,7 +601,7 @@ class StudentsListScreen extends StatelessWidget {
                       SizedBox(height: 6),
                       _buildInfoRow(
                         Icons.attach_money,
-                        '${_formatCurrency(student.finalMonthlyFee)} so\'m',
+                        '${_formatCurrency((student.finalMonthlyFee ?? 0).toDouble())} so\'m',
                         cardColor,
                       ),
 

@@ -1,12 +1,18 @@
-// lib/presentation/controllers/staff_attendance_controller.dart
-// XODIMLAR DAVOMATI CONTROLLER - TO'LIQ FUNKSIONAL
+// lib/presentation/controllers/staff_attandance.dart
+// XODIMLAR DAVOMATI CONTROLLER - BARCHA PLATFORMALAR UCHUN
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:intl/intl.dart';
-import 'dart:html' as html;
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
 import 'dart:convert';
+import 'dart:io' as io;
+import 'package:path_provider/path_provider.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:universal_html/html.dart' as html;
 
 class StaffAttendanceController extends GetxController {
   final _supabase = Supabase.instance.client;
@@ -65,14 +71,10 @@ class StaffAttendanceController extends GetxController {
       isLoading.value = true;
 
       // Xodimlarni yuklash
-      var staffQuery = _supabase
-          .from('staff')
-          .select('''
+      var staffQuery = _supabase.from('staff').select('''
             *,
             branches:branch_id(name)
-          ''')
-          .eq('status', 'active')
-          .order('last_name');
+          ''').eq('status', 'active').order('last_name');
 
       final staffResponse = await staffQuery;
       allStaff.value = List<Map<String, dynamic>>.from(staffResponse);
@@ -85,9 +87,8 @@ class StaffAttendanceController extends GetxController {
           .select('*')
           .eq('attendance_date', dateStr);
 
-      attendanceRecords.value = List<Map<String, dynamic>>.from(
-        attendanceResponse,
-      );
+      attendanceRecords.value =
+          List<Map<String, dynamic>>.from(attendanceResponse);
 
       // Filterlarni qo'llash
       applyFilters();
@@ -172,11 +173,6 @@ class StaffAttendanceController extends GetxController {
     }
 
     // Davomat foizini hisoblash
-    final markedCount =
-        presentCount.value +
-        lateCount.value +
-        absentCount.value +
-        leaveCount.value;
     if (totalStaff.value > 0) {
       attendancePercentage.value =
           ((presentCount.value + lateCount.value) / totalStaff.value) * 100;
@@ -206,14 +202,10 @@ class StaffAttendanceController extends GetxController {
 
       if (existingAttendance != null) {
         // Yangilash
-        await _supabase
-            .from('attendance_staff')
-            .update({
-              'status': status,
-              if (status == 'present' || status == 'late')
-                'check_in_time': timeStr,
-            })
-            .eq('id', existingAttendance['id']);
+        await _supabase.from('attendance_staff').update({
+          'status': status,
+          if (status == 'present' || status == 'late') 'check_in_time': timeStr,
+        }).eq('id', existingAttendance['id']);
       } else {
         // Yangi qo'shish
         await _supabase.from('attendance_staff').insert({
@@ -449,11 +441,8 @@ class StaffAttendanceController extends GetxController {
   // ==================== DAVOMATNI EKSPORT QILISH ====================
   Future<void> exportAttendance() async {
     try {
-      final dateStr = DateFormat('dd.MM.yyyy').format(selectedDate.value);
-
       // CSV yaratish
-      String csv =
-          'ISM,LAVOZIM,FILIAL,STATUS,KIRISH VAQTI,CHIQISH VAQTI,IZOH\n';
+      String csv = 'ISM,LAVOZIM,FILIAL,STATUS,KIRISH VAQTI,CHIQISH VAQTI,IZOH\n';
 
       for (var staff in filteredStaff) {
         final attendance = getAttendanceForStaff(staff['id']);
@@ -468,14 +457,18 @@ class StaffAttendanceController extends GetxController {
         csv += '"${attendance?['notes'] ?? ''}"\n';
       }
 
-      // Faylni yuklab olish
       final bytes = utf8.encode(csv);
-      final blob = html.Blob([bytes], 'text/csv;charset=utf-8');
-      final url = html.Url.createObjectUrlFromBlob(blob);
-      final anchor = html.AnchorElement(href: url)
-        ..setAttribute('download', 'davomat_${dateStr}.csv')
-        ..click();
-      html.Url.revokeObjectUrl(url);
+      final dateStr = DateFormat('dd_MM_yyyy').format(selectedDate.value);
+      final fileName = 'davomat_$dateStr.csv';
+
+      // Platform bo'yicha saqlash
+      if (kIsWeb) {
+        // Web uchun
+        _downloadFileWeb(bytes, fileName);
+      } else {
+        // Desktop/Mobile uchun
+        await _saveFileDesktop(bytes, fileName);
+      }
 
       Get.snackbar(
         'Muvaffaqiyatli',
@@ -490,6 +483,148 @@ class StaffAttendanceController extends GetxController {
         backgroundColor: Colors.red.shade100,
         snackPosition: SnackPosition.TOP,
       );
+    }
+  }
+
+  // ==================== WEB UCHUN FAYL YUKLASH ====================
+  void _downloadFileWeb(List<int> bytes, String fileName) {
+    if (kIsWeb) {
+      final blob = html.Blob([bytes], 'text/csv;charset=utf-8');
+      final url = html.Url.createObjectUrlFromBlob(blob);
+      html.Url.revokeObjectUrl(url);
+    }
+  }
+
+  // ==================== DESKTOP UCHUN FAYL SAQLASH ====================
+  Future<void> _saveFileDesktop(List<int> bytes, String fileName) async {
+    try {
+      if (!kIsWeb) {
+        if (io.Platform.isAndroid || io.Platform.isIOS) {
+          // Mobile uchun
+          final directory = await getApplicationDocumentsDirectory();
+          final file = io.File('${directory.path}/$fileName');
+          await file.writeAsBytes(bytes);
+          Get.snackbar(
+            'Saqlandi',
+            'Fayl: ${file.path}',
+            backgroundColor: Colors.green.shade100,
+            duration: Duration(seconds: 5),
+          );
+        } else {
+          // Desktop uchun
+          String? outputPath = await FilePicker.platform.saveFile(
+            dialogTitle: 'Faylni saqlash',
+            fileName: fileName,
+            type: FileType.custom,
+            allowedExtensions: ['csv'],
+          );
+
+          if (outputPath != null) {
+            final file = io.File(outputPath);
+            await file.writeAsBytes(bytes);
+            Get.snackbar(
+              'Saqlandi',
+              'Fayl: $outputPath',
+              backgroundColor: Colors.green.shade100,
+              duration: Duration(seconds: 5),
+            );
+          }
+        }
+      }
+    } catch (e) {
+      print('Save file error: $e');
+    }
+  }
+
+  // ==================== PDF EKSPORT ====================
+  Future<void> exportToPDF() async {
+    try {
+      final pdf = pw.Document();
+
+      pdf.addPage(
+        pw.MultiPage(
+          pageFormat: PdfPageFormat.a4.landscape,
+          build: (context) => [
+            pw.Header(
+              level: 0,
+              child: pw.Text(
+                'Xodimlar davomati - ${DateFormat('dd.MM.yyyy').format(selectedDate.value)}',
+                style: pw.TextStyle(fontSize: 24, fontWeight: pw.FontWeight.bold),
+              ),
+            ),
+            pw.SizedBox(height: 20),
+            pw.Table.fromTextArray(
+              headers: ['ISM', 'LAVOZIM', 'FILIAL', 'STATUS', 'KIRISH', 'CHIQISH'],
+              data: filteredStaff.map((staff) {
+                final attendance = getAttendanceForStaff(staff['id']);
+                final status = attendance?['status'] ?? 'not_marked';
+                return [
+                  '${staff['first_name']} ${staff['last_name']}',
+                  staff['position'] ?? '',
+                  staff['branches']?['name'] ?? '',
+                  _getStatusTextForExport(status),
+                  attendance?['check_in_time'] ?? '-',
+                  attendance?['check_out_time'] ?? '-',
+                ];
+              }).toList(),
+              headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+              cellAlignment: pw.Alignment.centerLeft,
+            ),
+          ],
+        ),
+      );
+
+      final bytes = await pdf.save();
+      final dateStr = DateFormat('dd_MM_yyyy').format(selectedDate.value);
+      final fileName = 'davomat_$dateStr.pdf';
+
+      if (kIsWeb) {
+        _downloadFileWeb(bytes, fileName);
+      } else {
+        await _saveFilePDFDesktop(bytes, fileName);
+      }
+
+      Get.snackbar(
+        'Muvaffaqiyatli',
+        'PDF yuklab olindi',
+        backgroundColor: Colors.green.shade100,
+        snackPosition: SnackPosition.TOP,
+      );
+    } catch (e) {
+      Get.snackbar(
+        'Xatolik',
+        'PDF yaratilmadi: $e',
+        backgroundColor: Colors.red.shade100,
+        snackPosition: SnackPosition.TOP,
+      );
+    }
+  }
+
+  Future<void> _saveFilePDFDesktop(List<int> bytes, String fileName) async {
+    try {
+      if (!kIsWeb) {
+        if (io.Platform.isAndroid || io.Platform.isIOS) {
+          final directory = await getApplicationDocumentsDirectory();
+          final file = io.File('${directory.path}/$fileName');
+          await file.writeAsBytes(bytes);
+          Get.snackbar('Saqlandi', 'Fayl: ${file.path}', duration: Duration(seconds: 5));
+        } else {
+          String? outputPath = await FilePicker.platform.saveFile(
+            dialogTitle: 'PDF saqlash',
+            fileName: fileName,
+            type: FileType.custom,
+            allowedExtensions: ['pdf'],
+          );
+
+          if (outputPath != null) {
+            final file = io.File(outputPath);
+            await file.writeAsBytes(bytes);
+            Get.snackbar('Saqlandi', 'Fayl: $outputPath', duration: Duration(seconds: 5));
+          }
+        }
+      }
+    } catch (e) {
+      print('Save PDF error: $e');
     }
   }
 

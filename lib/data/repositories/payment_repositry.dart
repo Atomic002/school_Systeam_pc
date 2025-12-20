@@ -16,7 +16,7 @@ class PaymentRepository {
   // 1. TO'LOV QABUL QILISH (DATABASE FUNCTION ORQALI)
   // ============================================================================
 
-  Future<Map<String, dynamic>?> processStudentPayment({
+ Future<Map<String, dynamic>?> processStudentPayment({
     required String studentId,
     required String branchId,
     required String classId,
@@ -32,10 +32,21 @@ class PaymentRepository {
     String? receivedBy,
     bool isPartial = false,
     double? paidAmount,
+    String? debtReason, // ← YANGI
   }) async {
     try {
+      print('🔍 Calling process_student_payment with:');
+      print('   studentId: $studentId');
+      print('   branchId: $branchId');
+      print('   classId: $classId');
+      print('   amount: $amount');
+      print('   isPartial: $isPartial');
+      print('   paidAmount: $paidAmount');
+      print('   debtReason: $debtReason');
+      print('   receivedBy: $receivedBy');
+
       final response = await _supabase.rpc(
-        'process_student_payment',
+        'process_student_payment_v2', // ← Yangi versiya
         params: {
           'p_student_id': studentId,
           'p_branch_id': branchId,
@@ -46,25 +57,27 @@ class PaymentRepository {
           'p_discount_reason': discountReason,
           'p_payment_method': paymentMethod,
           'p_payment_type': paymentType,
-          'p_period_month': periodMonth,
-          'p_period_year': periodYear,
+          'p_period_month': periodMonth ?? DateTime.now().month,
+          'p_period_year': periodYear ?? DateTime.now().year,
           'p_notes': notes,
           'p_received_by': receivedBy,
           'p_is_partial': isPartial,
           'p_paid_amount': paidAmount,
+          'p_debt_reason': debtReason, // ← YANGI
         },
       );
+
+      print('✅ RPC Response: $response');
 
       if (response != null && response is List && response.isNotEmpty) {
         return response.first as Map<String, dynamic>;
       }
       return null;
     } catch (e) {
-      print('Process payment xatolik: $e');
-      return null;
+      print('❌ Process payment error: $e');
+      rethrow;
     }
   }
-
   // ============================================================================
   // 2. TO'LOVLAR RO'YXATI (FILTRLASH BILAN)
   // ============================================================================

@@ -1,61 +1,234 @@
-// lib/presentation/controllers/new_payment_controller.dart
-// ================================================================================
-// TUZATILGAN VERSIYA V3 - Custom Auth bilan ishlaydi
-// ================================================================================
-
+// lib/presentation/controllers/payment_controller_v4.dart
 import 'package:flutter/material.dart';
-import 'package:flutter_application_1/data/repositories/payment_repositry.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../data/models/student_model.dart';
-import 'auth_controller.dart'; // ← Sizning AuthController
+import '../../data/repositories/payment_repositry.dart';
+import '../widgets/payment_history_dialog.dart';
+import '../widgets/payment_receipt_dialog.dart';
+import 'auth_controller.dart';
 
-class NewPaymentController extends GetxController {
+// ============================================================================
+// MODELS
+// ============================================================================
+class StudentDebtModel {
+  final String id;
+  final String studentId;
+  final String? classId;
+  final String? branchId;
+  final double debtAmount;
+  final double paidAmount;
+  final double remainingAmount;
+  final int? periodMonth;
+  final int? periodYear;
+  final bool isSettled;
+  final DateTime? settledAt;
+  final DateTime? dueDate;
+  final DateTime? createdAt;
+  final String? studentName;
+  final String? className;
+  final String? studentPhone;
+
+  StudentDebtModel({
+    required this.id,
+    required this.studentId,
+    this.classId,
+    this.branchId,
+    required this.debtAmount,
+    this.paidAmount = 0,
+    required this.remainingAmount,
+    this.periodMonth,
+    this.periodYear,
+    this.isSettled = false,
+    this.settledAt,
+    this.dueDate,
+    this.createdAt,
+    this.studentName,
+    this.className,
+    this.studentPhone,
+  });
+
+  factory StudentDebtModel.fromJson(Map<String, dynamic> json) {
+    return StudentDebtModel(
+      id: json['id'],
+      studentId: json['student_id'],
+      classId: json['class_id'],
+      branchId: json['branch_id'],
+      debtAmount: (json['debt_amount'] as num).toDouble(),
+      paidAmount: (json['paid_amount'] as num?)?.toDouble() ?? 0,
+      remainingAmount: (json['remaining_amount'] as num).toDouble(),
+      periodMonth: json['period_month'],
+      periodYear: json['period_year'],
+      isSettled: json['is_settled'] ?? false,
+      settledAt: json['settled_at'] != null ? DateTime.parse(json['settled_at']) : null,
+      dueDate: json['due_date'] != null ? DateTime.parse(json['due_date']) : null,
+      createdAt: json['created_at'] != null ? DateTime.parse(json['created_at']) : null,
+      studentName: json['student_name'],
+      className: json['class_name'],
+      studentPhone: json['student_phone'],
+    );
+  }
+
+  String get periodText {
+    if (periodMonth != null && periodYear != null) {
+      final months = ['Yanvar', 'Fevral', 'Mart', 'Aprel', 'May', 'Iyun',
+                     'Iyul', 'Avgust', 'Sentabr', 'Oktabr', 'Noyabr', 'Dekabr'];
+      return '${months[periodMonth! - 1]} $periodYear';
+    }
+    return 'Aniqlanmagan';
+  }
+
+  bool get isOverdue {
+    if (dueDate == null || isSettled) return false;
+    return DateTime.now().isAfter(dueDate!);
+  }
+
+  int get daysOverdue {
+    if (!isOverdue) return 0;
+    return DateTime.now().difference(dueDate!).inDays;
+  }
+}
+
+class PaymentHistoryModel {
+  final String id;
+  final DateTime paymentDate;
+  final double amount;
+  final String paymentType;
+  final String paymentMethod;
+  final int? periodMonth;
+  final int? periodYear;
+  final String receiptNumber;
+  final String status;
+  final double finalAmount;
+  final double discountAmount;
+  final double? paidAmount;
+  final double? remainingDebt;
+  final String? debtReason;
+  final String? notes;
+  final String? receivedByName;
+
+  PaymentHistoryModel({
+    required this.id,
+    required this.paymentDate,
+    required this.amount,
+    required this.paymentType,
+    required this.paymentMethod,
+    this.periodMonth,
+    this.periodYear,
+    required this.receiptNumber,
+    required this.status,
+    required this.finalAmount,
+    this.discountAmount = 0,
+    this.paidAmount,
+    this.remainingDebt,
+    this.debtReason,
+    this.notes,
+    this.receivedByName,
+  });
+
+  factory PaymentHistoryModel.fromJson(Map<String, dynamic> json) {
+    return PaymentHistoryModel(
+      id: json['id'],
+      paymentDate: DateTime.parse(json['payment_date']),
+      amount: (json['amount'] as num).toDouble(),
+      paymentType: json['payment_type'],
+      paymentMethod: json['payment_method'],
+      periodMonth: json['period_month'],
+      periodYear: json['period_year'],
+      receiptNumber: json['receipt_number'] ?? '',
+      status: json['payment_status'] ?? 'paid',
+      finalAmount: (json['final_amount'] as num).toDouble(),
+      discountAmount: (json['discount_amount'] as num?)?.toDouble() ?? 0,
+      paidAmount: (json['paid_amount'] as num?)?.toDouble(),
+      remainingDebt: (json['remaining_debt'] as num?)?.toDouble(),
+      debtReason: json['debt_reason'],
+      notes: json['notes'],
+      receivedByName: json['received_by_name'],
+    );
+  }
+
+  String get periodText {
+    if (periodMonth == null || periodYear == null) return '-';
+    final months = ['Yanvar', 'Fevral', 'Mart', 'Aprel', 'May', 'Iyun',
+                   'Iyul', 'Avgust', 'Sentabr', 'Oktabr', 'Noyabr', 'Dekabr'];
+    return '${months[periodMonth! - 1]} $periodYear';
+  }
+}
+
+// ============================================================================
+// CONTROLLER
+// ============================================================================
+class NewPaymentControllerV4 extends GetxController {
   final PaymentRepository _paymentRepo = PaymentRepository();
   final _supabase = Supabase.instance.client;
 
   final formKey = GlobalKey<FormState>();
 
-  // Text Controllers
+  // Controllers
   final searchController = TextEditingController();
   final amountController = TextEditingController();
   final discountController = TextEditingController();
   final discountReasonController = TextEditingController();
   final paidAmountController = TextEditingController();
   final notesController = TextEditingController();
-  final firstNameController = TextEditingController();
-  final lastNameController = TextEditingController();
+  final debtReasonController = TextEditingController();
 
-  // Observable variables
+  // Observable state
   var isLoading = false.obs;
   var isSearching = false.obs;
   var searchResults = <StudentModel>[].obs;
   var selectedStudent = Rxn<StudentModel>();
   var selectedStudentId = Rxn<String>();
 
-  // Statistics
-  var todayPaymentsCount = 0.obs;
-  var todayRevenue = 0.0.obs;
+  // Debts
+  var studentDebts = <StudentDebtModel>[].obs;
+  var selectedDebts = <String>[].obs;
+  var isLoadingDebts = false.obs;
 
-  // To'lov ma'lumotlari
+  // Payment history
+  var paymentHistory = <PaymentHistoryModel>[].obs;
+  var isLoadingHistory = false.obs;
+
+  // Branch
+  var userBranchId = Rxn<String>();
+  var availableBranches = <Map<String, dynamic>>[].obs;
+  var selectedBranchId = Rxn<String>();
+  var canChangeBranch = false.obs;
+
+  // Statistics
+  var currentMonthPaymentsCount = 0.obs;
+  var currentMonthRevenue = 0.0.obs;
+  var currentMonthDebtorsCount = 0.obs;
+  var unpaidStudentsCount = 0.obs;
+
+  // Payment data
   var paymentType = 'tuition'.obs;
   var paymentMethod = 'cash'.obs;
+  var paymentDateTime = DateTime.now().obs;
 
-  // Chegirma
+  // Month selection
+  var selectedMonth = DateTime.now().month.obs;
+  var selectedYear = DateTime.now().year.obs;
+
+  // Discount
   var hasDiscount = false.obs;
-  var discountType = 'amount'.obs; // avval 'percent' edi
+  var discountType = 'amount'.obs;
 
-  // Qarz
+  // Debt
   var isPartialPayment = false.obs;
 
-  // Hisoblangan qiymatlar
+  // Calculated values
   var finalAmount = 0.0.obs;
   var debtAmount = 0.0.obs;
-  var searchText = ''.obs;
+  var totalSelectedDebts = 0.0.obs;
 
-  // AuthController dan foydalanish
+  // Staff
+  var currentStaffName = ''.obs;
+  var currentStaffId = ''.obs;
+  var currentStaffRole = ''.obs;
+
   late AuthController _authController;
 
   @override
@@ -65,28 +238,20 @@ class NewPaymentController extends GetxController {
   }
 
   // ============================================================================
-  // CONTROLLER NI BOSHLASH
+  // INITIALIZATION
   // ============================================================================
-
   Future<void> _initializeController() async {
     try {
       isLoading.value = true;
 
-      print('🚀 Starting controller initialization...');
-
-      // AuthController ni topish
       try {
         _authController = Get.find<AuthController>();
-        print('✅ AuthController found');
       } catch (e) {
-        print('❌ AuthController not found, creating new instance');
         Get.put(AuthController());
         _authController = Get.find<AuthController>();
       }
 
-      // User tekshirish
       if (!_authController.isAuthenticated) {
-        print('❌ User not authenticated');
         throw Exception('Iltimos, tizimga kiring');
       }
 
@@ -95,48 +260,106 @@ class NewPaymentController extends GetxController {
         throw Exception('Foydalanuvchi ma\'lumotlari topilmadi');
       }
 
-      print('✅ User authenticated:');
-      print('   - Name: ${user.fullName}');
-      print('   - User ID: ${user.id}');
-      print('   - Branch ID: ${user.branchId}');
-      print('   - Role: ${user.role}');
-
-      // Statistikani yuklash
-      await loadTodayStatistics();
+      await _loadCompleteStaffInfo(user.id);
+      await _setupBranchAccess(user);
+      await loadInitialStudents();
+      await loadCurrentMonthStatistics();
 
       print('✅ Controller initialized successfully');
+      
     } catch (e) {
-      print('❌ Controller initialization error: $e');
-
+      print('❌ Initialization error: $e');
       Get.snackbar(
         'Xato',
         e.toString(),
         backgroundColor: Colors.red,
         colorText: Colors.white,
-        duration: Duration(seconds: 3),
+        duration: Duration(seconds: 5),
       );
-
-      // Agar user topilmasa, login ga qaytarish
-      if (e.toString().contains('kiring')) {
-        Future.delayed(Duration(seconds: 1), () {
-          Get.offAllNamed('/login');
-        });
-      }
     } finally {
       isLoading.value = false;
     }
   }
 
-  // BARCHA O'QUVCHILARNI YUKLASH (initial)
-  Future<void> loadAllStudents() async {
+  Future<void> _loadCompleteStaffInfo(String userId) async {
+    try {
+      final userData = await _supabase
+          .from('users')
+          .select('id, first_name, last_name, username, role, branch_id')
+          .eq('id', userId)
+          .single();
+
+      currentStaffId.value = userData['id'];
+      currentStaffName.value = '${userData['first_name']} ${userData['last_name']}';
+      currentStaffRole.value = _getRoleNameInUzbek(userData['role']);
+      
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  String _getRoleNameInUzbek(String role) {
+    switch (role) {
+      case 'owner': return 'Direktor';
+      case 'manager': return 'Menejer';
+      case 'teacher': return 'O\'qituvchi';
+      case 'accountant': return 'Buxgalter';
+      case 'receptionist': return 'Qabulxona';
+      default: return 'Xodim';
+    }
+  }
+
+  Future<void> _setupBranchAccess(dynamic user) async {
+    try {
+      userBranchId.value = user.branchId;
+
+      if (user.role == 'owner' || user.role == 'manager') {
+        canChangeBranch.value = true;
+        
+        final branchesData = await _supabase
+            .from('branches')
+            .select('id, name')
+            .eq('is_active', true)
+            .order('name');
+        
+        availableBranches.value = List<Map<String, dynamic>>.from(branchesData);
+        
+        if (user.branchId != null && user.branchId!.isNotEmpty) {
+          selectedBranchId.value = user.branchId;
+        } else if (availableBranches.isNotEmpty) {
+          selectedBranchId.value = availableBranches.first['id'];
+        }
+      } else {
+        canChangeBranch.value = false;
+        
+        if (user.branchId == null || user.branchId!.isEmpty) {
+          throw Exception('Sizga filial biriktirilmagan');
+        }
+        
+        selectedBranchId.value = user.branchId;
+        
+        final branchData = await _supabase
+            .from('branches')
+            .select('id, name')
+            .eq('id', user.branchId!)
+            .single();
+        
+        availableBranches.value = [branchData];
+      }
+      
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  // ============================================================================
+  // LOAD STUDENTS
+  // ============================================================================
+  Future<void> loadInitialStudents() async {
+    if (selectedBranchId.value == null) return;
+    
     try {
       isSearching.value = true;
-
-      final branchId = _authController.currentUser.value?.branchId;
-      if (branchId == null || branchId.isEmpty) {
-        print('⚠️ Branch ID yo‘q, o‘quvchilar yuklanmaydi');
-        return;
-      }
 
       final studentsData = await _supabase
           .from('students')
@@ -147,118 +370,136 @@ class NewPaymentController extends GetxController {
               class_id,
               classes!inner(
                 id,
-                name
+                name,
+                class_level_id,
+                main_teacher_id,
+                default_room_id,
+                class_levels(id, name),
+                rooms:rooms!classes_default_room_id_fkey(id, name)
               )
             )
           ''')
-          .eq('branch_id', branchId)
+          .eq('branch_id', selectedBranchId.value!)
           .eq('status', 'active')
           .order('first_name')
-          .limit(200);
+          .limit(500);
+
+      final teacherIds = <String>{};
+      for (var json in studentsData) {
+        if (json['enrollments'] != null && (json['enrollments'] as List).isNotEmpty) {
+          final enrollment = (json['enrollments'] as List).first;
+          final classData = enrollment['classes'];
+          if (classData != null && classData['main_teacher_id'] != null) {
+            teacherIds.add(classData['main_teacher_id']);
+          }
+        }
+      }
+
+      Map<String, Map<String, dynamic>> teachersMap = {};
+      if (teacherIds.isNotEmpty) {
+        try {
+          final teachersData = await _supabase
+              .from('users')
+              .select('id, first_name, last_name')
+              .filter('id', 'in', teacherIds.toList());
+          
+          for (var teacher in teachersData) {
+            teachersMap[teacher['id']] = teacher;
+          }
+        } catch (e) {
+          print('⚠️ Teacher fetch error: $e');
+        }
+      }
+
+      // Check payment status for current month
+      final currentMonth = selectedMonth.value;
+      final currentYear = selectedYear.value;
+      
+      final paymentsData = await _supabase
+          .from('payments')
+          .select('student_id')
+          .eq('branch_id', selectedBranchId.value!)
+          .eq('period_month', currentMonth)
+          .eq('period_year', currentYear)
+          .eq('payment_status', 'paid');
+
+      final paidStudentIds = (paymentsData as List)
+          .map((p) => p['student_id'] as String)
+          .toSet();
 
       final students = <StudentModel>[];
       for (var json in studentsData) {
         try {
-          students.add(StudentModel.fromJson(json));
+          if (json['enrollments'] != null && (json['enrollments'] as List).isNotEmpty) {
+            final enrollment = (json['enrollments'] as List).first;
+            final classData = enrollment['classes'];
+            
+            if (classData != null) {
+              json['class_id'] = classData['id'];
+              json['class_name'] = classData['name'];
+              json['room_id'] = classData['default_room_id'];
+              json['main_teacher_id'] = classData['main_teacher_id'];
+              
+              if (classData['class_levels'] != null) {
+                json['class_level_id'] = classData['class_levels']['id'];
+                json['class_level_name'] = classData['class_levels']['name'];
+              }
+              
+              if (classData['rooms'] != null) {
+                json['room_name'] = classData['rooms']['name'];
+              }
+              
+              if (classData['main_teacher_id'] != null) {
+                final teacher = teachersMap[classData['main_teacher_id']];
+                if (teacher != null) {
+                  json['main_teacher_name'] = 
+                      '${teacher['first_name']} ${teacher['last_name']}';
+                }
+              }
+            }
+          }
+          
+          final student = StudentModel.fromJson(json);
+          json['has_paid_current_month'] = paidStudentIds.contains(student.id);
+          students.add(student);
         } catch (e) {
-          print('⚠️ Student parse xato: $e');
+          print('⚠️ Student parse error: $e');
         }
       }
 
       searchResults.value = students;
-      print('✅ ${students.length} ta o‘quvchi yuklandi');
+      print('✅ ${students.length} o\'quvchi yuklandi');
+      
     } catch (e) {
-      print('❌ loadAllStudents xato: $e');
+      print('❌ Load students error: $e');
       searchResults.clear();
+      Get.snackbar('Xato', 'O\'quvchilarni yuklashda xatolik');
     } finally {
       isSearching.value = false;
     }
   }
-  // ============================================================================
-  // BUGUNGI STATISTIKANI YUKLASH
-  // ============================================================================
-
-  Future<void> loadTodayStatistics() async {
-    try {
-      final branchId = _authController.currentUser.value?.branchId;
-
-      if (branchId == null || branchId.isEmpty) {
-        print('⚠️ Branch ID yo\'q, statistika yuklanmaydi');
-        return;
-      }
-
-      final today = DateTime.now();
-      final startDate = DateTime(today.year, today.month, today.day);
-      final startDateStr = startDate.toIso8601String().split('T')[0];
-
-      print('📊 Loading statistics for branch: $branchId');
-      print('📅 Date: $startDateStr');
-
-      // Bugungi to'lovlar sonini olish
-      final countResponse = await _supabase
-          .from('payments')
-          .select('id')
-          .eq('branch_id', branchId)
-          .gte('payment_date', startDateStr);
-
-      todayPaymentsCount.value = countResponse.count ?? 0;
-      print('✅ Today payments count: ${todayPaymentsCount.value}');
-
-      // Bugungi tushumni hisoblash
-      final revenueResponse = await _supabase
-          .from('payments')
-          .select('final_amount, paid_amount')
-          .eq('branch_id', branchId)
-          .eq('payment_status', 'paid')
-          .gte('payment_date', startDateStr);
-
-      double totalRevenue = 0;
-      for (var payment in revenueResponse) {
-        // paid_amount bor bo'lsa uni, yo'q bo'lsa final_amount ni ishlatamiz
-        final amount = payment['paid_amount'] ?? payment['final_amount'];
-        if (amount != null) {
-          totalRevenue += (amount as num).toDouble();
-        }
-      }
-
-      todayRevenue.value = totalRevenue;
-
-      print('✅ Statistics loaded successfully:');
-      print('   - Payments: ${todayPaymentsCount.value}');
-      print('   - Revenue: ${formatCurrency(todayRevenue.value)} so\'m');
-    } catch (e) {
-      print('❌ Load statistics error: $e');
-      // Statistika yuklanmasa ham davom etamiz
-      todayPaymentsCount.value = 0;
-      todayRevenue.value = 0;
-    }
-  }
 
   // ============================================================================
-  // O'QUVCHILARNI QIDIRISH (ONLINE)
+  // SEARCH STUDENTS
   // ============================================================================
-
-  // Faqat Enter yoki search tugmasi bosilganda chaqiriladi
-  Future<void> searchStudents(String value) async {
-    final firstName = firstNameController.text.trim();
-    final lastName = lastNameController.text.trim();
-
-    // Hech narsa kiritilmagan bo‘lsa – barcha o‘quvchilarni ko‘rsatamiz
-    if (firstName.isEmpty && lastName.isEmpty) {
-      await loadAllStudents();
+  Future<void> searchStudents() async {
+    if (selectedBranchId.value == null) {
+      Get.snackbar('Xato', 'Filialni tanlang');
       return;
     }
 
-    final branchId = _authController.currentUser.value?.branchId;
-    if (branchId == null || branchId.isEmpty) {
-      Get.snackbar('Xato', 'Filial ma\'lumoti topilmadi');
+    final searchText = searchController.text.trim();
+    
+    if (searchText.isEmpty) {
+      await loadInitialStudents();
       return;
     }
 
     try {
       isSearching.value = true;
-      print('🔍 Searching: first="$firstName", last="$lastName"');
 
+      final isPhone = RegExp(r'^\d+$').hasMatch(searchText);
+      
       var query = _supabase
           .from('students')
           .select('''
@@ -268,33 +509,109 @@ class NewPaymentController extends GetxController {
               class_id,
               classes!inner(
                 id,
-                name
+                name,
+                class_level_id,
+                main_teacher_id,
+                default_room_id,
+                class_levels(id, name),
+                rooms:rooms!classes_default_room_id_fkey(id, name)
               )
             )
           ''')
-          .eq('branch_id', branchId)
+          .eq('branch_id', selectedBranchId.value!)
           .eq('status', 'active');
 
-      if (firstName.isNotEmpty) {
-        query = query.ilike('first_name', '%$firstName%');
-      }
-      if (lastName.isNotEmpty) {
-        query = query.ilike('last_name', '%$lastName%');
+      if (isPhone) {
+        query = query.or('phone.ilike.%$searchText%,parent_phone.ilike.%$searchText%');
+      } else {
+        query = query.or(
+          'first_name.ilike.%$searchText%,'
+          'last_name.ilike.%$searchText%'
+        );
       }
 
       final studentsData = await query.order('first_name').limit(200);
 
+      // Process students similar to loadInitialStudents...
+      final teacherIds = <String>{};
+      for (var json in studentsData) {
+        if (json['enrollments'] != null && (json['enrollments'] as List).isNotEmpty) {
+          final enrollment = (json['enrollments'] as List).first;
+          final classData = enrollment['classes'];
+          if (classData != null && classData['main_teacher_id'] != null) {
+            teacherIds.add(classData['main_teacher_id']);
+          }
+        }
+      }
+
+      Map<String, Map<String, dynamic>> teachersMap = {};
+      if (teacherIds.isNotEmpty) {
+        final teachersData = await _supabase
+            .from('users')
+            .select('id, first_name, last_name')
+            .filter('id', 'in', teacherIds.toList());
+        
+        for (var teacher in teachersData) {
+          teachersMap[teacher['id']] = teacher;
+        }
+      }
+
+      final currentMonth = selectedMonth.value;
+      final currentYear = selectedYear.value;
+      
+      final paymentsData = await _supabase
+          .from('payments')
+          .select('student_id')
+          .eq('branch_id', selectedBranchId.value!)
+          .eq('period_month', currentMonth)
+          .eq('period_year', currentYear)
+          .eq('payment_status', 'paid');
+
+      final paidStudentIds = (paymentsData as List)
+          .map((p) => p['student_id'] as String)
+          .toSet();
+
       final students = <StudentModel>[];
       for (var json in studentsData) {
         try {
-          students.add(StudentModel.fromJson(json));
+          if (json['enrollments'] != null && (json['enrollments'] as List).isNotEmpty) {
+            final enrollment = (json['enrollments'] as List).first;
+            final classData = enrollment['classes'];
+            
+            if (classData != null) {
+              json['class_id'] = classData['id'];
+              json['class_name'] = classData['name'];
+              json['room_id'] = classData['default_room_id'];
+              json['main_teacher_id'] = classData['main_teacher_id'];
+              
+              if (classData['class_levels'] != null) {
+                json['class_level_id'] = classData['class_levels']['id'];
+                json['class_level_name'] = classData['class_levels']['name'];
+              }
+              
+              if (classData['rooms'] != null) {
+                json['room_name'] = classData['rooms']['name'];
+              }
+              
+              if (classData['main_teacher_id'] != null) {
+                final teacher = teachersMap[classData['main_teacher_id']];
+                if (teacher != null) {
+                  json['main_teacher_name'] = 
+                      '${teacher['first_name']} ${teacher['last_name']}';
+                }
+              }
+            }
+          }
+          
+          final student = StudentModel.fromJson(json);
+          json['has_paid_current_month'] = paidStudentIds.contains(student.id);
+          students.add(student);
         } catch (e) {
-          print('⚠️ Student parse xato: $e');
+          print('⚠️ Parse error: $e');
         }
       }
 
       searchResults.value = students;
-      print('✅ Search natija: ${students.length} ta');
 
       if (students.isEmpty) {
         Get.snackbar(
@@ -305,29 +622,305 @@ class NewPaymentController extends GetxController {
       }
     } catch (e) {
       print('❌ Search error: $e');
-      Get.snackbar(
-        'Xato',
-        'Qidirishda xatolik: $e',
-        backgroundColor: Colors.red,
-        colorText: Colors.white,
-      );
+      Get.snackbar('Xato', 'Qidirishda xatolik');
     } finally {
       isSearching.value = false;
     }
   }
 
-  // ============================================================================
-  // O'QUVCHINI TANLASH
-  // ============================================================================
+  void clearSearch() {
+    searchController.clear();
+    loadInitialStudents();
+  }
 
+  // ============================================================================
+  // LOAD DEBTS - Automatically create missing monthly debts
+  // ============================================================================
+  Future<void> loadStudentDebts(String studentId) async {
+    if (selectedBranchId.value == null) return;
+
+    try {
+      isLoadingDebts.value = true;
+
+      // Get student enrollment date
+      final studentData = await _supabase
+          .from('students')
+          .select('enrollment_date, class_id')
+          .eq('id', studentId)
+          .single();
+
+      final enrollmentDate = studentData['enrollment_date'] != null
+          ? DateTime.parse(studentData['enrollment_date'])
+          : DateTime.now();
+
+      // Create missing debts for unpaid months
+      await _createMissingDebts(studentId, enrollmentDate, studentData['class_id']);
+
+      // Load all debts
+      final debtsData = await _supabase
+          .from('student_debts')
+          .select('''
+            *,
+            students(first_name, last_name, parent_phone),
+            classes(name)
+          ''')
+          .eq('student_id', studentId)
+          .eq('is_settled', false)
+          .order('period_year', ascending: false)
+          .order('period_month', ascending: false);
+
+      final debts = <StudentDebtModel>[];
+      for (var json in debtsData) {
+        try {
+          if (json['students'] != null) {
+            json['student_name'] = 
+                '${json['students']['first_name']} ${json['students']['last_name']}';
+            json['student_phone'] = json['students']['parent_phone'];
+          }
+          
+          if (json['classes'] != null) {
+            json['class_name'] = json['classes']['name'];
+          }
+          
+          debts.add(StudentDebtModel.fromJson(json));
+        } catch (e) {
+          print('⚠️ Debt parse error: $e');
+        }
+      }
+
+      studentDebts.value = debts;
+      print('✅ ${debts.length} ta qarz topildi');
+      
+    } catch (e) {
+      print('❌ Load debts error: $e');
+    } finally {
+      isLoadingDebts.value = false;
+    }
+  }
+
+  // Create missing monthly debts automatically
+  Future<void> _createMissingDebts(String studentId, DateTime enrollmentDate, String? classId) async {
+    try {
+      final student = await _supabase
+          .from('students')
+          .select('monthly_fee')
+          .eq('id', studentId)
+          .single();
+
+      final monthlyFee = (student['monthly_fee'] as num?)?.toDouble() ?? 0;
+      if (monthlyFee <= 0) return;
+
+      // Get academic year holidays
+      final holidays = await _supabase
+          .from('school_holidays')
+          .select('start_date, end_date')
+          .eq('branch_id', selectedBranchId.value!)
+          .eq('is_active', true);
+
+      final now = DateTime.now();
+      var checkDate = DateTime(enrollmentDate.year, enrollmentDate.month, 1);
+
+      while (checkDate.isBefore(now) || checkDate.month == now.month) {
+        // Check if month is in holiday
+        bool isHoliday = false;
+        for (var holiday in holidays) {
+          final start = DateTime.parse(holiday['start_date']);
+          final end = DateTime.parse(holiday['end_date']);
+          
+          if ((checkDate.isAfter(start) || checkDate.isAtSameMomentAs(start)) &&
+              (checkDate.isBefore(end) || checkDate.isAtSameMomentAs(end))) {
+            isHoliday = true;
+            break;
+          }
+        }
+
+        if (!isHoliday) {
+          // Check if payment exists
+          final existingPayment = await _supabase
+              .from('payments')
+              .select('id')
+              .eq('student_id', studentId)
+              .eq('period_month', checkDate.month)
+              .eq('period_year', checkDate.year)
+              .maybeSingle();
+
+          if (existingPayment == null) {
+            // Check if debt already exists
+            final existingDebt = await _supabase
+                .from('student_debts')
+                .select('id')
+                .eq('student_id', studentId)
+                .eq('period_month', checkDate.month)
+                .eq('period_year', checkDate.year)
+                .maybeSingle();
+
+            if (existingDebt == null) {
+              // Create debt
+              final dueDate = DateTime(checkDate.year, checkDate.month, 10);
+              
+              await _supabase.from('student_debts').insert({
+                'student_id': studentId,
+                'class_id': classId,
+                'branch_id': selectedBranchId.value,
+                'debt_amount': monthlyFee,
+                'remaining_amount': monthlyFee,
+                'period_month': checkDate.month,
+                'period_year': checkDate.year,
+                'due_date': dueDate.toIso8601String(),
+              });
+            }
+          }
+        }
+
+        // Move to next month
+        checkDate = DateTime(checkDate.year, checkDate.month + 1, 1);
+      }
+    } catch (e) {
+      print('⚠️ Create missing debts error: $e');
+    }
+  }
+
+  // ============================================================================
+  // LOAD PAYMENT HISTORY
+  // ============================================================================
+  Future<void> loadPaymentHistory(String studentId) async {
+    try {
+      isLoadingHistory.value = true;
+
+      final historyData = await _supabase
+          .from('payments')
+          .select('''
+            *,
+            users:received_by(first_name, last_name)
+          ''')
+          .eq('student_id', studentId)
+          .order('payment_date', ascending: false)
+          .limit(50);
+
+      final history = <PaymentHistoryModel>[];
+      for (var json in historyData) {
+        try {
+          if (json['users'] != null) {
+            json['received_by_name'] = 
+                '${json['users']['first_name']} ${json['users']['last_name']}';
+          }
+          history.add(PaymentHistoryModel.fromJson(json));
+        } catch (e) {
+          print('⚠️ History parse error: $e');
+        }
+      }
+
+      paymentHistory.value = history;
+
+    } catch (e) {
+      print('❌ Load history error: $e');
+    } finally {
+      isLoadingHistory.value = false;
+    }
+  }
+
+  // ============================================================================
+  // SHOW PAYMENT HISTORY DIALOG
+  // ============================================================================
+  void showPaymentHistory() {
+    if (selectedStudent.value == null) return;
+
+    Get.dialog(
+      PaymentHistoryDialog(controller: this),
+      barrierDismissible: true,
+    );
+  }
+
+  // ============================================================================
+  // STATISTICS
+  // ============================================================================
+  Future<void> loadCurrentMonthStatistics() async {
+    if (selectedBranchId.value == null) return;
+
+    try {
+      final currentMonth = selectedMonth.value;
+      final currentYear = selectedYear.value;
+
+      final paymentsResponse = await _supabase
+          .from('payments')
+          .select('id, final_amount, paid_amount, payment_status')
+          .eq('branch_id', selectedBranchId.value!)
+          .eq('period_month', currentMonth)
+          .eq('period_year', currentYear);
+
+      currentMonthPaymentsCount.value = (paymentsResponse as List).length;
+
+      double totalRevenue = 0;
+      for (var payment in paymentsResponse) {
+        if (payment['payment_status'] == 'paid') {
+          totalRevenue += (payment['final_amount'] as num).toDouble();
+        } else if (payment['payment_status'] == 'partial') {
+          totalRevenue += (payment['paid_amount'] as num?)?.toDouble() ?? 0;
+        }
+      }
+      currentMonthRevenue.value = totalRevenue;
+
+      // Qarzdorlar
+      final debtsResponse = await _supabase
+          .from('student_debts')
+          .select('id')
+          .eq('branch_id', selectedBranchId.value!)
+          .eq('is_settled', false)
+          .eq('period_month', currentMonth)
+          .eq('period_year', currentYear);
+
+      currentMonthDebtorsCount.value = (debtsResponse as List).length;
+
+      // To'lamagan o'quvchilar
+      final totalStudents = await _supabase
+          .from('students')
+          .select('id')
+          .eq('branch_id', selectedBranchId.value!)
+          .eq('status', 'active');
+
+      unpaidStudentsCount.value = 
+          (totalStudents as List).length - currentMonthPaymentsCount.value;
+      
+    } catch (e) {
+      print('❌ Statistics error: $e');
+    }
+  }
+
+  // ============================================================================
+  // DEBT SELECTION
+  // ============================================================================
+  void toggleDebtSelection(String debtId) {
+    if (selectedDebts.contains(debtId)) {
+      selectedDebts.remove(debtId);
+    } else {
+      selectedDebts.add(debtId);
+    }
+    calculateTotalSelectedDebts();
+  }
+
+  void calculateTotalSelectedDebts() {
+    double total = 0;
+    for (var debtId in selectedDebts) {
+      final debt = studentDebts.firstWhere((d) => d.id == debtId);
+      total += debt.remainingAmount;
+    }
+    totalSelectedDebts.value = total;
+    amountController.text = total.toStringAsFixed(0);
+    calculateFinalAmount();
+  }
+
+  // ============================================================================
+  // STUDENT SELECTION
+  // ============================================================================
   void selectStudent(StudentModel student) {
     selectedStudent.value = student;
     selectedStudentId.value = student.id;
 
-    // Oylik to'lovni avtomatik qo'yamiz
+    loadStudentDebts(student.id);
+    loadPaymentHistory(student.id);
+
     amountController.text = student.monthlyFee.toStringAsFixed(0);
 
-    // Chegirma bo‘lsa avtomatik
     if (student.discountAmount > 0) {
       hasDiscount.value = true;
       if (student.discountPercent > 0) {
@@ -344,9 +937,9 @@ class NewPaymentController extends GetxController {
       hasDiscount.value = false;
       discountController.clear();
       discountReasonController.clear();
-      discountType.value = 'amount';
     }
 
+    paymentDateTime.value = DateTime.now();
     calculateFinalAmount();
 
     Get.snackbar(
@@ -357,15 +950,13 @@ class NewPaymentController extends GetxController {
       duration: Duration(seconds: 2),
     );
   }
-  // ============================================================================
-  // TANLOVNI TOZALASH
-  // ============================================================================
 
   void clearSelection() {
     selectedStudent.value = null;
     selectedStudentId.value = null;
-    searchController.clear();
-    searchResults.clear();
+    studentDebts.clear();
+    selectedDebts.clear();
+    paymentHistory.clear();
     _resetForm();
   }
 
@@ -375,28 +966,29 @@ class NewPaymentController extends GetxController {
     discountReasonController.clear();
     paidAmountController.clear();
     notesController.clear();
+    debtReasonController.clear();
 
     paymentType.value = 'tuition';
     paymentMethod.value = 'cash';
     hasDiscount.value = false;
-    discountType.value = 'percent';
+    discountType.value = 'amount';
     isPartialPayment.value = false;
 
     finalAmount.value = 0;
     debtAmount.value = 0;
+    totalSelectedDebts.value = 0;
+    paymentDateTime.value = DateTime.now();
   }
 
   // ============================================================================
-  // YAKUNIY SUMMANI HISOBLASH
+  // CALCULATIONS
   // ============================================================================
-
   void calculateFinalAmount() {
     double amount = double.tryParse(amountController.text) ?? 0;
     double discount = 0;
 
     if (hasDiscount.value) {
       double discountValue = double.tryParse(discountController.text) ?? 0;
-
       if (discountType.value == 'percent') {
         discount = amount * discountValue / 100;
       } else {
@@ -411,147 +1003,229 @@ class NewPaymentController extends GetxController {
     }
   }
 
-  // ============================================================================
-  // QARZ SUMMASINI HISOBLASH
-  // ============================================================================
-
   void calculateDebtAmount() {
     double paid = double.tryParse(paidAmountController.text) ?? 0;
     debtAmount.value = (finalAmount.value - paid).clamp(0, double.infinity);
   }
 
   // ============================================================================
-  // TO'LOVNI SAQLASH
+  // MONTH SELECTION
   // ============================================================================
+  Future<void> selectMonth(BuildContext context) async {
+    final now = DateTime.now();
+    final initialDate = DateTime(selectedYear.value, selectedMonth.value);
+    
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: initialDate,
+      firstDate: DateTime(now.year - 2),
+      lastDate: DateTime(now.year + 1),
+      initialDatePickerMode: DatePickerMode.year,
+      locale: Locale('uz', 'UZ'),
+    );
 
-  Future<void> savePayment() async {
-    if (!formKey.currentState!.validate()) {
-      return;
+    if (picked != null) {
+      selectedMonth.value = picked.month;
+      selectedYear.value = picked.year;
+      
+      await loadInitialStudents();
+      await loadCurrentMonthStatistics();
+      
+      Get.snackbar(
+        'Oy o\'zgartirildi',
+        '${_getMonthName(picked.month)} ${picked.year}',
+        backgroundColor: Colors.blue,
+        colorText: Colors.white,
+      );
     }
+  }
+
+  String _getMonthName(int month) {
+    const months = ['Yanvar', 'Fevral', 'Mart', 'Aprel', 'May', 'Iyun',
+                   'Iyul', 'Avgust', 'Sentabr', 'Oktabr', 'Noyabr', 'Dekabr'];
+    return months[month - 1];
+  }
+
+  String get currentMonthYear {
+    return '${_getMonthName(selectedMonth.value)} ${selectedYear.value}';
+  }
+
+  // ============================================================================
+  // SAVE PAYMENT
+  // ============================================================================
+  Future<void> savePayment() async {
+    if (!formKey.currentState!.validate()) return;
 
     if (selectedStudentId.value == null) {
-      Get.snackbar(
-        'Xato',
-        'O\'quvchini tanlang',
-        backgroundColor: Colors.red,
-        colorText: Colors.white,
-      );
+      Get.snackbar('Xato', 'O\'quvchini tanlang');
       return;
     }
 
-    final currentUser = _authController.currentUser.value;
-    if (currentUser == null) {
-      Get.snackbar(
-        'Xato',
-        'Foydalanuvchi ma\'lumotlari topilmadi',
-        backgroundColor: Colors.red,
-        colorText: Colors.white,
-      );
+    if (selectedBranchId.value == null) {
+      Get.snackbar('Xato', 'Filialni tanlang');
       return;
     }
 
-    // DEBUGGING: User ma'lumotlarini tekshirish
-    print('🔍 DEBUG: Checking user data...');
-    print('   User object: $currentUser');
-    print('   User ID: ${currentUser.id}');
-
-    // Branch ID ni olish - turli usullar
-    String? branchId;
-    try {
-      branchId = currentUser.branchId;
-      print('   Branch ID (direct): $branchId');
-    } catch (e) {
-      print('   ❌ Error getting branchId directly: $e');
+    if (selectedDebts.isNotEmpty) {
+      await _processMultipleDebtsPayment();
+    } else {
+      await _processRegularPayment();
     }
+  }
 
-    if (branchId == null || branchId.isEmpty) {
-      Get.snackbar(
-        'Xato',
-        'Filial ma\'lumoti topilmadi. Admin bilan bog\'laning.',
-        backgroundColor: Colors.red,
-        colorText: Colors.white,
-      );
-      return;
-    }
-
-    final amount = double.tryParse(amountController.text) ?? 0;
-    if (amount <= 0) {
-      Get.snackbar(
-        'Xato',
-        'To\'lov summasi noto\'g\'ri',
-        backgroundColor: Colors.red,
-        colorText: Colors.white,
-      );
-      return;
-    }
-
-    if (isPartialPayment.value) {
-      final paid = double.tryParse(paidAmountController.text) ?? 0;
-      if (paid <= 0 || paid >= finalAmount.value) {
-        Get.snackbar(
-          'Xato',
-          'To\'lanadigan summa noto\'g\'ri',
-          backgroundColor: Colors.red,
-          colorText: Colors.white,
-        );
-        return;
-      }
-    }
-
+  // ============================================================================
+  // PROCESS DEBT PAYMENT
+  // ============================================================================
+  Future<void> _processMultipleDebtsPayment() async {
     try {
       isLoading.value = true;
 
-      print('💰 Saving payment...');
-      print('   Student: ${selectedStudent.value!.fullName}');
-      print('   Amount: $amount');
-      print('   Final: ${finalAmount.value}');
-      print('   Branch: ${currentUser.branchId}');
-      print('   User: ${currentUser.id}');
+      final paymentAmount = double.tryParse(amountController.text) ?? 0;
+      if (paymentAmount <= 0) {
+        throw Exception('To\'lov summasi noto\'g\'ri');
+      }
 
-      // Ma'lumotlarni tayyorlash
+      double remainingPayment = paymentAmount;
+      final processedDebts = <String>[];
+      final paymentIds = <String>[];
+
+      for (var debtId in selectedDebts) {
+        if (remainingPayment <= 0) break;
+
+        final debt = studentDebts.firstWhere((d) => d.id == debtId);
+        final amountToPay = remainingPayment >= debt.remainingAmount
+            ? debt.remainingAmount
+            : remainingPayment;
+
+        final newPaidAmount = debt.paidAmount + amountToPay;
+        final newRemainingAmount = debt.debtAmount - newPaidAmount;
+        final isFullyPaid = newRemainingAmount <= 0;
+
+        // Update debt
+        await _supabase
+            .from('student_debts')
+            .update({
+              'paid_amount': newPaidAmount,
+              'remaining_amount': isFullyPaid ? 0 : newRemainingAmount,
+              'is_settled': isFullyPaid,
+              'settled_at': isFullyPaid ? DateTime.now().toIso8601String() : null,
+              'updated_at': DateTime.now().toIso8601String(),
+            })
+            .eq('id', debtId);
+
+        // Create payment record
+        final receiptNumber = 'QT-${DateTime.now().millisecondsSinceEpoch}';
+        
+        final paymentResult = await _supabase.from('payments').insert({
+          'receipt_number': receiptNumber,
+          'student_id': selectedStudentId.value!,
+          'branch_id': selectedBranchId.value!,
+          'class_id': selectedStudent.value!.classId,
+          'amount': amountToPay,
+          'discount_percent': 0,
+          'discount_amount': 0,
+          'final_amount': amountToPay,
+          'paid_amount': amountToPay,
+          'payment_method': paymentMethod.value,
+          'payment_type': 'debt_payment',
+          'payment_status': 'paid',
+          'payment_date': DateTime.now().toIso8601String(),
+          'payment_time': TimeOfDay.now().format(Get.context!),
+          'period_month': debt.periodMonth,
+          'period_year': debt.periodYear,
+          'notes': 'Qarz to\'lovi. ${debt.periodText}',
+          'received_by': currentStaffId.value,
+          'debt_id': debtId,
+          'is_debt': false,
+          'debt_amount': 0,
+          'remaining_debt': 0,
+          'created_at': DateTime.now().toIso8601String(),
+        }).select().single();
+
+        remainingPayment -= amountToPay;
+        processedDebts.add(debtId);
+        paymentIds.add(paymentResult['id']);
+      }
+
+      // Show receipt for last payment
+      if (paymentIds.isNotEmpty) {
+        final lastPaymentId = paymentIds.last;
+        await _showPaymentReceipt(lastPaymentId);
+      }
+
+      Get.snackbar(
+        'Muvaffaqiyatli ✓',
+        '${processedDebts.length} ta qarz to\'landi',
+        backgroundColor: Colors.green,
+        colorText: Colors.white,
+        duration: Duration(seconds: 3),
+      );
+
+      await loadCurrentMonthStatistics();
+      clearSelection();
+
+    } catch (e) {
+      print('❌ Multiple debts payment error: $e');
+      Get.snackbar('Xato', 'To\'lovni saqlashda xatolik: $e');
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
+  // ============================================================================
+  // PROCESS REGULAR PAYMENT
+  // ============================================================================
+  Future<void> _processRegularPayment() async {
+    try {
+      isLoading.value = true;
+
       double discountPercent = 0;
       double discountAmount = 0;
 
       if (hasDiscount.value) {
         double discountValue = double.tryParse(discountController.text) ?? 0;
-
         if (discountType.value == 'percent') {
           discountPercent = discountValue;
-          discountAmount = amount * discountValue / 100;
+          discountAmount = (double.tryParse(amountController.text) ?? 0) * discountValue / 100;
         } else {
           discountAmount = discountValue;
-          discountPercent = (discountAmount / amount) * 100;
+          discountPercent = (discountAmount / (double.tryParse(amountController.text) ?? 1)) * 100;
         }
       }
 
       double paidAmount = finalAmount.value;
+      String? debtReason;
+      
       if (isPartialPayment.value) {
         paidAmount = double.tryParse(paidAmountController.text) ?? 0;
+        debtReason = debtReasonController.text.trim();
       }
 
-      // Database function ni chaqirish
       final result = await _paymentRepo.processStudentPayment(
         studentId: selectedStudentId.value!,
-        branchId: branchId, // ← Tekshirilgan branchId
+        branchId: selectedBranchId.value!,
         classId: selectedStudent.value!.classId ?? '',
-        amount: amount,
+        amount: double.tryParse(amountController.text) ?? 0,
         discountPercent: discountPercent,
         discountAmount: discountAmount,
-        discountReason: discountReasonController.text.isNotEmpty
-            ? discountReasonController.text
-            : null,
+        discountReason: discountReasonController.text.isNotEmpty 
+            ? discountReasonController.text : null,
         paymentMethod: paymentMethod.value,
         paymentType: paymentType.value,
-        periodMonth: DateTime.now().month,
-        periodYear: DateTime.now().year,
+        periodMonth: selectedMonth.value,
+        periodYear: selectedYear.value,
         notes: notesController.text.isNotEmpty ? notesController.text : null,
-        receivedBy: currentUser.id,
+        receivedBy: currentStaffId.value,
         isPartial: isPartialPayment.value,
         paidAmount: isPartialPayment.value ? paidAmount : null,
+        debtReason: debtReason,
       );
 
       if (result != null && result['success'] == true) {
-        print('✅ Payment saved successfully');
+        // Show receipt
+        if (result['payment_id'] != null) {
+          await _showPaymentReceipt(result['payment_id']);
+        }
 
         Get.snackbar(
           'Muvaffaqiyatli ✓',
@@ -560,92 +1234,78 @@ class NewPaymentController extends GetxController {
           colorText: Colors.white,
           duration: Duration(seconds: 3),
         );
-
-        await loadTodayStatistics();
-        _showPrintReceiptDialog(result['receipt_number'] ?? 'N/A');
+        
+        await loadCurrentMonthStatistics();
+        clearSelection();
       } else {
         throw Exception(result?['message'] ?? 'Noma\'lum xatolik');
       }
     } catch (e) {
-      print('❌ Payment save error: $e');
-      Get.snackbar(
-        'Xato',
-        'To\'lovni saqlashda xatolik: $e',
-        backgroundColor: Colors.red,
-        colorText: Colors.white,
-      );
+      print('❌ Payment error: $e');
+      Get.snackbar('Xato', 'To\'lovni saqlashda xatolik: $e');
     } finally {
       isLoading.value = false;
     }
   }
 
   // ============================================================================
-  // CHEK DIALOGI
+  // SHOW PAYMENT RECEIPT
   // ============================================================================
+  Future<void> _showPaymentReceipt(String paymentId) async {
+    try {
+      // Get complete payment data
+      final paymentData = await _supabase
+          .from('payments')
+          .select('''
+            *,
+            users:received_by(first_name, last_name)
+          ''')
+          .eq('id', paymentId)
+          .single();
 
-  void _showPrintReceiptDialog(String receiptNumber) {
-    Get.dialog(
-      AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Row(
-          children: [
-            Icon(Icons.check_circle, color: Colors.green, size: 28),
-            SizedBox(width: 12),
-            Text('To\'lov qabul qilindi'),
-          ],
+      // Get branch data
+      final branchData = await _supabase
+          .from('branches')
+          .select('name, address, phone')
+          .eq('id', selectedBranchId.value!)
+          .single();
+
+      if (paymentData['users'] != null) {
+        paymentData['received_by_name'] = 
+            '${paymentData['users']['first_name']} ${paymentData['users']['last_name']}';
+      }
+
+      paymentData['branch_name'] = branchData['name'];
+      paymentData['branch_address'] = branchData['address'];
+      paymentData['branch_phone'] = branchData['phone'];
+
+      // Student data
+      final student = selectedStudent.value!;
+      final studentData = {
+        'full_name': student.fullName,
+        'class_name': student.className,
+        'class_level_name': student.classLevelName,
+        'teacher_name': student.mainTeacherName,
+        'parent_phone': student.parentPhone,
+        'student_phone': student.phone,
+      };
+
+      Get.dialog(
+        PaymentReceiptDialog(
+          paymentData: paymentData,
+          studentData: studentData,
         ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              padding: EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.green.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Column(
-                children: [
-                  Text('Chek raqami', style: TextStyle(fontSize: 12)),
-                  SizedBox(height: 4),
-                  Text(
-                    receiptNumber,
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.green,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Get.back();
-              clearSelection();
-            },
-            child: Text('Yo\'q, keyinroq'),
-          ),
-          ElevatedButton.icon(
-            onPressed: () {
-              Get.back();
-              clearSelection();
-            },
-            icon: Icon(Icons.print),
-            label: Text('Chop etish'),
-          ),
-        ],
-      ),
-      barrierDismissible: false,
-    );
+        barrierDismissible: false,
+      );
+
+    } catch (e) {
+      print('❌ Show receipt error: $e');
+    }
   }
 
   // ============================================================================
-  // HELPER
+  // HELPER FUNCTIONS
   // ============================================================================
-
   String formatCurrency(double amount) {
     try {
       final formatter = NumberFormat('#,###', 'uz_UZ');
@@ -655,20 +1315,43 @@ class NewPaymentController extends GetxController {
     }
   }
 
+  Future<void> refreshData() async {
+    await loadInitialStudents();
+    await loadCurrentMonthStatistics();
+    
+    if (selectedStudentId.value != null) {
+      await loadStudentDebts(selectedStudentId.value!);
+      await loadPaymentHistory(selectedStudentId.value!);
+    }
+    
+    Get.snackbar(
+      'Yangilandi',
+      'Ma\'lumotlar yangilandi',
+      backgroundColor: Colors.green,
+      colorText: Colors.white,
+      duration: Duration(seconds: 2),
+    );
+  }
+
+  Future<void> onBranchChanged(String? newBranchId) async {
+    if (newBranchId == null || newBranchId == selectedBranchId.value) return;
+    
+    selectedBranchId.value = newBranchId;
+    
+    clearSelection();
+    await loadInitialStudents();
+    await loadCurrentMonthStatistics();
+  }
+
   @override
   void onClose() {
     searchController.dispose();
-    firstNameController.dispose();
-    lastNameController.dispose();
     amountController.dispose();
     discountController.dispose();
     discountReasonController.dispose();
     paidAmountController.dispose();
     notesController.dispose();
+    debtReasonController.dispose();
     super.onClose();
   }
-}
-
-extension on PostgrestList {
-  get count => null;
 }

@@ -12,6 +12,8 @@ class StudentDetailScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+     final args = Get.arguments as Map<String, dynamic>;
+    args['studentId'].toString(); // shu kalit bilan
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7FA),
       body: Row(
@@ -605,7 +607,7 @@ class StudentDetailScreen extends StatelessWidget {
               ],
               _buildInfoRow(
                 'Yakuniy to\'lov',
-                '${_formatCurrency(student.finalMonthlyFee!)} so\'m',
+                '${_formatCurrency(student.finalMonthlyFee)} so\'m',
                 isHighlighted: true,
               ),
             ],

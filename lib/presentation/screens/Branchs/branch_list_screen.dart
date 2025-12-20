@@ -5,6 +5,7 @@ import 'package:get/get.dart';
 import '../../controllers/branch_controller.dart';
 import '../../widgets/sidebar.dart';
 import '../../../config/app_routes.dart';
+import '../../../data/models/branch_model.dart';
 
 class BranchesListScreen extends StatelessWidget {
   BranchesListScreen({Key? key}) : super(key: key);
@@ -250,7 +251,7 @@ class BranchesListScreen extends StatelessWidget {
           padding: const EdgeInsets.all(24),
           itemCount: controller.filteredBranches.length,
           itemBuilder: (context, index) {
-            final branch = controller.filteredBranches[index];
+            final BranchModel branch = controller.filteredBranches[index]; 
             return _buildBranchCard(branch);
           },
         ),
@@ -258,7 +259,7 @@ class BranchesListScreen extends StatelessWidget {
     });
   }
 
-  Widget _buildBranchCard(branch) {
+  Widget _buildBranchCard(BranchModel branch) {
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
@@ -557,7 +558,7 @@ class BranchesListScreen extends StatelessWidget {
     );
   }
 
-  void _showDeleteDialog(branch) {
+  void _showDeleteDialog(BranchModel branch) {
     Get.dialog(
       AlertDialog(
         title: const Text('Filialni o\'chirish'),

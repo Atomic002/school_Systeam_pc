@@ -23,6 +23,8 @@ import 'package:flutter_application_1/presentation/screens/class/subjacts/subjac
 import 'package:flutter_application_1/presentation/screens/class/subjacts/teacher_subjckts_screens.dart';
 import 'package:flutter_application_1/presentation/screens/finance/cash_register_screen.dart';
 import 'package:flutter_application_1/presentation/screens/payment/Payments_screen.dart';
+import 'package:flutter_application_1/presentation/screens/settings/academic_years_screen.dart';
+import 'package:flutter_application_1/presentation/screens/settings/system_settings_screen.dart';
 
 import 'package:get/get.dart';
 import '../presentation/screens/auth/login_screen.dart';
@@ -83,6 +85,11 @@ class AppRoutes {
   static const String classLevels = '/class-levels';
   static const String teacherSubjects = '/teacher-subjects';
 
+    // Sozlamalar bo'limi
+  static const String settings = '/settings';
+  static const String systemSettings = '/system-settings';
+  static const String academicYears = '/academic-years';
+
   // ==================== BARCHA MARSHRУТLAR RO'YXATI ====================
   static final routes = [
     // ------ AUTHENTICATION ------
@@ -104,7 +111,7 @@ class AppRoutes {
     // ------ FINANCE ------
     GetPage(
       name: finance,
-      page: () => FinanceScreen(),
+      page: () => AdvancedFinanceScreen(),
       transition: Transition.rightToLeft,
       transitionDuration: Duration(milliseconds: 300),
     ),
@@ -116,12 +123,12 @@ class AppRoutes {
     ),
     GetPage(
       name: payments,
-      page: () => NewPaymentScreen(),
+      page: () => NewPaymentScreenV4(),
       transition: Transition.rightToLeft,
     ),
     GetPage(
       name: expenses,
-      page: () => ExpensesScreen(),
+      page: () => ExpensesScreenV2(),
       transition: Transition.rightToLeft,
     ),
     GetPage(
@@ -259,6 +266,21 @@ class AppRoutes {
     GetPage(
       name: teacherSubjects,
       page: () => TeacherSubjectsScreen(),
+      transition: Transition.rightToLeft,
+      transitionDuration: Duration(milliseconds: 300),
+    ),
+     // ------ SETTINGS ------
+
+
+    GetPage(
+      name: systemSettings,
+      page: () => SystemSettingsScreen(),
+      transition: Transition.rightToLeft,
+      transitionDuration: Duration(milliseconds: 300),
+    ),
+    GetPage(
+      name: academicYears,
+      page: () => AcademicYearsScreen(),
       transition: Transition.rightToLeft,
       transitionDuration: Duration(milliseconds: 300),
     ),
