@@ -4,10 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:intl/date_symbol_data_local.dart';
-
-// YANGI QO'SHILGAN IMPORT (Xatoni tuzatish uchun kerak)
 import 'package:flutter_localizations/flutter_localizations.dart';
-
 import 'config/supabase_config.dart';
 import 'config/app_routes.dart';
 import 'config/app_bindings.dart';

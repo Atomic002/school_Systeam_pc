@@ -1,82 +1,41 @@
-// lib/presentation/screens/students/student_detail_screen.dart
+
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 import '../../controllers/student_detail_controller.dart';
 import '../../widgets/sidebar.dart';
+import '../../../config/constants.dart';
 
 class StudentDetailScreen extends StatelessWidget {
   StudentDetailScreen({Key? key}) : super(key: key);
 
-  final StudentDetailController controller = Get.put(StudentDetailController());
+  final controller = Get.put(StudentDetailController());
 
   @override
   Widget build(BuildContext context) {
-     final args = Get.arguments as Map<String, dynamic>;
-    args['studentId'].toString(); // shu kalit bilan
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FA),
+      backgroundColor: AppConstants.backgroundLight,
       body: Row(
         children: [
           Sidebar(),
           Expanded(
             child: Obx(() {
               if (controller.isLoading.value) {
-                return _buildLoadingState();
+                return Center(child: CircularProgressIndicator());
               }
 
-              if (controller.student.value == null) {
-                return _buildErrorState();
+              if (controller.studentData.value == null) {
+                return Center(child: Text('O\'quvchi topilmadi'));
               }
 
               return Column(
                 children: [
                   _buildHeader(),
                   Expanded(
-                    child: RefreshIndicator(
-                      onRefresh: controller.refreshData,
-                      color: const Color(0xFF2196F3),
-                      child: SingleChildScrollView(
-                        physics: const AlwaysScrollableScrollPhysics(),
-                        padding: const EdgeInsets.all(24),
-                        child: Column(
-                          children: [
-                            _buildQuickStats(),
-                            const SizedBox(height: 24),
-                            Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Expanded(
-                                  flex: 2,
-                                  child: Column(
-                                    children: [
-                                      _buildPersonalInfo(),
-                                      const SizedBox(height: 20),
-                                      _buildParentInfo(),
-                                      const SizedBox(height: 20),
-                                      _buildAcademicInfo(),
-                                      const SizedBox(height: 20),
-                                      _buildFinancialInfo(),
-                                    ],
-                                  ),
-                                ),
-                                const SizedBox(width: 24),
-                                Expanded(
-                                  flex: 3,
-                                  child: Column(
-                                    children: [
-                                      _buildPaymentHistory(),
-                                      const SizedBox(height: 20),
-                                      _buildAttendanceHistory(),
-                                      const SizedBox(height: 20),
-                                      _buildSchedule(),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
+                    child: SingleChildScrollView(
+                      child: Column(
+                        children: [_buildProfileCard(), _buildTabSection()],
                       ),
                     ),
                   ),
@@ -89,606 +48,339 @@ class StudentDetailScreen extends StatelessWidget {
     );
   }
 
-  // ==================== HEADER ====================
   Widget _buildHeader() {
-    return Obx(() {
-      final student = controller.student.value!;
-      final isEditing = controller.isEditing.value;
-
-      return Container(
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [Color(0xFF2196F3), Color(0xFF1976D2)],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
+    return Container(
+      padding: EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: Offset(0, 2),
           ),
-          boxShadow: [
-            BoxShadow(
-              color: const Color(0xFF2196F3).withOpacity(0.3),
-              blurRadius: 20,
-              offset: const Offset(0, 10),
-            ),
-          ],
-        ),
-        child: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Row(
+        ],
+      ),
+      child: Row(
+        children: [
+          IconButton(
+            onPressed: () => Get.back(),
+            icon: Icon(Icons.arrow_back, color: AppConstants.primaryColor),
+          ),
+          SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                IconButton(
-                  icon: const Icon(Icons.arrow_back, color: Colors.white),
-                  onPressed: () => Get.back(),
-                ),
-                const SizedBox(width: 16),
-                Container(
-                  width: 80,
-                  height: 80,
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white, width: 3),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.2),
-                        blurRadius: 10,
-                        offset: const Offset(0, 5),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 20),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        student.fullName,
-                        style: const TextStyle(
-                          fontSize: 26,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Row(
-                        children: [
-                          _buildBadge(
-                            Icons.cake,
-                            '${student.age} yosh',
-                            Colors.white,
-                          ),
-                          const SizedBox(width: 12),
-                          Obx(() {
-                            final className = controller.currentClassName.value;
-                            return _buildBadge(
-                              Icons.school,
-                              className ?? 'Sinf biriktirilmagan',
-                              Colors.white,
-                            );
-                          }),
-                          const SizedBox(width: 12),
-                          _buildStatusBadge(student.status),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-                _buildHeaderActions(isEditing),
+                Obx(() => Text(
+                  controller.fullName,
+                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                )),
+                Obx(() => Text(
+                  controller.currentClassName.value ?? 'Sinf biriktirilmagan',
+                  style: TextStyle(color: Colors.grey[600], fontSize: 14),
+                )),
               ],
             ),
           ),
-        ),
-      );
-    });
-  }
-
-  Widget _buildBadge(IconData icon, String text, Color color) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.2),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.white.withOpacity(0.3)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, color: color, size: 16),
-          const SizedBox(width: 6),
-          Text(
-            text,
-            style: TextStyle(
-              color: color,
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
+          _buildQuickActions(),
         ],
       ),
     );
   }
 
-  Widget _buildStatusBadge(String? status) {
-    Color color;
-    String text;
-    IconData icon;
-
-    switch (status) {
-      case 'active':
-        color = const Color(0xFF4CAF50);
-        text = 'Faol';
-        icon = Icons.check_circle;
-        break;
-      case 'paused':
-        color = const Color(0xFFFFA726);
-        text = 'To\'xtatilgan';
-        icon = Icons.pause_circle;
-        break;
-      case 'graduated':
-        color = Colors.white;
-        text = 'Bitirgan';
-        icon = Icons.school;
-        break;
-      default:
-        color = Colors.white70;
-        text = 'Noma\'lum';
-        icon = Icons.help_outline;
-    }
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.3),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: color),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, color: Colors.white, size: 16),
-          const SizedBox(width: 6),
-          Text(
-            text,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildHeaderActions(bool isEditing) {
+  Widget _buildQuickActions() {
     return Row(
       children: [
-        if (isEditing) ...[
-          _buildActionButton(
-            icon: Icons.close,
-            label: 'Bekor',
-            onTap: controller.toggleEditMode,
-            color: Colors.white70,
-          ),
-          const SizedBox(width: 12),
-          _buildActionButton(
-            icon: Icons.check,
-            label: 'Saqlash',
-            onTap: controller.saveChanges,
-            color: Colors.white,
-          ),
-        ] else ...[
-          _buildActionButton(
-            icon: Icons.edit,
-            label: 'Tahrirlash',
-            onTap: controller.toggleEditMode,
-            color: Colors.white,
-          ),
-          const SizedBox(width: 12),
-          _buildActionButton(
-            icon: Icons.payment,
-            label: 'To\'lov',
-            onTap: controller.makePayment,
-            color: Colors.white,
-          ),
-          const SizedBox(width: 12),
-          _buildActionButton(
-            icon: Icons.picture_as_pdf,
-            label: 'PDF',
-            onTap: controller.exportToPDF,
-            color: Colors.white,
-          ),
-        ],
+        IconButton(
+          onPressed: controller.callParent,
+          icon: Icon(Icons.phone, color: AppConstants.successColor),
+          tooltip: 'Qo\'ng\'iroq',
+        ),
+        IconButton(
+          onPressed: controller.sendMessage,
+          icon: Icon(Icons.message, color: AppConstants.infoColor),
+          tooltip: 'Xabar',
+        ),
+        IconButton(
+          onPressed: controller.makePayment,
+          icon: Icon(Icons.payment, color: AppConstants.warningColor),
+          tooltip: 'To\'lov',
+        ),
+        PopupMenuButton(
+          icon: Icon(Icons.more_vert),
+          itemBuilder: (context) => [
+            PopupMenuItem(
+              child: ListTile(
+                leading: Icon(Icons.download),
+                title: Text('PDF'),
+                onTap: controller.exportToPDF,
+              ),
+            ),
+            PopupMenuItem(
+              child: ListTile(
+                leading: Icon(Icons.edit, color: AppConstants.primaryColor),
+                title: Text('Tahrirlash'),
+                onTap: controller.toggleEditMode,
+              ),
+            ),
+          ],
+        ),
       ],
     );
   }
 
-  Widget _buildActionButton({
-    required IconData icon,
-    required String label,
-    required VoidCallback onTap,
-    required Color color,
-  }) {
+  Widget _buildProfileCard() {
     return Container(
+      margin: EdgeInsets.all(24),
+      padding: EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.2),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white.withOpacity(0.3)),
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(12),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-            child: Row(
-              children: [
-                Icon(icon, color: color, size: 18),
-                const SizedBox(width: 8),
-                Text(
-                  label,
-                  style: TextStyle(
-                    color: color,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-            ),
-          ),
+        gradient: LinearGradient(
+          colors: [Color(0xFF667eea), Color(0xFF764ba2)],
         ),
-      ),
-    );
-  }
-
-  // ==================== QUICK STATS ====================
-  Widget _buildQuickStats() {
-    return Obx(
-      () => Row(
-        children: [
-          _buildStatCard(
-            icon: Icons.account_balance_wallet,
-            title: 'Qarzdorlik',
-            value: '${_formatCurrency(controller.totalDebt.value)} so\'m',
-            color: controller.totalDebt.value > 0
-                ? const Color(0xFFF44336)
-                : const Color(0xFF4CAF50),
-            gradient: controller.totalDebt.value > 0
-                ? const LinearGradient(
-                    colors: [Color(0xFFF44336), Color(0xFFE53935)],
-                  )
-                : const LinearGradient(
-                    colors: [Color(0xFF4CAF50), Color(0xFF43A047)],
-                  ),
-          ),
-          const SizedBox(width: 16),
-          _buildStatCard(
-            icon: Icons.payments,
-            title: 'To\'langan',
-            value: '${_formatCurrency(controller.totalPaid.value)} so\'m',
-            color: const Color(0xFF4CAF50),
-            gradient: const LinearGradient(
-              colors: [Color(0xFF4CAF50), Color(0xFF43A047)],
-            ),
-          ),
-          const SizedBox(width: 16),
-          _buildStatCard(
-            icon: Icons.calendar_month,
-            title: 'Oylik to\'lov',
-            value: '${_formatCurrency(controller.monthlyFee.value)} so\'m',
-            color: const Color(0xFF2196F3),
-            gradient: const LinearGradient(
-              colors: [Color(0xFF2196F3), Color(0xFF1976D2)],
-            ),
-          ),
-          const SizedBox(width: 16),
-          _buildStatCard(
-            icon: Icons.how_to_reg,
-            title: 'Davomat',
-            value:
-                '${controller.attendancePercentage.value.toStringAsFixed(1)}%',
-            color: controller.attendancePercentage.value >= 80
-                ? const Color(0xFF4CAF50)
-                : const Color(0xFFFFA726),
-            gradient: controller.attendancePercentage.value >= 80
-                ? const LinearGradient(
-                    colors: [Color(0xFF4CAF50), Color(0xFF43A047)],
-                  )
-                : const LinearGradient(
-                    colors: [Color(0xFFFFA726), Color(0xFFFB8C00)],
-                  ),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Color(0xFF667eea).withOpacity(0.3),
+            blurRadius: 20,
+            offset: Offset(0, 10),
           ),
         ],
       ),
+      child: Obx(() {
+        final data = controller.studentData.value;
+        if (data == null) return SizedBox();
+
+        return Row(
+          children: [
+            // Avatar
+            Container(
+              width: 120,
+              height: 120,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(color: Colors.white, width: 4),
+                color: Colors.white.withOpacity(0.2),
+              ),
+              child: controller.photoUrl != null
+                  ? ClipOval(
+                      child: Image.network(
+                        controller.photoUrl!,
+                        fit: BoxFit.cover,
+                      ),
+                    )
+                  : Center(
+                      child: Text(
+                        '${data['first_name'][0]}${data['last_name'][0]}'
+                            .toUpperCase(),
+                        style: TextStyle(
+                          fontSize: 40,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+            ),
+            SizedBox(width: 24),
+
+            // Ma'lumotlar
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Text(
+                        controller.fullName,
+                        style: TextStyle(
+                          fontSize: 28,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                      SizedBox(width: 12),
+                      _buildStatusBadge(controller.status),
+                    ],
+                  ),
+                  SizedBox(height: 8),
+                  Obx(() => Text(
+                    controller.currentClassName.value ?? 'Sinf biriktirilmagan',
+                    style: TextStyle(
+                      fontSize: 18,
+                      color: Colors.white.withOpacity(0.9),
+                    ),
+                  )),
+                  SizedBox(height: 16),
+                  Wrap(
+                    spacing: 24,
+                    runSpacing: 12,
+                    children: [
+                      _buildProfileStat(
+                        Icons.calendar_today,
+                        'Yoshi',
+                        '${controller.age ?? 0} yosh',
+                      ),
+                      _buildProfileStat(
+                        Icons.school,
+                        'O\'qish muddati',
+                        controller.getStudyDuration(),
+                      ),
+                      Obx(() => _buildProfileStat(
+                        Icons.payments,
+                        'Oylik',
+                        '${_formatCurrency(controller.monthlyFee.value)} so\'m',
+                      )),
+                      Obx(() => _buildProfileStat(
+                        Icons.people,
+                        'Sinfdoshlar',
+                        '${controller.classmates.length} ta',
+                      )),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        );
+      }),
     );
   }
 
-  Widget _buildStatCard({
-    required IconData icon,
-    required String title,
-    required String value,
-    required Color color,
-    required Gradient gradient,
-  }) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          gradient: gradient,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: color.withOpacity(0.3),
-              blurRadius: 15,
-              offset: const Offset(0, 8),
-            ),
-          ],
+  Widget _buildStatusBadge(String status) {
+    final config = _getStatusConfig(status);
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: config['color'],
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Text(
+        config['text'],
+        style: TextStyle(
+          color: Colors.white,
+          fontSize: 12,
+          fontWeight: FontWeight.w600,
         ),
-        child: Column(
+      ),
+    );
+  }
+
+  Map<String, dynamic> _getStatusConfig(String status) {
+    switch (status) {
+      case 'active':
+        return {'color': Color(0xFF06D6A0), 'text': 'Faol'};
+      case 'paused':
+        return {'color': Color(0xFFFFC857), 'text': 'To\'xtatilgan'};
+      case 'graduated':
+        return {'color': Color(0xFF667eea), 'text': 'Bitirgan'};
+      default:
+        return {'color': Colors.grey, 'text': status};
+    }
+  }
+
+  Widget _buildProfileStat(IconData icon, String label, String value) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          padding: EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.2),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Icon(icon, color: Colors.white, size: 20),
+        ),
+        SizedBox(width: 8),
+        Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.2),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Icon(icon, color: Colors.white, size: 28),
-            ),
-            const SizedBox(height: 16),
             Text(
-              title,
-              style: const TextStyle(
-                fontSize: 13,
-                color: Colors.white70,
-                fontWeight: FontWeight.w500,
+              label,
+              style: TextStyle(
+                fontSize: 12,
+                color: Colors.white.withOpacity(0.8),
               ),
             ),
-            const SizedBox(height: 4),
             Text(
               value,
-              style: const TextStyle(
-                fontSize: 20,
+              style: TextStyle(
+                fontSize: 16,
                 fontWeight: FontWeight.bold,
                 color: Colors.white,
               ),
             ),
           ],
         ),
+      ],
+    );
+  }
+
+  Widget _buildTabSection() {
+    return Container(
+      margin: EdgeInsets.symmetric(horizontal: 24),
+      child: Column(
+        children: [
+          _buildTabBar(),
+          SizedBox(height: 16),
+          Obx(() => _buildTabContent()),
+        ],
       ),
     );
   }
 
-  // ==================== MA'LUMOT KARTALARI ====================
-  Widget _buildPersonalInfo() {
-    return Obx(() {
-      final student = controller.student.value!;
-      final isEditing = controller.isEditing.value;
-
-      return _buildCard(
-        title: 'Shaxsiy ma\'lumotlar',
-        icon: Icons.person,
-        child: Column(
-          children: [
-            if (isEditing) ...[
-              _buildEditField('Ism', controller.firstNameController),
-              const SizedBox(height: 12),
-              _buildEditField('Familiya', controller.lastNameController),
-              const SizedBox(height: 12),
-              _buildEditField(
-                'Otasining ismi',
-                controller.middleNameController,
-              ),
-              const SizedBox(height: 12),
-              _buildEditField('Telefon', controller.phoneController),
-              const SizedBox(height: 12),
-              _buildEditField(
-                'Manzil',
-                controller.addressController,
-                maxLines: 2,
-              ),
-            ] else ...[
-              _buildInfoRow('F.I.Sh', student.fullName),
-              _buildInfoRow(
-                'Jinsi',
-                student.gender == 'male' ? 'O\'g\'il' : 'Qiz',
-              ),
-              _buildInfoRow('Tug\'ilgan sana', _formatDate(student.birthDate)),
-              _buildInfoRow('Yoshi', '${student.age} yosh'),
-              _buildInfoRow('Telefon', student.phone ?? '—'),
-              _buildInfoRow('Qo\'shimcha tel.', student.phoneSecondary ?? '—'),
-              _buildInfoRow('Manzil', student.address ?? '—'),
-              _buildInfoRow(
-                'Ro\'yxatdan o\'tgan',
-                _formatDate(student.enrollmentDate),
-              ),
-              if (student.medicalNotes != null &&
-                  student.medicalNotes!.isNotEmpty)
-                _buildInfoRow(
-                  'Tibbiy',
-                  student.medicalNotes!,
-                  isHighlighted: true,
-                ),
-            ],
-          ],
-        ),
-      );
-    });
-  }
-
-  Widget _buildParentInfo() {
-    return Obx(() {
-      final student = controller.student.value!;
-      final isEditing = controller.isEditing.value;
-
-      return _buildCard(
-        title: 'Ota-ona ma\'lumotlari',
-        icon: Icons.family_restroom,
-        child: Column(
-          children: [
-            if (isEditing) ...[
-              _buildEditField('Telefon', controller.parentPhoneController),
-            ] else ...[
-              _buildInfoRow('F.I.Sh', student.parentFullName),
-              _buildInfoRow('Aloqasi', student.parentRelation ?? '—'),
-              _buildInfoRow('Telefon 1', student.parentPhone),
-              _buildInfoRow('Telefon 2', student.parentPhoneSecondary ?? '—'),
-              _buildInfoRow('Ish joyi', student.parentWorkplace ?? '—'),
-            ],
-          ],
-        ),
-      );
-    });
-  }
-
-  Widget _buildAcademicInfo() {
-    return Obx(() {
-      final enrollment = controller.currentEnrollment.value;
-
-      return _buildCard(
-        title: 'O\'quv ma\'lumotlari',
-        icon: Icons.school,
-        child: Column(
-          children: [
-            _buildInfoRow(
-              'Sinf',
-              controller.currentClassName.value ?? 'Biriktirilmagan',
-            ),
-            _buildInfoRow(
-              'Sinf rahbari',
-              controller.classTeacherName.value ?? '—',
-            ),
-            _buildInfoRow('Sinf xonasi', controller.classRoomName.value ?? '—'),
-            _buildInfoRow(
-              'O\'qish muddati',
-              '${controller.studyDuration.value} yil',
-            ),
-            if (enrollment != null)
-              _buildInfoRow(
-                'Sinfga qo\'shilgan',
-                _formatDate(enrollment['enrolled_at']),
-              ),
-          ],
-        ),
-      );
-    });
-  }
-
-  Widget _buildFinancialInfo() {
-    return Obx(() {
-      final student = controller.student.value!;
-      final isEditing = controller.isEditing.value;
-
-      return _buildCard(
-        title: 'Moliyaviy ma\'lumotlar',
-        icon: Icons.attach_money,
-        child: Column(
-          children: [
-            if (isEditing) ...[
-              _buildEditField('Oylik to\'lov', controller.monthlyFeeController),
-              const SizedBox(height: 12),
-              _buildEditField(
-                'Chegirma %',
-                controller.discountPercentController,
-              ),
-            ] else ...[
-              _buildInfoRow(
-                'Oylik to\'lov',
-                '${_formatCurrency(student.monthlyFee)} so\'m',
-              ),
-              if (student.discountPercent > 0) ...[
-                _buildInfoRow(
-                  'Chegirma',
-                  '${student.discountPercent}% (${_formatCurrency(student.discountAmount)} so\'m)',
-                ),
-                if (student.discountReason != null)
-                  _buildInfoRow('Sabab', student.discountReason!),
-              ],
-              _buildInfoRow(
-                'Yakuniy to\'lov',
-                '${_formatCurrency(student.finalMonthlyFee)} so\'m',
-                isHighlighted: true,
-              ),
-            ],
-          ],
-        ),
-      );
-    });
-  }
-
-  // ==================== TO'LOVLAR TARIXI ====================
-  Widget _buildPaymentHistory() {
-    return _buildCard(
-      title: 'To\'lovlar tarixi',
-      icon: Icons.payment,
-      actions: [
-        _buildFilterChip('Barchasi', 'all', controller.selectedPaymentFilter),
-        const SizedBox(width: 8),
-        _buildFilterChip(
-          'To\'langan',
-          'paid',
-          controller.selectedPaymentFilter,
-        ),
-        const SizedBox(width: 8),
-        _buildFilterChip(
-          'Kutilmoqda',
-          'pending',
-          controller.selectedPaymentFilter,
-        ),
-      ],
-      child: Obx(() {
-        if (controller.isLoadingPayments.value) {
-          return const Center(
-            child: Padding(
-              padding: EdgeInsets.all(20),
-              child: CircularProgressIndicator(color: Color(0xFF2196F3)),
-            ),
-          );
-        }
-
-        final payments = controller.filteredPayments.take(10).toList();
-
-        if (payments.isEmpty) {
-          return _buildEmptyState('To\'lovlar tarixi bo\'sh', Icons.payment);
-        }
-
-        return ListView.separated(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          itemCount: payments.length,
-          separatorBuilder: (_, __) => const Divider(height: 24),
-          itemBuilder: (context, index) {
-            final payment = payments[index];
-            return _buildPaymentItem(payment);
-          },
-        );
-      }),
+  Widget _buildTabBar() {
+    return Container(
+      height: 50,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10),
+        ],
+      ),
+      child: Row(
+        children: [
+          _buildTab('Umumiy', 0, Icons.info),
+          _buildTab('To\'lovlar', 1, Icons.payments),
+          _buildTab('Davomat', 2, Icons.calendar_today),
+          _buildTab('Jadval', 3, Icons.schedule),
+          _buildTab('Sinfdoshlar', 4, Icons.people),
+        ],
+      ),
     );
   }
 
-  Widget _buildFilterChip(
-    String label,
-    String value,
-    Rx<String> currentFilter,
-  ) {
+  Widget _buildTab(String label, int index, IconData icon) {
     return Obx(() {
-      final isSelected = currentFilter.value == value;
-      return InkWell(
-        onTap: () => controller.filterPayments(value),
-        borderRadius: BorderRadius.circular(20),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-          decoration: BoxDecoration(
-            color: isSelected ? const Color(0xFF2196F3) : Colors.grey.shade200,
-            borderRadius: BorderRadius.circular(20),
-          ),
-          child: Text(
-            label,
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: isSelected ? Colors.white : Colors.grey.shade700,
+      final isSelected = controller.selectedTab.value == index;
+      return Expanded(
+        child: InkWell(
+          onTap: () => controller.selectedTab.value = index,
+          child: Container(
+            decoration: BoxDecoration(
+              color: isSelected ? AppConstants.primaryColor : Colors.transparent,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Center(
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    icon,
+                    size: 18,
+                    color: isSelected ? Colors.white : Colors.grey[600],
+                  ),
+                  SizedBox(width: 6),
+                  Text(
+                    label,
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                      color: isSelected ? Colors.white : Colors.grey[600],
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
@@ -696,21 +388,273 @@ class StudentDetailScreen extends StatelessWidget {
     });
   }
 
-  Widget _buildPaymentItem(payment) {
-    final isPaid = payment.paymentStatus == 'paid';
+  Widget _buildTabContent() {
+    switch (controller.selectedTab.value) {
+      case 0:
+        return _buildGeneralTab();
+      case 1:
+        return _buildPaymentsTab();
+      case 2:
+        return _buildAttendanceTab();
+      case 3:
+        return _buildScheduleTab();
+      case 4:
+        return _buildClassmatesTab();
+      default:
+        return _buildGeneralTab();
+    }
+  }
+
+  Widget _buildGeneralTab() {
+    return Obx(() {
+      final data = controller.studentData.value;
+      if (data == null) return SizedBox();
+
+      return Column(
+        children: [
+          _buildInfoCard(
+            title: 'Shaxsiy ma\'lumotlar',
+            icon: Icons.person,
+            children: [
+              _buildInfoRow('F.I.Sh', controller.fullName),
+              _buildInfoRow('Jinsi', controller.genderText),
+              _buildInfoRow('Tug\'ilgan sana', _formatDate(data['birth_date'])),
+              _buildInfoRow('Yoshi', '${controller.age ?? 0} yosh'),
+              _buildInfoRow('Telefon', controller.phone),
+              _buildInfoRow('Manzil', controller.address),
+            ],
+          ),
+          SizedBox(height: 16),
+          _buildInfoCard(
+            title: 'Ota-ona ma\'lumotlari',
+            icon: Icons.family_restroom,
+            children: [
+              _buildInfoRow('F.I.Sh', controller.parentFullName),
+              _buildInfoRow('Aloqasi', controller.parentRelation),
+              _buildInfoRow('Telefon', controller.parentPhone),
+              if (controller.parentPhoneSecondary != null)
+                _buildInfoRow('Qo\'shimcha telefon', controller.parentPhoneSecondary!),
+              _buildInfoRow('Ish joyi', controller.parentWorkplace),
+            ],
+          ),
+          SizedBox(height: 16),
+          _buildInfoCard(
+            title: 'O\'quv ma\'lumotlari',
+            icon: Icons.school,
+            children: [
+              Obx(() => _buildInfoRow('Sinf', controller.currentClassName.value ?? '—')),
+              Obx(() => _buildInfoRow('Sinf kodi', controller.currentClassCode.value ?? '—')),
+              Obx(() => _buildInfoRow('Sinf darajasi', controller.classLevelName.value ?? '—')),
+              Obx(() => _buildInfoRow(
+                'Sinf rahbari',
+                controller.classTeacherName.value ?? '—',
+                onTap: controller.classTeacherId.value != null 
+                    ? controller.viewTeacherProfile 
+                    : null,
+              )),
+              Obx(() => _buildInfoRow('Sinf xonasi', controller.classRoomName.value ?? '—')),
+              Obx(() => _buildInfoRow('Filial', controller.branchName.value ?? '—')),
+              Obx(() => _buildInfoRow('O\'qish muddati', controller.getStudyDuration())),
+              Obx(() => _buildInfoRow(
+                'Sinf sig\'imi',
+                '${controller.currentClassSize.value}/${controller.classCapacity.value}',
+              )),
+            ],
+          ),
+          if (controller.hasMedicalNotes) ...[
+            SizedBox(height: 16),
+            _buildInfoCard(
+              title: 'Tibbiy ma\'lumotlar',
+              icon: Icons.medical_services,
+              children: [
+                Padding(
+                  padding: EdgeInsets.all(16),
+                  child: Text(
+                    controller.medicalNotes,
+                    style: TextStyle(fontSize: 14),
+                  ),
+                ),
+              ],
+            ),
+          ],
+          if (controller.hasNotes) ...[
+            SizedBox(height: 16),
+            _buildInfoCard(
+              title: 'Qo\'shimcha izohlar',
+              icon: Icons.note,
+              children: [
+                Padding(
+                  padding: EdgeInsets.all(16),
+                  child: Text(
+                    controller.notes,
+                    style: TextStyle(fontSize: 14),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ],
+      );
+    });
+  }
+
+  Widget _buildPaymentsTab() {
+    return Obx(() {
+      if (controller.isLoadingPayments.value) {
+        return Center(child: CircularProgressIndicator());
+      }
+
+      return Column(
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: _buildStatCard(
+                  'Jami to\'landi',
+                  _formatCurrency(controller.totalPaid.value),
+                  Icons.check_circle,
+                  AppConstants.successColor,
+                ),
+              ),
+              SizedBox(width: 12),
+              Expanded(
+                child: _buildStatCard(
+                  'Qarzdorlik',
+                  _formatCurrency(controller.totalDebt.value),
+                  Icons.warning,
+                  AppConstants.errorColor,
+                ),
+              ),
+              SizedBox(width: 12),
+              Expanded(
+                child: _buildStatCard(
+                  'Oylik',
+                  _formatCurrency(controller.monthlyFee.value),
+                  Icons.payments,
+                  AppConstants.primaryColor,
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: 16),
+          _buildMonthlyPayments(),
+          SizedBox(height: 16),
+          _buildPaymentsHistory(),
+        ],
+      );
+    });
+  }
+
+  Widget _buildMonthlyPayments() {
+    return Obx(() {
+      if (controller.monthlyPayments.isEmpty) return SizedBox();
+
+      return Card(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: EdgeInsets.all(16),
+              child: Text(
+                'Oylik to\'lovlar (so\'nggi 12 oy)',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+            ),
+            Divider(height: 1),
+            Padding(
+              padding: EdgeInsets.all(16),
+              child: Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: controller.monthlyPayments.map((m) {
+                  final isPaid = m['isPaid'] as bool;
+                  final month = m['month'] as int;
+                  final year = m['year'] as int;
+                  final paid = (m['paid'] as num).toDouble();
+                  final expected = (m['expected'] as num).toDouble();
+
+                  return Tooltip(
+                    message: '$month-oy, $year\nTo\'langan: ${_formatCurrency(paid)}\nKutilgan: ${_formatCurrency(expected)}',
+                    child: Container(
+                      width: 60,
+                      height: 60,
+                      decoration: BoxDecoration(
+                        color: isPaid 
+                            ? AppConstants.successColor.withOpacity(0.1)
+                            : AppConstants.errorColor.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: isPaid ? AppConstants.successColor : AppConstants.errorColor,
+                          width: 2,
+                        ),
+                      ),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            '$month',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: isPaid ? AppConstants.successColor : AppConstants.errorColor,
+                            ),
+                          ),
+                          Text(
+                            '$year'.substring(2),
+                            style: TextStyle(
+                              fontSize: 10,
+                              color: Colors.grey[600],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                }).toList(),
+              ),
+            ),
+          ],
+        ),
+      );
+    });
+  }
+
+  Widget _buildPaymentsHistory() {
+    return Obx(() {
+      final payments = controller.paymentHistory;
+
+      if (payments.isEmpty) {
+        return _buildEmptyCard('To\'lovlar tarixi bo\'sh', Icons.payment);
+      }
+
+      return Card(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: EdgeInsets.all(16),
+              child: Text(
+                'To\'lovlar tarixi',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+            ),
+            Divider(height: 1),
+            ...payments.map((payment) => _buildPaymentRow(payment)),
+          ],
+        ),
+      );
+    });
+  }
+
+  Widget _buildPaymentRow(dynamic payment) {
+    final isPaid = payment['payment_status'] == 'paid';
+    final date = DateTime.parse(payment['payment_date']);
+    final amount = ((payment['final_amount'] ?? 0) as num).toDouble();
 
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: isPaid
-            ? const Color(0xFF4CAF50).withOpacity(0.05)
-            : const Color(0xFFFFA726).withOpacity(0.05),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: isPaid
-              ? const Color(0xFF4CAF50).withOpacity(0.2)
-              : const Color(0xFFFFA726).withOpacity(0.2),
-        ),
+        border: Border(bottom: BorderSide(color: Colors.grey[200]!)),
       ),
       child: Row(
         children: [
@@ -718,246 +662,225 @@ class StudentDetailScreen extends StatelessWidget {
             width: 50,
             height: 50,
             decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: isPaid
-                    ? [const Color(0xFF4CAF50), const Color(0xFF43A047)]
-                    : [const Color(0xFFFFA726), const Color(0xFFFB8C00)],
-              ),
-              borderRadius: BorderRadius.circular(12),
+              color: (isPaid ? AppConstants.successColor : AppConstants.warningColor)
+                  .withOpacity(0.1),
+              borderRadius: BorderRadius.circular(10),
             ),
             child: Icon(
               isPaid ? Icons.check_circle : Icons.pending,
-              color: Colors.white,
+              color: isPaid ? AppConstants.successColor : AppConstants.warningColor,
             ),
           ),
-          const SizedBox(width: 16),
+          SizedBox(width: 16),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  payment.periodName,
-                  style: const TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.black87,
-                  ),
+                  '${payment['period_month']}-oy, ${payment['period_year']}',
+                  style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
                 ),
-                const SizedBox(height: 4),
                 Text(
-                  _formatDate(payment.paymentDate),
-                  style: TextStyle(fontSize: 13, color: Colors.grey[600]),
+                  DateFormat('dd.MM.yyyy').format(date),
+                  style: TextStyle(color: Colors.grey[600], fontSize: 12),
                 ),
               ],
             ),
           ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(
-                '${_formatCurrency(payment.finalAmount)} so\'m',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: isPaid
-                      ? const Color(0xFF4CAF50)
-                      : const Color(0xFFFFA726),
-                ),
-              ),
-              if (payment.discountPercent > 0) ...[
-                const SizedBox(height: 2),
-                Text(
-                  '${payment.discountPercent}% chegirma',
-                  style: TextStyle(fontSize: 11, color: Colors.grey[600]),
-                ),
-              ],
-            ],
+          Text(
+            '${_formatCurrency(amount)} so\'m',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: isPaid ? AppConstants.successColor : AppConstants.warningColor,
+            ),
           ),
         ],
       ),
     );
   }
 
-  // ==================== DAVOMAT TARIXI ====================
-  Widget _buildAttendanceHistory() {
-    return _buildCard(
-      title: 'Davomat tarixi',
-      icon: Icons.checklist,
-      actions: [
-        _buildFilterChip(
-          'Barchasi',
-          'all',
-          controller.selectedAttendanceFilter,
-        ),
-        const SizedBox(width: 8),
-        _buildFilterChip('Hafta', 'week', controller.selectedAttendanceFilter),
-        const SizedBox(width: 8),
-        _buildFilterChip('Oy', 'month', controller.selectedAttendanceFilter),
-      ],
-      child: Obx(() {
-        if (controller.isLoadingAttendance.value) {
-          return const Center(
-            child: Padding(
-              padding: EdgeInsets.all(20),
-              child: CircularProgressIndicator(color: Color(0xFF2196F3)),
-            ),
-          );
-        }
-
-        return Column(
-          children: [
-            Row(
-              children: [
-                _buildAttendanceStat(
-                  'Keldi',
-                  controller.presentCount.value,
-                  const Color(0xFF4CAF50),
-                ),
-                const SizedBox(width: 12),
-                _buildAttendanceStat(
-                  'Kelmadi',
-                  controller.absentCount.value,
-                  const Color(0xFFF44336),
-                ),
-                const SizedBox(width: 12),
-                _buildAttendanceStat(
-                  'Kechikdi',
-                  controller.lateCount.value,
-                  const Color(0xFFFFA726),
-                ),
-              ],
-            ),
-            const SizedBox(height: 20),
-            const Divider(),
-            const SizedBox(height: 20),
-            _buildAttendanceList(),
-          ],
-        );
-      }),
-    );
-  }
-
-  Widget _buildAttendanceStat(String label, int count, Color color) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(colors: [color, color.withOpacity(0.8)]),
-          borderRadius: BorderRadius.circular(12),
-          boxShadow: [
-            BoxShadow(
-              color: color.withOpacity(0.3),
-              blurRadius: 10,
-              offset: const Offset(0, 5),
-            ),
-          ],
-        ),
-        child: Column(
-          children: [
-            Text(
-              count.toString(),
-              style: const TextStyle(
-                fontSize: 28,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              label,
-              style: const TextStyle(
-                fontSize: 12,
-                color: Colors.white70,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildAttendanceList() {
+  Widget _buildAttendanceTab() {
     return Obx(() {
-      final records = controller.filteredAttendance.take(10).toList();
-
-      if (records.isEmpty) {
-        return _buildEmptyState('Davomat tarixi bo\'sh', Icons.checklist);
+      if (controller.isLoadingAttendance.value) {
+        return Center(child: CircularProgressIndicator());
       }
 
-      return ListView.separated(
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        itemCount: records.length,
-        separatorBuilder: (_, __) => const Divider(height: 16),
-        itemBuilder: (context, index) {
-          final record = records[index];
-          return _buildAttendanceItem(record);
-        },
+      return Column(
+        children: [
+          // Statistika
+          Row(
+            children: [
+              Expanded(
+                child: _buildStatCard(
+                  'Kelgan',
+                  controller.presentCount.toString(),
+                  Icons.check_circle,
+                  AppConstants.successColor,
+                ),
+              ),
+              SizedBox(width: 12),
+              Expanded(
+                child: _buildStatCard(
+                  'Kelmagan',
+                  controller.absentCount.toString(),
+                  Icons.cancel,
+                  AppConstants.errorColor,
+                ),
+              ),
+              SizedBox(width: 12),
+              Expanded(
+                child: _buildStatCard(
+                  'Kechikkan',
+                  controller.lateCount.toString(),
+                  Icons.access_time,
+                  AppConstants.warningColor,
+                ),
+              ),
+              SizedBox(width: 12),
+              Expanded(
+                child: _buildStatCard(
+                  'Davomat %',
+                  '${controller.attendancePercentage.toStringAsFixed(1)}%',
+                  Icons.analytics,
+                  AppConstants.infoColor,
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: 16),
+          
+          // Sana filtri
+          Card(
+            child: Padding(
+              padding: EdgeInsets.all(16),
+              child: Row(
+                children: [
+                  Text('Sana oralig\'i:', style: TextStyle(fontWeight: FontWeight.w600)),
+                  SizedBox(width: 12),
+                  Obx(() => _buildDateButton(
+                    controller.attendanceStartDate.value,
+                    controller.selectAttendanceStartDate,
+                  )),
+                  SizedBox(width: 12),
+                  Text('dan'),
+                  SizedBox(width: 12),
+                  Obx(() => _buildDateButton(
+                    controller.attendanceEndDate.value,
+                    controller.selectAttendanceEndDate,
+                  )),
+                  SizedBox(width: 12),
+                  Text('gacha'),
+                ],
+              ),
+            ),
+          ),
+          SizedBox(height: 16),
+
+          // Davomat ro'yxati
+          _buildAttendanceList(),
+        ],
       );
     });
   }
 
-  Widget _buildAttendanceItem(record) {
-    Color statusColor;
-    IconData statusIcon;
-    String statusText;
-
-    switch (record.status) {
-      case 'present':
-        statusColor = const Color(0xFF4CAF50);
-        statusIcon = Icons.check_circle;
-        statusText = 'Keldi';
-        break;
-      case 'absent':
-        statusColor = const Color(0xFFF44336);
-        statusIcon = Icons.cancel;
-        statusText = 'Kelmadi';
-        break;
-      case 'late':
-        statusColor = const Color(0xFFFFA726);
-        statusIcon = Icons.access_time;
-        statusText = 'Kechikdi';
-        break;
-      case 'excused':
-        statusColor = const Color(0xFF2196F3);
-        statusIcon = Icons.event_note;
-        statusText = 'Sababli';
-        break;
-      default:
-        statusColor = Colors.grey;
-        statusIcon = Icons.help_outline;
-        statusText = 'Noma\'lum';
+  Widget _buildAttendanceList() {
+    final records = controller.attendanceRecords;
+    
+    if (records.isEmpty) {
+      return _buildEmptyCard('Davomat ma\'lumotlari topilmadi', Icons.calendar_today);
     }
 
+    return Card(
+      child: Column(
+        children: [
+          Padding(
+            padding: EdgeInsets.all(16),
+            child: Text(
+              'Davomat tarixi',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+          ),
+          Divider(height: 1),
+          ...records.map((record) => _buildAttendanceRow(record)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAttendanceRow(dynamic record) {
+    final date = DateTime.parse(record['attendance_date']);
+    final status = record['status'];
+    final session = record['schedule_sessions'];
+    final subject = session?['subjects'];
+    final teacher = session?['staff'];
+
+    final statusColor = status == 'present'
+        ? AppConstants.successColor
+        : status == 'late'
+        ? AppConstants.warningColor
+        : AppConstants.errorColor;
+
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: statusColor.withOpacity(0.05),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: statusColor.withOpacity(0.2)),
+        border: Border(bottom: BorderSide(color: Colors.grey[200]!)),
       ),
       child: Row(
         children: [
-          Icon(statusIcon, color: statusColor, size: 24),
-          const SizedBox(width: 12),
+          Container(
+            width: 50,
+            height: 50,
+            decoration: BoxDecoration(
+              color: statusColor.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(
+              status == 'present'
+                  ? Icons.check_circle
+                  : status == 'late'
+                  ? Icons.access_time
+                  : Icons.cancel,
+              color: statusColor,
+            ),
+          ),
+          SizedBox(width: 16),
           Expanded(
-            child: Text(
-              _formatDate(record.attendanceDate),
-              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  DateFormat('dd.MM.yyyy - EEEE', 'uz').format(date),
+                  style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
+                ),
+                if (subject != null)
+                  Text(
+                    'Fan: ${subject['name']}',
+                    style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                  ),
+                if (teacher != null)
+                  Text(
+                    'O\'qituvchi: ${teacher['first_name']} ${teacher['last_name']}',
+                    style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                  ),
+              ],
             ),
           ),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             decoration: BoxDecoration(
-              color: statusColor,
+              color: statusColor.withOpacity(0.1),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Text(
-              statusText,
-              style: const TextStyle(
+              status == 'present'
+                  ? 'Keldi'
+                  : status == 'late'
+                  ? 'Kechikdi'
+                  : 'Kelmadi',
+              style: TextStyle(
+                color: statusColor,
                 fontSize: 12,
-                color: Colors.white,
                 fontWeight: FontWeight.w600,
               ),
             ),
@@ -967,203 +890,329 @@ class StudentDetailScreen extends StatelessWidget {
     );
   }
 
-  // ==================== DARS JADVALI ====================
-  Widget _buildSchedule() {
-    return _buildCard(
-      title: 'Dars jadvali',
-      icon: Icons.schedule,
-      child: Obx(() {
-        if (controller.isLoadingSchedule.value) {
-          return const Center(
+  Widget _buildScheduleTab() {
+    return Obx(() {
+      if (controller.isLoadingSchedule.value) {
+        return Center(child: CircularProgressIndicator());
+      }
+
+      if (controller.weeklySchedule.isEmpty) {
+        return _buildEmptyCard('Dars jadvali topilmadi', Icons.schedule);
+      }
+
+      return Column(
+        children: [
+          Card(
             child: Padding(
-              padding: EdgeInsets.all(20),
-              child: CircularProgressIndicator(color: Color(0xFF2196F3)),
+              padding: EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Haftalik dars jadvali',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                  SizedBox(height: 8),
+                  Obx(() => Text(
+                    'Sinf: ${controller.currentClassName.value ?? "—"}',
+                    style: TextStyle(color: Colors.grey[600]),
+                  )),
+                  Obx(() => Text(
+                    'Sinf rahbari: ${controller.classTeacherName.value ?? "—"}',
+                    style: TextStyle(color: Colors.grey[600]),
+                  )),
+                ],
+              ),
             ),
-          );
-        }
-
-        final schedule = controller.weeklySchedule;
-
-        if (schedule.isEmpty) {
-          return _buildEmptyState('Dars jadvali mavjud emas', Icons.schedule);
-        }
-
-        return ListView.separated(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          itemCount: schedule.length,
-          separatorBuilder: (_, __) => const Divider(height: 24),
-          itemBuilder: (context, index) {
-            final day = schedule[index];
-            return _buildScheduleDay(day);
-          },
-        );
-      }),
-    );
+          ),
+          SizedBox(height: 16),
+          ...controller.weeklySchedule.map((daySchedule) {
+            return _buildDaySchedule(daySchedule);
+          }),
+        ],
+      );
+    });
   }
 
-  Widget _buildScheduleDay(Map<String, dynamic> day) {
-    final lessons = day['lessons'] as List<Map<String, String>>;
+  Widget _buildDaySchedule(Map<String, dynamic> daySchedule) {
+    final day = daySchedule['day'] as String;
+    final lessons = daySchedule['lessons'] as List;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-          decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              colors: [Color(0xFF2196F3), Color(0xFF1976D2)],
-            ),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Text(
-            day['day'] as String,
-            style: const TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-            ),
-          ),
-        ),
-        const SizedBox(height: 12),
-        ...lessons.map(
-          (lesson) => Container(
-            margin: const EdgeInsets.only(bottom: 8),
-            padding: const EdgeInsets.all(12),
+    return Card(
+      margin: EdgeInsets.only(bottom: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: const Color(0xFF2196F3).withOpacity(0.05),
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(
-                color: const Color(0xFF2196F3).withOpacity(0.2),
-              ),
+              color: AppConstants.primaryColor.withOpacity(0.1),
+              borderRadius: BorderRadius.vertical(top: Radius.circular(12)),
             ),
             child: Row(
               children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF2196F3),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Text(
-                    lesson['time']!,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    lesson['subject']!,
-                    style: const TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
+                Icon(Icons.calendar_today, color: AppConstants.primaryColor),
+                SizedBox(width: 12),
                 Text(
-                  lesson['teacher']!,
-                  style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                  day,
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: AppConstants.primaryColor,
+                  ),
+                ),
+                Spacer(),
+                Text(
+                  '${lessons.length} ta dars',
+                  style: TextStyle(color: Colors.grey[600]),
                 ),
               ],
             ),
           ),
-        ),
-      ],
+          ...lessons.asMap().entries.map((entry) {
+            final index = entry.key;
+            final lesson = entry.value;
+            return _buildLessonRow(lesson, index + 1);
+          }).toList(),
+        ],
+      ),
     );
   }
 
-  // ==================== HELPER WIDGETS ====================
-  Widget _buildCard({
-    required String title,
-    required IconData icon,
-    required Widget child,
-    List<Widget>? actions,
-  }) {
+  Widget _buildLessonRow(dynamic lesson, int lessonNumber) {
+    final subject = lesson['subjects'] as Map<String, dynamic>?;
+    final teacher = lesson['staff'] as Map<String, dynamic>?;
+    final room = lesson['rooms'] as Map<String, dynamic>?;
+    final startTime = lesson['start_time'] as String?;
+    final endTime = lesson['end_time'] as String?;
+
     return Container(
-      padding: const EdgeInsets.all(24),
+      padding: EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 20,
-            offset: const Offset(0, 5),
+        border: Border(bottom: BorderSide(color: Colors.grey[200]!)),
+      ),
+      child: Row(
+        children: [
+          // Dars raqami
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: AppConstants.primaryColor.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Center(
+              child: Text(
+                '$lessonNumber',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: AppConstants.primaryColor,
+                ),
+              ),
+            ),
           ),
+          SizedBox(width: 16),
+
+          // Vaqt
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                startTime ?? '—',
+                style: TextStyle(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 14,
+                ),
+              ),
+              Text(
+                endTime ?? '—',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.grey[600],
+                ),
+              ),
+            ],
+          ),
+          SizedBox(width: 16),
+
+          // Fan va o'qituvchi
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  subject?['name'] ?? 'Fan ko\'rsatilmagan',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 16,
+                  ),
+                ),
+                if (teacher != null)
+                  InkWell(
+                    onTap: () {
+                      final teacherId = teacher['id'];
+                      if (teacherId != null) {
+                        Get.toNamed('/staff-detail', arguments: {'staffId': teacherId});
+                      }
+                    },
+                    child: Text(
+                      '${teacher['first_name']} ${teacher['last_name']}',
+                      style: TextStyle(
+                        color: AppConstants.primaryColor,
+                        fontSize: 14,
+                        decoration: TextDecoration.underline,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+
+          // Xona
+          if (room != null)
+            Container(
+              padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: AppConstants.infoColor.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.room, size: 16, color: AppConstants.infoColor),
+                  SizedBox(width: 4),
+                  Text(
+                    room['name'] ?? '—',
+                    style: TextStyle(
+                      color: AppConstants.infoColor,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
+            ),
         ],
       ),
+    );
+  }
+
+  Widget _buildClassmatesTab() {
+    return Obx(() {
+      if (controller.isLoadingClassmates.value) {
+        return Center(child: CircularProgressIndicator());
+      }
+
+      if (controller.classmates.isEmpty) {
+        return _buildEmptyCard('Sinfdoshlar topilmadi', Icons.people);
+      }
+
+      return Column(
+        children: [
+          // Sinf ma'lumotlari
+          Card(
+            child: Padding(
+              padding: EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Sinf ma\'lumotlari',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                  SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildClassInfoItem(
+                          'Sinf',
+                          controller.currentClassName.value ?? '—',
+                          Icons.class_,
+                        ),
+                      ),
+                      Expanded(
+                        child: _buildClassInfoItem(
+                          'Sinf rahbari',
+                          controller.classTeacherName.value ?? '—',
+                          Icons.person,
+                          onTap: controller.classTeacherId.value != null
+                              ? controller.viewTeacherProfile
+                              : null,
+                        ),
+                      ),
+                      Expanded(
+                        child: _buildClassInfoItem(
+                          'Xona',
+                          controller.classRoomName.value?.split('(')[0].trim() ?? '—',
+                          Icons.room,
+                        ),
+                      ),
+                      Expanded(
+                        child: _buildClassInfoItem(
+                          'O\'quvchilar',
+                          '${controller.currentClassSize.value}/${controller.classCapacity.value}',
+                          Icons.people,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+          SizedBox(height: 16),
+
+          // Sinfdoshlar ro'yxati
+          Card(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: EdgeInsets.all(16),
+                  child: Text(
+                    'Sinfdoshlar ro\'yxati',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                ),
+                Divider(height: 1),
+                ...controller.classmates.map((classmate) {
+                  return _buildClassmateRow(classmate);
+                }).toList(),
+              ],
+            ),
+          ),
+        ],
+      );
+    });
+  }
+
+  Widget _buildClassInfoItem(String label, String value, IconData icon, {VoidCallback? onTap}) {
+    return InkWell(
+      onTap: onTap,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFF2196F3), Color(0xFF1976D2)],
-                  ),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Icon(icon, color: Colors.white, size: 24),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  title,
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black87,
-                  ),
+              Icon(icon, size: 16, color: Colors.grey[600]),
+              SizedBox(width: 4),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.grey[600],
                 ),
               ),
-              if (actions != null) ...actions,
             ],
           ),
-          const SizedBox(height: 20),
-          child,
-        ],
-      ),
-    );
-  }
-
-  Widget _buildInfoRow(
-    String label,
-    String value, {
-    bool isHighlighted = false,
-  }) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 140,
-            child: Text(
-              label,
-              style: TextStyle(
-                fontSize: 14,
-                color: Colors.grey[600],
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ),
-          Expanded(
-            child: Text(
-              value,
-              style: TextStyle(
-                fontSize: 14,
-                color: isHighlighted ? const Color(0xFF2196F3) : Colors.black87,
-                fontWeight: isHighlighted ? FontWeight.bold : FontWeight.w500,
-              ),
+          SizedBox(height: 4),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: onTap != null ? AppConstants.primaryColor : Colors.black,
+              decoration: onTap != null ? TextDecoration.underline : null,
             ),
           ),
         ],
@@ -1171,36 +1220,182 @@ class StudentDetailScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildEditField(
-    String label,
-    TextEditingController controller, {
-    int maxLines = 1,
-  }) {
-    return TextField(
-      controller: controller,
-      maxLines: maxLines,
-      decoration: InputDecoration(
-        labelText: label,
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Color(0xFF2196F3), width: 2),
+  Widget _buildClassmateRow(Map<String, dynamic> classmate) {
+    final status = classmate['status'] ?? 'active';
+    final monthlyFee = (classmate['monthly_fee'] as num?)?.toDouble() ?? 0;
+
+    return InkWell(
+      onTap: () => controller.viewClassmateProfile(classmate['id']),
+      child: Container(
+        padding: EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          border: Border(bottom: BorderSide(color: Colors.grey[200]!)),
+        ),
+        child: Row(
+          children: [
+            // Avatar
+            Container(
+              width: 50,
+              height: 50,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: AppConstants.primaryColor.withOpacity(0.1),
+              ),
+              child: classmate['photo_url'] != null
+                  ? ClipOval(
+                      child: Image.network(
+                        classmate['photo_url'],
+                        fit: BoxFit.cover,
+                      ),
+                    )
+                  : Center(
+                      child: Text(
+                        classmate['name'].toString().split(' ').map((e) => e[0]).take(2).join().toUpperCase(),
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: AppConstants.primaryColor,
+                        ),
+                      ),
+                    ),
+            ),
+            SizedBox(width: 16),
+
+            // Ma'lumotlar
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    classmate['name'],
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 16,
+                    ),
+                  ),
+                  SizedBox(height: 4),
+                  Row(
+                    children: [
+                      Icon(Icons.phone, size: 14, color: Colors.grey[600]),
+                      SizedBox(width: 4),
+                      Text(
+                        classmate['phone'] ?? 'Telefon yo\'q',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+
+            // Oylik va status
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(
+                  '${_formatCurrency(monthlyFee)} so\'m',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
+                  ),
+                ),
+                SizedBox(height: 4),
+                Container(
+                  padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: status == 'active'
+                        ? AppConstants.successColor.withOpacity(0.1)
+                        : Colors.grey.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    status == 'active' ? 'Faol' : 'Noaktiv',
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
+                      color: status == 'active' ? AppConstants.successColor : Colors.grey,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+
+            SizedBox(width: 12),
+            Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey[400]),
+          ],
         ),
       ),
     );
   }
 
-  Widget _buildEmptyState(String message, IconData icon) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(40),
-        child: Column(
+  // ==================== HELPER WIDGETS ====================
+
+  Widget _buildInfoCard({
+    required String title,
+    required IconData icon,
+    required List<Widget> children,
+  }) {
+    return Card(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: AppConstants.primaryColor.withOpacity(0.05),
+              borderRadius: BorderRadius.vertical(top: Radius.circular(12)),
+            ),
+            child: Row(
+              children: [
+                Icon(icon, color: AppConstants.primaryColor, size: 24),
+                SizedBox(width: 12),
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: AppConstants.primaryColor,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          ...children,
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInfoRow(String label, String value, {VoidCallback? onTap}) {
+    return InkWell(
+      onTap: onTap,
+      child: Container(
+        padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          border: Border(bottom: BorderSide(color: Colors.grey[200]!)),
+        ),
+        child: Row(
           children: [
-            Icon(icon, size: 80, color: Colors.grey.shade300),
-            const SizedBox(height: 16),
-            Text(
-              message,
-              style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+            Expanded(
+              flex: 2,
+              child: Text(
+                label,
+                style: TextStyle(color: Colors.grey[600], fontSize: 14),
+              ),
+            ),
+            Expanded(
+              flex: 3,
+              child: Text(
+                value,
+                style: TextStyle(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 14,
+                  color: onTap != null ? AppConstants.primaryColor : Colors.black,
+                  decoration: onTap != null ? TextDecoration.underline : null,
+                ),
+              ),
             ),
           ],
         ),
@@ -1208,62 +1403,94 @@ class StudentDetailScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildLoadingState() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const CircularProgressIndicator(color: Color(0xFF2196F3)),
-          const SizedBox(height: 16),
-          Text(
-            'Ma\'lumotlar yuklanmoqda...',
-            style: TextStyle(fontSize: 14, color: Colors.grey[600]),
-          ),
-        ],
+  Widget _buildStatCard(String title, String value, IconData icon, Color color) {
+    return Container(
+      padding: EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withOpacity(0.3)),
       ),
-    );
-  }
-
-  Widget _buildErrorState() {
-    return Center(
       child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(Icons.error_outline, size: 80, color: Colors.red.shade300),
-          const SizedBox(height: 16),
-          Text(
-            'O\'quvchi topilmadi',
-            style: TextStyle(fontSize: 16, color: Colors.grey[600]),
-          ),
-          const SizedBox(height: 24),
-          ElevatedButton.icon(
-            onPressed: () => Get.back(),
-            icon: const Icon(Icons.arrow_back),
-            label: const Text('Orqaga'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF2196F3),
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
+          Row(
+            children: [
+              Icon(icon, color: color, size: 24),
+              Spacer(),
+              Text(
+                value,
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: color,
+                ),
               ),
-            ),
+            ],
           ),
+          SizedBox(height: 8),
+          Text(title, style: TextStyle(fontSize: 12, color: Colors.grey[600])),
         ],
       ),
     );
   }
 
-  String _formatDate(DateTime? date) {
+  Widget _buildEmptyCard(String message, IconData icon) {
+    return Card(
+      child: Padding(
+        padding: EdgeInsets.all(40),
+        child: Center(
+          child: Column(
+            children: [
+              Icon(icon, size: 64, color: Colors.grey[300]),
+              SizedBox(height: 16),
+              Text(message, style: TextStyle(color: Colors.grey[600])),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDateButton(DateTime date, VoidCallback onTap) {
+    return InkWell(
+      onTap: onTap,
+      child: Container(
+        padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          border: Border.all(color: AppConstants.primaryColor),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.calendar_today, size: 16, color: AppConstants.primaryColor),
+            SizedBox(width: 8),
+            Text(
+              DateFormat('dd.MM.yyyy').format(date),
+              style: TextStyle(color: AppConstants.primaryColor),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _formatDate(dynamic date) {
     if (date == null) return '—';
-    return DateFormat('dd.MM.yyyy').format(date);
+    try {
+      if (date is String) {
+        return DateFormat('dd.MM.yyyy').format(DateTime.parse(date));
+      } else if (date is DateTime) {
+        return DateFormat('dd.MM.yyyy').format(date);
+      }
+    } catch (e) {
+      return '—';
+    }
+    return '—';
   }
 
   String _formatCurrency(double amount) {
-    return amount
-        .toStringAsFixed(0)
-        .replaceAllMapped(
-          RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
-          (m) => '${m[1]},',
-        );
+    return NumberFormat('#,###').format(amount);
   }
 }

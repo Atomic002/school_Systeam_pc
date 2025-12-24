@@ -1,4 +1,3 @@
-// lib/presentation/screens/finance/new_payment_screen_v4.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_application_1/presentation/controllers/payment_controller.dart';
 import 'package:get/get.dart';
@@ -26,9 +25,7 @@ class NewPaymentScreenV4 extends StatelessWidget {
           Expanded(
             child: Obx(() {
               if (controller.isLoading.value) {
-                return Center(
-                  child: CircularProgressIndicator(color: primaryBlue),
-                );
+                return Center(child: CircularProgressIndicator(color: primaryBlue));
               }
               return _buildMainContent(controller, context);
             }),
@@ -41,16 +38,8 @@ class NewPaymentScreenV4 extends StatelessWidget {
   Widget _buildHeader(NewPaymentControllerV4 controller, BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [primaryBlue, darkBlue],
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: primaryBlue.withOpacity(0.3),
-            blurRadius: 15,
-            offset: Offset(0, 5),
-          ),
-        ],
+        gradient: LinearGradient(colors: [primaryBlue, darkBlue]),
+        boxShadow: [BoxShadow(color: primaryBlue.withOpacity(0.3), blurRadius: 15, offset: Offset(0, 5))],
       ),
       child: SafeArea(
         child: Padding(
@@ -59,39 +48,19 @@ class NewPaymentScreenV4 extends StatelessWidget {
             children: [
               Row(
                 children: [
-                  _buildIconButton(
-                    icon: Icons.arrow_back_ios_new,
-                    onPressed: () => Get.back(),
-                  ),
+                  _buildIconButton(icon: Icons.arrow_back_ios_new, onPressed: () => Get.back()),
                   SizedBox(width: 16),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          'TO\'LOV QABUL QILISH',
-                          style: TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                          ),
-                        ),
+                        Text('TO\'LOV QABUL QILISH', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white)),
                         SizedBox(height: 4),
-                        Text(
-                          DateFormat('dd MMMM yyyy, HH:mm', 'uz_UZ')
-                              .format(DateTime.now()),
-                          style: TextStyle(
-                            color: Colors.white.withOpacity(0.9),
-                            fontSize: 13,
-                          ),
-                        ),
+                        Obx(() => Text('${controller.currentStaffName.value} | ${DateFormat('dd.MM.yyyy').format(DateTime.now())}', style: TextStyle(color: Colors.white.withOpacity(0.9), fontSize: 13))),
                       ],
                     ),
                   ),
-                  _buildIconButton(
-                    icon: Icons.refresh_rounded,
-                    onPressed: () => controller.refreshData(),
-                  ),
+                  _buildIconButton(icon: Icons.refresh_rounded, onPressed: () => controller.refreshData()),
                 ],
               ),
               SizedBox(height: 20),
@@ -105,7 +74,10 @@ class NewPaymentScreenV4 extends StatelessWidget {
     );
   }
 
-  Widget _buildIconButton({required IconData icon, required VoidCallback onPressed}) {
+  Widget _buildIconButton({
+    required IconData icon,
+    required VoidCallback onPressed,
+  }) {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white.withOpacity(0.2),
@@ -118,77 +90,88 @@ class NewPaymentScreenV4 extends StatelessWidget {
     );
   }
 
-  Widget _buildMonthSelector(NewPaymentControllerV4 controller, BuildContext context) {
-    return Obx(() => InkWell(
-      onTap: () => controller.selectMonth(context),
-      child: Container(
-        padding: EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-        decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.15),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.white.withOpacity(0.3), width: 2),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.calendar_today_rounded, color: Colors.white, size: 24),
-            SizedBox(width: 12),
-            Text(
-              controller.currentMonthYear,
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
+  Widget _buildMonthSelector(
+    NewPaymentControllerV4 controller,
+    BuildContext context,
+  ) {
+    return Obx(
+      () => InkWell(
+        onTap: () => controller.selectMonth(context),
+        child: Container(
+          padding: EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.15),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: Colors.white.withOpacity(0.3), width: 2),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.calendar_today_rounded, color: Colors.white, size: 24),
+              SizedBox(width: 12),
+              Text(
+                controller.currentMonthYear,
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
-            ),
-            SizedBox(width: 8),
-            Icon(Icons.arrow_drop_down_rounded, color: Colors.white, size: 28),
-          ],
+              SizedBox(width: 8),
+              Icon(
+                Icons.arrow_drop_down_rounded,
+                color: Colors.white,
+                size: 28,
+              ),
+            ],
+          ),
         ),
       ),
-    ));
+    );
   }
 
   Widget _buildStatsCards(NewPaymentControllerV4 controller) {
-    return Obx(() => Row(
-      children: [
-        Expanded(
-          child: _buildStatCard(
-            icon: Icons.check_circle_outline,
-            label: 'To\'ladi',
-            value: '${controller.currentMonthPaymentsCount.value}',
-            color: Colors.white,
+    return Obx(
+      () => Row(
+        children: [
+          Expanded(
+            child: _buildStatCard(
+              icon: Icons.check_circle_outline,
+              label: 'To\'ladi',
+              value: '${controller.currentMonthPaymentsCount.value}',
+              color: Colors.white,
+            ),
           ),
-        ),
-        SizedBox(width: 12),
-        Expanded(
-          child: _buildStatCard(
-            icon: Icons.pending_actions_outlined,
-            label: 'To\'lamadi',
-            value: '${controller.unpaidStudentsCount.value}',
-            color: Colors.white,
+          SizedBox(width: 12),
+          Expanded(
+            child: _buildStatCard(
+              icon: Icons.pending_actions_outlined,
+              label: 'To\'lamadi',
+              value: '${controller.unpaidStudentsCount.value}',
+              color: Colors.white,
+            ),
           ),
-        ),
-        SizedBox(width: 12),
-        Expanded(
-          child: _buildStatCard(
-            icon: Icons.warning_amber_rounded,
-            label: 'Qarzdor',
-            value: '${controller.currentMonthDebtorsCount.value}',
-            color: Colors.white,
+          SizedBox(width: 12),
+          Expanded(
+            child: _buildStatCard(
+              icon: Icons.warning_amber_rounded,
+              label: 'Qarzdor',
+              value: '${controller.currentMonthDebtorsCount.value}',
+              color: Colors.white,
+            ),
           ),
-        ),
-        SizedBox(width: 12),
-        Expanded(
-          child: _buildStatCard(
-            icon: Icons.attach_money_rounded,
-            label: 'Tushum',
-            value: _formatShortCurrency(controller.currentMonthRevenue.value),
-            color: Colors.white,
+          SizedBox(width: 12),
+          Expanded(
+            child: _buildStatCard(
+              icon: Icons.attach_money_rounded,
+              label: 'Tushum',
+              value: _formatShortCurrency(controller.currentMonthRevenue.value),
+              color: Colors.white,
+            ),
           ),
-        ),
-      ],
-    ));
+        ],
+      ),
+    );
   }
 
   Widget _buildStatCard({
@@ -219,10 +202,7 @@ class NewPaymentScreenV4 extends StatelessWidget {
           SizedBox(height: 4),
           Text(
             label,
-            style: TextStyle(
-              color: color.withOpacity(0.9),
-              fontSize: 11,
-            ),
+            style: TextStyle(color: color.withOpacity(0.9), fontSize: 11),
           ),
         ],
       ),
@@ -238,7 +218,10 @@ class NewPaymentScreenV4 extends StatelessWidget {
     return amount.toStringAsFixed(0);
   }
 
-  Widget _buildMainContent(NewPaymentControllerV4 controller, BuildContext context) {
+  Widget _buildMainContent(
+    NewPaymentControllerV4 controller,
+    BuildContext context,
+  ) {
     return Row(
       children: [
         Expanded(flex: 35, child: _buildStudentsPanel(controller)),
@@ -344,8 +327,11 @@ class NewPaymentScreenV4 extends StatelessWidget {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.search_off_rounded, 
-                          size: 80, color: Colors.grey[300]),
+                      Icon(
+                        Icons.search_off_rounded,
+                        size: 80,
+                        color: Colors.grey[300],
+                      ),
                       SizedBox(height: 20),
                       Text(
                         'O\'quvchi topilmadi',
@@ -366,10 +352,17 @@ class NewPaymentScreenV4 extends StatelessWidget {
                 separatorBuilder: (_, __) => SizedBox(height: 12),
                 itemBuilder: (context, index) {
                   final student = controller.searchResults[index];
-                  final isSelected = controller.selectedStudentId.value == student.id;
-                  final hasPaid = student.toJson()['has_paid_current_month'] == true;
-                  
-                  return _buildStudentCard(controller, student, isSelected, hasPaid);
+                  final isSelected =
+                      controller.selectedStudentId.value == student.id;
+                  final hasPaid =
+                      student.toJson()['has_paid_current_month'] == true;
+
+                  return _buildStudentCard(
+                    controller,
+                    student,
+                    isSelected,
+                    hasPaid,
+                  );
                 },
               );
             }),
@@ -504,7 +497,7 @@ class NewPaymentScreenV4 extends StatelessWidget {
       }
 
       return SingleChildScrollView(
-        padding: EdgeInsets.only(right: 16, top: 16, bottom: 16),
+        padding: EdgeInsets.all(16),
         child: Form(
           key: controller.formKey,
           child: Column(
@@ -515,7 +508,7 @@ class NewPaymentScreenV4 extends StatelessWidget {
               SizedBox(height: 16),
               _buildDebtsSection(controller),
               SizedBox(height: 16),
-              _buildPaymentDetailsCard(controller),
+              _buildPaymentDetailsCard(controller, context), // Context berildi
               SizedBox(height: 16),
               _buildSaveButton(controller),
             ],
@@ -524,7 +517,6 @@ class NewPaymentScreenV4 extends StatelessWidget {
       );
     });
   }
-
   Widget _buildEmptyState() {
     return Container(
       margin: EdgeInsets.only(right: 16, top: 16, bottom: 16),
@@ -611,7 +603,11 @@ class NewPaymentScreenV4 extends StatelessWidget {
                       SizedBox(height: 4),
                       Row(
                         children: [
-                          Icon(Icons.class_rounded, size: 16, color: primaryBlue),
+                          Icon(
+                            Icons.class_rounded,
+                            size: 16,
+                            color: primaryBlue,
+                          ),
                           SizedBox(width: 6),
                           Text(
                             student.classFullName,
@@ -627,7 +623,11 @@ class NewPaymentScreenV4 extends StatelessWidget {
                         SizedBox(height: 4),
                         Row(
                           children: [
-                            Icon(Icons.person_outline, size: 16, color: Colors.grey[600]),
+                            Icon(
+                              Icons.person_outline,
+                              size: 16,
+                              color: Colors.grey[600],
+                            ),
                             SizedBox(width: 6),
                             Text(
                               'Rahbar: ${student.mainTeacherName}',
@@ -656,14 +656,15 @@ class NewPaymentScreenV4 extends StatelessWidget {
                 Expanded(
                   child: _buildInfoChip(
                     icon: Icons.phone,
-                    label: student.parentPhone ?? 'Telefon yo\'q',
+                    label: student.parentPhone,
                   ),
                 ),
                 SizedBox(width: 12),
                 Expanded(
                   child: _buildInfoChip(
                     icon: Icons.attach_money_rounded,
-                    label: '${controller.formatCurrency(student.monthlyFee)} so\'m/oy',
+                    label:
+                        '${controller.formatCurrency(student.monthlyFee)} so\'m/oy',
                   ),
                 ),
               ],
@@ -733,28 +734,30 @@ class NewPaymentScreenV4 extends StatelessWidget {
                 onPressed: () => controller.showPaymentHistory(),
                 icon: Icon(Icons.open_in_new_rounded, size: 18),
                 label: Text('BARCHASI'),
-                style: TextButton.styleFrom(
-                  foregroundColor: primaryBlue,
-                ),
+                style: TextButton.styleFrom(foregroundColor: primaryBlue),
               ),
             ],
           ),
           SizedBox(height: 16),
           Obx(() {
             if (controller.isLoadingHistory.value) {
-              return Center(child: CircularProgressIndicator(color: primaryBlue));
+              return Center(
+                child: CircularProgressIndicator(color: primaryBlue),
+              );
             }
-            
+
             if (controller.paymentHistory.isEmpty) {
-              return Text('Hali to\'lov qilinmagan',
-                  style: TextStyle(color: Colors.grey));
+              return Text(
+                'Hali to\'lov qilinmagan',
+                style: TextStyle(color: Colors.grey),
+              );
             }
-            
+
             return ListView.separated(
               shrinkWrap: true,
               physics: NeverScrollableScrollPhysics(),
-              itemCount: controller.paymentHistory.length > 3 
-                  ? 3 
+              itemCount: controller.paymentHistory.length > 3
+                  ? 3
                   : controller.paymentHistory.length,
               separatorBuilder: (_, __) => Divider(),
               itemBuilder: (context, index) {
@@ -814,7 +817,7 @@ class NewPaymentScreenV4 extends StatelessWidget {
               ],
             ),
             SizedBox(height: 16),
-            
+
             ListView.builder(
               shrinkWrap: true,
               physics: NeverScrollableScrollPhysics(),
@@ -822,17 +825,17 @@ class NewPaymentScreenV4 extends StatelessWidget {
               itemBuilder: (context, index) {
                 final debt = controller.studentDebts[index];
                 final isSelected = controller.selectedDebts.contains(debt.id);
-                
+
                 return CheckboxListTile(
                   value: isSelected,
                   onChanged: (_) => controller.toggleDebtSelection(debt.id),
                   title: Text(debt.periodText),
                   subtitle: Text(
-                    debt.isOverdue 
+                    debt.isOverdue
                         ? '${debt.daysOverdue} kun kechikkan'
-                        : debt.dueDate != null 
-                            ? 'Muddati: ${DateFormat('dd.MM.yyyy').format(debt.dueDate!)}'
-                            : 'Muddati belgilanmagan',
+                        : debt.dueDate != null
+                        ? 'Muddati: ${DateFormat('dd.MM.yyyy').format(debt.dueDate!)}'
+                        : 'Muddati belgilanmagan',
                     style: TextStyle(
                       color: debt.isOverdue ? Colors.red : Colors.grey,
                     ),
@@ -848,7 +851,7 @@ class NewPaymentScreenV4 extends StatelessWidget {
                 );
               },
             ),
-            
+
             if (controller.selectedDebts.isNotEmpty) ...[
               Divider(),
               Row(
@@ -875,125 +878,56 @@ class NewPaymentScreenV4 extends StatelessWidget {
     });
   }
 
-  Widget _buildPaymentDetailsCard(NewPaymentControllerV4 controller) {
+ Widget _buildPaymentDetailsCard(NewPaymentControllerV4 controller, BuildContext context) {
     return Container(
       padding: EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-      ),
+      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Icon(Icons.payment_rounded, color: primaryBlue, size: 24),
-              SizedBox(width: 12),
-              Text(
-                'TO\'LOV MA\'LUMOTLARI',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: darkBlue,
-                ),
+              Row(
+                children: [
+                  Icon(Icons.payment_rounded, color: primaryBlue, size: 24),
+                  SizedBox(width: 12),
+                  Text('TO\'LOV MA\'LUMOTLARI', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: darkBlue)),
+                ],
+              ),
+              // YANGI: Sana tanlash
+              TextButton.icon(
+                onPressed: () => controller.selectPaymentDate(context),
+                icon: Icon(Icons.calendar_month, color: primaryBlue),
+                label: Obx(() => Text(DateFormat('dd.MM.yyyy').format(controller.paymentDate.value), style: TextStyle(fontWeight: FontWeight.bold, color: primaryBlue))),
               ),
             ],
           ),
           SizedBox(height: 20),
-
           TextFormField(
             controller: controller.amountController,
             keyboardType: TextInputType.number,
             style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             decoration: InputDecoration(
-              labelText: 'Summa *',
-              hintText: '500000',
-              suffixText: 'so\'m',
+              labelText: 'Summa *', hintText: '500000', suffixText: 'so\'m',
               prefixIcon: Icon(Icons.attach_money_rounded, color: primaryBlue),
-              filled: true,
-              fillColor: paleBlue,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: lightBlue, width: 2),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: primaryBlue, width: 2),
-              ),
+              filled: true, fillColor: paleBlue,
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
             ),
-            validator: (v) {
-              if (v == null || v.isEmpty) return 'Summani kiriting';
-              final amount = double.tryParse(v);
-              if (amount == null || amount <= 0) return 'Noto\'g\'ri summa';
-              return null;
-            },
             onChanged: (_) => controller.calculateFinalAmount(),
           ),
-
           SizedBox(height: 16),
-
           Row(
             children: [
               Expanded(
                 child: Obx(() => DropdownButtonFormField<String>(
                   value: controller.paymentMethod.value,
-                  decoration: InputDecoration(
-                    labelText: 'To\'lov usuli *',
-                    prefixIcon: Icon(Icons.payment_rounded, color: primaryBlue),
-                    filled: true,
-                    fillColor: paleBlue,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide(color: lightBlue, width: 2),
-                    ),
-                  ),
+                  decoration: InputDecoration(labelText: 'To\'lov usuli *', filled: true, fillColor: paleBlue, border: OutlineInputBorder(borderRadius: BorderRadius.circular(12))),
                   items: [
-                    DropdownMenuItem(
-                      value: 'cash',
-                      child: Row(
-                        children: [
-                          Icon(Icons.money_rounded, size: 20, color: Colors.green),
-                          SizedBox(width: 8),
-                          Text('Naqd'),
-                        ],
-                      ),
-                    ),
-                    DropdownMenuItem(
-                      value: 'click',
-                      child: Row(
-                        children: [
-                          Icon(Icons.phone_android_rounded, size: 20, color: primaryBlue),
-                          SizedBox(width: 8),
-                          Text('Click'),
-                        ],
-                      ),
-                    ),
-                    DropdownMenuItem(
-                      value: 'terminal',
-                      child: Row(
-                        children: [
-                          Icon(Icons.credit_card_rounded, size: 20, color: Colors.purple),
-                          SizedBox(width: 8),
-                          Text('Terminal'),
-                        ],
-                      ),
-                    ),
-                    DropdownMenuItem(
-                      value: 'owner_fund',
-                      child: Row(
-                        children: [
-                          Icon(Icons.account_balance_wallet_rounded, size: 20, color: Colors.orange),
-                          SizedBox(width: 8),
-                          Text('Ega kassasi'),
-                        ],
-                      ),
-                    ),
+                    DropdownMenuItem(value: 'cash', child: Text('Naqd')),
+                    DropdownMenuItem(value: 'click', child: Text('Click')),
+                    DropdownMenuItem(value: 'terminal', child: Text('Terminal')),
+                    DropdownMenuItem(value: 'owner_fund', child: Text('Ega kassasi')),
                   ],
                   onChanged: (v) => controller.paymentMethod.value = v!,
                 )),
@@ -1002,19 +936,7 @@ class NewPaymentScreenV4 extends StatelessWidget {
               Expanded(
                 child: Obx(() => DropdownButtonFormField<String>(
                   value: controller.paymentType.value,
-                  decoration: InputDecoration(
-                    labelText: 'To\'lov turi *',
-                    prefixIcon: Icon(Icons.category_rounded, color: primaryBlue),
-                    filled: true,
-                    fillColor: paleBlue,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide(color: lightBlue, width: 2),
-                    ),
-                  ),
+                  decoration: InputDecoration(labelText: 'To\'lov turi *', filled: true, fillColor: paleBlue, border: OutlineInputBorder(borderRadius: BorderRadius.circular(12))),
                   items: [
                     DropdownMenuItem(value: 'tuition', child: Text('Oylik to\'lov')),
                     DropdownMenuItem(value: 'registration', child: Text('Ro\'yxatga olish')),
@@ -1026,42 +948,17 @@ class NewPaymentScreenV4 extends StatelessWidget {
               ),
             ],
           ),
-
           SizedBox(height: 20),
-
           PaymentDetailsWidgets.buildDiscountSection(controller),
-
           SizedBox(height: 20),
-
           PaymentDetailsWidgets.buildFinalAmountDisplay(controller),
-
           SizedBox(height: 20),
-
           PaymentDetailsWidgets.buildPartialPaymentSection(controller),
-
           SizedBox(height: 20),
-
           TextFormField(
             controller: controller.notesController,
-            decoration: InputDecoration(
-              labelText: 'Qo\'shimcha izoh (ixtiyoriy)',
-              hintText: 'Qo\'shimcha ma\'lumot...',
-              prefixIcon: Icon(Icons.note_alt_rounded, color: primaryBlue),
-              filled: true,
-              fillColor: paleBlue,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: lightBlue, width: 2),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: primaryBlue, width: 2),
-              ),
-            ),
-            maxLines: 3,
+            decoration: InputDecoration(labelText: 'Qo\'shimcha izoh', prefixIcon: Icon(Icons.note_alt_rounded, color: primaryBlue), filled: true, fillColor: paleBlue, border: OutlineInputBorder(borderRadius: BorderRadius.circular(12))),
+            maxLines: 2,
           ),
         ],
       ),
@@ -1069,34 +966,40 @@ class NewPaymentScreenV4 extends StatelessWidget {
   }
 
   Widget _buildSaveButton(NewPaymentControllerV4 controller) {
-    return Obx(() => SizedBox(
-      width: double.infinity,
-      height: 60,
-      child: ElevatedButton.icon(
-        onPressed: controller.isLoading.value
-            ? null
-            : () => controller.savePayment(),
-        icon: controller.isLoading.value
-            ? SizedBox(
-                width: 24,
-                height: 24,
-                child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
-              )
-            : Icon(Icons.check_circle_rounded, size: 28),
-        label: Text(
-          controller.isLoading.value ? 'SAQLANMOQDA...' : 'TO\'LOVNI QABUL QILISH',
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-        ),
-        style: ElevatedButton.styleFrom(
-          backgroundColor: primaryBlue,
-          foregroundColor: Colors.white,
-          disabledBackgroundColor: Colors.grey[400],
-          padding: EdgeInsets.symmetric(vertical: 16),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+    return Obx(
+      () => SizedBox(
+        width: double.infinity,
+        height: 60,
+        child: ElevatedButton.icon(
+          // O'ZGARTIRILDI: confirmPayment chaqiriladi
+          onPressed: controller.isLoading.value
+              ? null
+              : () => controller.confirmPayment(),
+          icon: controller.isLoading.value
+              ? SizedBox(
+                  width: 24,
+                  height: 24,
+                  child: CircularProgressIndicator(
+                    color: Colors.white,
+                    strokeWidth: 2,
+                  ),
+                )
+              : Icon(Icons.check_circle_rounded, size: 28),
+          label: Text(
+            controller.isLoading.value
+                ? 'SAQLANMOQDA...'
+                : 'TO\'LOVNI QABUL QILISH',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+          ),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: primaryBlue,
+            foregroundColor: Colors.white,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
           ),
         ),
       ),
-    ));
+    );
   }
 }

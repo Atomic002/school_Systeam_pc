@@ -1,43 +1,32 @@
-// lib/presentation/screens/students/students_list_screen.dart
-// ZAMONAVIY VA MUKAMMAL DIZAYN - O'QUVCHILAR RO'YXATI
+// lib/presentation/screens/students/students_screen.dart
+// TO'G'IRLANGAN VERSIYA (MAP bilan ishlash uchun)
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:intl/intl.dart';
 import '../../controllers/students_controller.dart';
 import '../../widgets/sidebar.dart';
+import '../../../config/constants.dart';
 import '../../../config/app_routes.dart';
 
-class StudentsListScreen extends StatelessWidget {
-  StudentsListScreen({Key? key}) : super(key: key);
+class StudentsScreen extends StatelessWidget {
+  StudentsScreen({Key? key}) : super(key: key);
 
-  final StudentsController controller = Get.put(StudentsController());
+  final controller = Get.put(StudentsController());
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FA),
+      backgroundColor: AppConstants.backgroundLight,
       body: Row(
         children: [
-          // Sidebar
           Sidebar(),
-
-          // Main Content
           Expanded(
             child: Column(
               children: [
-                // Modern AppBar
-                _buildModernAppBar(),
-
-                // Content Area
-                Expanded(
-                  child: Obx(() {
-                    if (controller.isLoading.value &&
-                        controller.students.isEmpty) {
-                      return _buildLoadingState();
-                    }
-                    return _buildMainContent();
-                  }),
-                ),
+                _buildModernHeader(),
+                _buildFiltersSection(),
+                Expanded(child: _buildMainContent()),
               ],
             ),
           ),
@@ -46,9 +35,10 @@ class StudentsListScreen extends StatelessWidget {
     );
   }
 
-  // Modern AppBar with gradient
-  Widget _buildModernAppBar() {
+  // ==================== ZAMONAVIY HEADER ====================
+  Widget _buildModernHeader() {
     return Container(
+      padding: EdgeInsets.all(24),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [Color(0xFF667eea), Color(0xFF764ba2)],
@@ -64,116 +54,109 @@ class StudentsListScreen extends StatelessWidget {
         ],
       ),
       child: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(24.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  // Title Section
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'O\'quvchilar',
-                          style: TextStyle(
-                            fontSize: 32,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                            letterSpacing: 0.5,
-                          ),
-                        ),
-                        SizedBox(height: 8),
-                        Obx(
-                          () => Text(
-                            'Jami: ${controller.totalCount.value} ta o\'quvchi',
-                            style: TextStyle(
-                              fontSize: 16,
-                              color: Colors.white.withOpacity(0.9),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
+        child: Column(
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(16),
                   ),
+                  child: Icon(Icons.school, color: Colors.white, size: 32),
+                ),
+                SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'O\'quvchilar',
+                        style: TextStyle(
+                          fontSize: 32,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                      Obx(
+                        () => Text(
+                          'Jami: ${controller.totalCount.value} ta o\'quvchi',
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: Colors.white.withOpacity(0.9),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
 
-                  // Action Buttons
-                  _buildActionButtons(),
-                ],
-              ),
-
-              SizedBox(height: 20),
-
-              // Search and Filter Row
-              _buildSearchAndFilter(),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  // Action Buttons
-  Widget _buildActionButtons() {
-    return Row(
-      children: [
-        // Export Button
-        _buildHeaderButton(
-          icon: Icons.file_download_outlined,
-          label: 'Export',
-          onTap: () => _exportStudents(),
-        ),
-        SizedBox(width: 12),
-
-        // Import Button
-        _buildHeaderButton(
-          icon: Icons.file_upload_outlined,
-          label: 'Import',
-          onTap: () => _importStudents(),
-        ),
-        SizedBox(width: 12),
-
-        // Add Student Button
-        Container(
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(12),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.1),
-                blurRadius: 10,
-                offset: Offset(0, 4),
-              ),
-            ],
-          ),
-          child: Material(
-            color: Colors.transparent,
-            child: InkWell(
-              onTap: () => Get.toNamed(AppRoutes.addStudent),
-              borderRadius: BorderRadius.circular(12),
-              child: Padding(
-                padding: EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-                child: Row(
-                  children: [
-                    Icon(Icons.add_circle_outline, color: Color(0xFF667eea)),
-                    SizedBox(width: 8),
-                    Text(
-                      'Yangi o\'quvchi',
-                      style: TextStyle(
-                        color: Color(0xFF667eea),
-                        fontSize: 15,
-                        fontWeight: FontWeight.w600,
+                _buildHeaderButton(
+                  icon: Icons.file_download,
+                  label: 'Export',
+                  onTap: () => _showExportDialog(),
+                ),
+                SizedBox(width: 12),
+                _buildHeaderButton(
+                  icon: Icons.file_upload,
+                  label: 'Import',
+                  onTap: () => _showImportDialog(),
+                ),
+                SizedBox(width: 12),
+                Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.1),
+                        blurRadius: 10,
+                        offset: Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      onTap: () => Get.toNamed(AppRoutes.addStudent),
+                      borderRadius: BorderRadius.circular(12),
+                      child: Padding(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: 24,
+                          vertical: 14,
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(Icons.add_circle, color: Color(0xFF667eea)),
+                            SizedBox(width: 8),
+                            Text(
+                              'Yangi o\'quvchi',
+                              style: TextStyle(
+                                color: Color(0xFF667eea),
+                                fontSize: 15,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
-                  ],
+                  ),
                 ),
-              ),
+                SizedBox(width: 12),
+                IconButton(
+                  onPressed: controller.refreshData,
+                  icon: Icon(Icons.refresh, color: Colors.white),
+                  tooltip: 'Yangilash',
+                ),
+              ],
             ),
-          ),
+            SizedBox(height: 20),
+            _buildSearchBar(),
+          ],
         ),
-      ],
+      ),
     );
   }
 
@@ -215,248 +198,273 @@ class StudentsListScreen extends StatelessWidget {
     );
   }
 
-  // Search and Filter
-  Widget _buildSearchAndFilter() {
-    return Row(
-      children: [
-        // Search Box
-        Expanded(
-          flex: 3,
-          child: Container(
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.1),
-                  blurRadius: 10,
-                  offset: Offset(0, 4),
-                ),
-              ],
-            ),
-            child: TextField(
-              onChanged: (value) => controller.searchStudents(value),
-              decoration: InputDecoration(
-                hintText:
-                    'Ism, familiya yoki telefon raqam bo\'yicha qidirish...',
-                prefixIcon: Icon(Icons.search, color: Color(0xFF667eea)),
-                suffixIcon: Obx(
-                  () => controller.searchQuery.value.isNotEmpty
-                      ? IconButton(
-                          icon: Icon(Icons.clear, color: Colors.grey),
-                          onPressed: () => controller.searchStudents(''),
-                        )
-                      : SizedBox(),
-                ),
-                border: InputBorder.none,
-                contentPadding: EdgeInsets.symmetric(
-                  horizontal: 20,
-                  vertical: 16,
-                ),
-              ),
-            ),
-          ),
-        ),
-
-        SizedBox(width: 16),
-
-        // Filter Chips
-        _buildFilterChip(
-          label: 'Faol',
-          isSelected: controller.selectedStatus.value == 'active',
-          onTap: () => controller.setStatusFilter(
-            controller.selectedStatus.value == 'active' ? null : 'active',
-          ),
-        ),
-
-        SizedBox(width: 12),
-
-        _buildFilterChip(
-          label: 'To\'xtatilgan',
-          isSelected: controller.selectedStatus.value == 'paused',
-          onTap: () => controller.setStatusFilter(
-            controller.selectedStatus.value == 'paused' ? null : 'paused',
-          ),
-        ),
-
-        SizedBox(width: 12),
-
-        // Advanced Filters Button
-        Container(
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: IconButton(
-            icon: Icon(Icons.tune, color: Color(0xFF667eea)),
-            onPressed: () => _showAdvancedFilters(),
-            tooltip: 'Qo\'shimcha filtrlar',
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildFilterChip({
-    required String label,
-    required bool isSelected,
-    required VoidCallback onTap,
-  }) {
+  Widget _buildSearchBar() {
     return Container(
       decoration: BoxDecoration(
-        color: isSelected ? Colors.white : Colors.white.withOpacity(0.2),
+        color: Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: isSelected ? Colors.white : Colors.white.withOpacity(0.3),
-        ),
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(12),
-          child: Padding(
-            padding: EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (isSelected)
-                  Icon(Icons.check_circle, color: Color(0xFF667eea), size: 18),
-                if (isSelected) SizedBox(width: 6),
-                Text(
-                  label,
-                  style: TextStyle(
-                    color: isSelected ? Color(0xFF667eea) : Colors.white,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ],
-            ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 10,
+            offset: Offset(0, 4),
           ),
+        ],
+      ),
+      child: TextField(
+        onChanged: controller.searchStudents,
+        decoration: InputDecoration(
+          hintText: 'Ism, familiya yoki telefon raqam bo\'yicha qidirish...',
+          prefixIcon: Icon(Icons.search, color: Color(0xFF667eea)),
+          suffixIcon: Obx(
+            () => controller.searchQuery.value.isNotEmpty
+                ? IconButton(
+                    icon: Icon(Icons.clear),
+                    onPressed: () => controller.searchStudents(''),
+                  )
+                : SizedBox(),
+          ),
+          border: InputBorder.none,
+          contentPadding: EdgeInsets.symmetric(horizontal: 20, vertical: 16),
         ),
       ),
     );
   }
 
-  // Main Content
-  Widget _buildMainContent() {
-    return Obx(() {
-      if (controller.students.isEmpty) {
-        return _buildEmptyState();
-      }
-
-      return Column(
+  // ==================== FILTERLAR VA STATISTIKA ====================
+  Widget _buildFiltersSection() {
+    return Container(
+      padding: EdgeInsets.all(24),
+      color: Colors.white,
+      child: Column(
         children: [
-          // Quick Stats
-          _buildQuickStats(),
-
-          // Students Grid
-          Expanded(
-            child: RefreshIndicator(
-              onRefresh: () => controller.refreshData(),
-              child: _buildStudentsGrid(),
-            ),
+          Row(
+            children: [
+              _buildStatusFilter(),
+              SizedBox(width: 12),
+              _buildClassFilter(),
+              SizedBox(width: 12),
+              _buildBranchFilter(),
+              Spacer(),
+              _buildViewToggle(),
+            ],
           ),
-
-          // Pagination
-          _buildModernPagination(),
-        ],
-      );
-    });
-  }
-
-  // Quick Stats
-  Widget _buildQuickStats() {
-    return Padding(
-      padding: const EdgeInsets.all(24.0),
-      child: Row(
-        children: [
-          _buildStatCard(
-            icon: Icons.school,
-            title: 'Jami o\'quvchilar',
-            value: '${controller.totalCount.value}',
-            color: Color(0xFF667eea),
-          ),
-          SizedBox(width: 16),
-          _buildStatCard(
-            icon: Icons.people,
-            title: 'Faol o\'quvchilar',
-            value:
-                '${controller.students.where((s) => s.status == 'active').length}',
-            color: Color(0xFF06D6A0),
-          ),
-          SizedBox(width: 16),
-          _buildStatCard(
-            icon: Icons.pause_circle,
-            title: 'To\'xtatilgan',
-            value:
-                '${controller.students.where((s) => s.status == 'paused').length}',
-            color: Color(0xFFFFC857),
-          ),
-          SizedBox(width: 16),
-          _buildStatCard(
-            icon: Icons.star,
-            title: 'Bitirganlar',
-            value:
-                '${controller.students.where((s) => s.status == 'graduated').length}',
-            color: Color(0xFFFF6B6B),
-          ),
+          SizedBox(height: 16),
+          _buildStatsCards(),
         ],
       ),
     );
   }
 
-  Widget _buildStatCard({
-    required IconData icon,
-    required String title,
-    required String value,
-    required Color color,
-  }) {
-    return Expanded(
-      child: Container(
-        padding: EdgeInsets.all(20),
+  Widget _buildStatusFilter() {
+    return Obx(
+      () => Container(
+        padding: EdgeInsets.symmetric(horizontal: 16),
         decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: color.withOpacity(0.1),
-              blurRadius: 20,
-              offset: Offset(0, 10),
+          border: Border.all(color: Colors.grey[300]!),
+          borderRadius: BorderRadius.circular(12),
+          color: Colors.grey[50],
+        ),
+        child: DropdownButtonHideUnderline(
+          child: DropdownButton<String?>(
+            value: controller.selectedStatus.value,
+            hint: Text('Holat'),
+            items: [
+              DropdownMenuItem(value: null, child: Text('Barcha holatlar')),
+              DropdownMenuItem(value: 'active', child: Text('Faol')),
+              DropdownMenuItem(value: 'paused', child: Text('To\'xtatilgan')),
+              DropdownMenuItem(value: 'graduated', child: Text('Bitirgan')),
+            ],
+            onChanged: controller.setStatusFilter,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildClassFilter() {
+    return Obx(
+      () => Container(
+        padding: EdgeInsets.symmetric(horizontal: 16),
+        decoration: BoxDecoration(
+          border: Border.all(color: Colors.grey[300]!),
+          borderRadius: BorderRadius.circular(12),
+          color: Colors.grey[50],
+        ),
+        child: DropdownButtonHideUnderline(
+          child: DropdownButton<String?>(
+            value: controller.selectedClassId.value,
+            hint: Text('Sinf'),
+            items: [
+              DropdownMenuItem(value: null, child: Text('Barcha sinflar')),
+              ...controller.classes.map(
+                (cls) => DropdownMenuItem(
+                  value: cls['id'],
+                  child: Text(cls['name']),
+                ),
+              ),
+            ],
+            onChanged: controller.filterByClass,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBranchFilter() {
+    return Obx(
+      () => Container(
+        padding: EdgeInsets.symmetric(horizontal: 16),
+        decoration: BoxDecoration(
+          border: Border.all(color: Colors.grey[300]!),
+          borderRadius: BorderRadius.circular(12),
+          color: Colors.grey[50],
+        ),
+        child: DropdownButtonHideUnderline(
+          child: DropdownButton<String?>(
+            value: controller.selectedBranchId.value,
+            hint: Text('Filial'),
+            items: [
+              DropdownMenuItem(value: null, child: Text('Barcha filiallar')),
+              ...controller.branches.map(
+                (branch) => DropdownMenuItem(
+                  value: branch['id'],
+                  child: Text(branch['name']),
+                ),
+              ),
+            ],
+            onChanged: controller.filterByBranch,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildViewToggle() {
+    return Obx(
+      () => Container(
+        decoration: BoxDecoration(
+          color: Colors.grey[200],
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          children: [
+            _buildViewButton(
+              Icons.grid_view,
+              'grid',
+              controller.viewMode.value == 'grid',
+            ),
+            _buildViewButton(
+              Icons.list,
+              'list',
+              controller.viewMode.value == 'list',
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildViewButton(IconData icon, String mode, bool selected) {
+    return InkWell(
+      onTap: () => controller.viewMode.value = mode,
+      child: Container(
+        padding: EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: selected ? Colors.white : Colors.transparent,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Icon(
+          icon,
+          color: selected ? Color(0xFF667eea) : Colors.grey[600],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStatsCards() {
+    return Obx(
+      () => Row(
+        children: [
+          _buildStatCard(
+            'Jami',
+            controller.totalCount.toString(),
+            Icons.people,
+            Color(0xFF667eea),
+          ),
+          SizedBox(width: 12),
+          _buildStatCard(
+            'Faol',
+            controller.activeCount.toString(),
+            Icons.check_circle,
+            Color(0xFF06D6A0),
+          ),
+          SizedBox(width: 12),
+          _buildStatCard(
+            'To\'xtatilgan',
+            controller.pausedCount.toString(),
+            Icons.pause_circle,
+            Color(0xFFFFC857),
+          ),
+          SizedBox(width: 12),
+          _buildStatCard(
+            'Bitirganlar',
+            controller.graduatedCount.toString(),
+            Icons.school,
+            Color(0xFF667eea),
+          ),
+          SizedBox(width: 12),
+          _buildStatCard(
+            'O\'rtacha to\'lov',
+            '${_formatCurrency(controller.averageFee.value)}',
+            Icons.payments,
+            Color(0xFF06D6A0),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatCard(
+    String title,
+    String value,
+    IconData icon,
+    Color color,
+  ) {
+    return Expanded(
+      child: Container(
+        padding: EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: color.withOpacity(0.3)),
         ),
         child: Row(
           children: [
             Container(
-              padding: EdgeInsets.all(12),
+              padding: EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: color.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(12),
+                color: color,
+                borderRadius: BorderRadius.circular(10),
               ),
-              child: Icon(icon, color: color, size: 28),
+              child: Icon(icon, color: Colors.white, size: 24),
             ),
-            SizedBox(width: 16),
+            SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     title,
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: Colors.grey[600],
-                      fontWeight: FontWeight.w500,
-                    ),
+                    style: TextStyle(fontSize: 12, color: Colors.grey[600]),
                   ),
                   SizedBox(height: 4),
                   Text(
                     value,
                     style: TextStyle(
-                      fontSize: 24,
+                      fontSize: 20,
                       fontWeight: FontWeight.bold,
-                      color: Colors.black87,
+                      color: color,
                     ),
                   ),
                 ],
@@ -468,10 +476,39 @@ class StudentsListScreen extends StatelessWidget {
     );
   }
 
-  // Students Grid
-  Widget _buildStudentsGrid() {
+  // ==================== ASOSIY KONTENT ====================
+  Widget _buildMainContent() {
+    return Obx(() {
+      if (controller.isLoading.value && controller.students.isEmpty) {
+        return _buildLoadingState();
+      }
+
+      if (controller.students.isEmpty) {
+        return _buildEmptyState();
+      }
+
+      return Column(
+        children: [
+          Expanded(
+            child: RefreshIndicator(
+              onRefresh: controller.refreshData,
+              child: Obx(
+                () => controller.viewMode.value == 'grid'
+                    ? _buildGridView()
+                    : _buildListView(),
+              ),
+            ),
+          ),
+          _buildPagination(),
+        ],
+      );
+    });
+  }
+
+  // ==================== GRID VIEW ====================
+  Widget _buildGridView() {
     return GridView.builder(
-      padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+      padding: EdgeInsets.all(24),
       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 4,
         childAspectRatio: 0.85,
@@ -486,8 +523,7 @@ class StudentsListScreen extends StatelessWidget {
     );
   }
 
-  // Modern Student Card
-  Widget _buildStudentCard(student, int index) {
+  Widget _buildStudentCard(Map<String, dynamic> student, int index) {
     final colors = [
       Color(0xFF667eea),
       Color(0xFF06D6A0),
@@ -495,6 +531,18 @@ class StudentsListScreen extends StatelessWidget {
       Color(0xFFFF6B6B),
     ];
     final cardColor = colors[index % colors.length];
+
+    // Mapdan ma'lumotlarni o'qish (null checklar bilan)
+    final String id = student['id'] ?? '';
+    final String photoUrl = student['photo_url'] ?? '';
+    final String firstName = student['first_name'] ?? '';
+    final String lastName = student['last_name'] ?? '';
+    final String fullName = student['full_name'] ?? '$firstName $lastName';
+    final String status = student['status'] ?? '';
+    final String classFullName = student['class_full_name'] ?? 'Sinf yo\'q';
+    final String parentPhone = student['parent_phone'] ?? '';
+    final double finalMonthlyFee = (student['final_monthly_fee'] ?? 0)
+        .toDouble();
 
     return Container(
       decoration: BoxDecoration(
@@ -511,19 +559,19 @@ class StudentsListScreen extends StatelessWidget {
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          onTap: () =>
-              Get.toNamed(AppRoutes.studentDetail, arguments: student.id),
+          onTap: () => Get.toNamed(
+            AppRoutes.studentDetail,
+            arguments: {'studentId': id},
+          ),
           borderRadius: BorderRadius.circular(20),
           child: Column(
             children: [
-              // Header with gradient
+              // Header
               Container(
                 height: 100,
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
                     colors: [cardColor, cardColor.withOpacity(0.7)],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
                   ),
                   borderRadius: BorderRadius.only(
                     topLeft: Radius.circular(20),
@@ -532,7 +580,6 @@ class StudentsListScreen extends StatelessWidget {
                 ),
                 child: Stack(
                   children: [
-                    // Avatar
                     Center(
                       child: Container(
                         width: 70,
@@ -542,24 +589,32 @@ class StudentsListScreen extends StatelessWidget {
                           shape: BoxShape.circle,
                           border: Border.all(color: Colors.white, width: 3),
                         ),
-                        child: Center(
-                          child: Text(
-                            student.firstName[0] + student.lastName[0],
-                            style: TextStyle(
-                              fontSize: 24,
-                              fontWeight: FontWeight.bold,
-                              color: cardColor,
-                            ),
-                          ),
-                        ),
+                        child: photoUrl.isNotEmpty
+                            ? ClipOval(
+                                child: Image.network(
+                                  photoUrl,
+                                  fit: BoxFit.cover,
+                                ),
+                              )
+                            : Center(
+                                child: Text(
+                                  firstName.isNotEmpty
+                                      ? '${firstName[0]}${lastName.isNotEmpty ? lastName[0] : ''}'
+                                            .toUpperCase()
+                                      : '?',
+                                  style: TextStyle(
+                                    fontSize: 24,
+                                    fontWeight: FontWeight.bold,
+                                    color: cardColor,
+                                  ),
+                                ),
+                              ),
                       ),
                     ),
-
-                    // Status Badge
                     Positioned(
                       top: 12,
                       right: 12,
-                      child: _buildStatusBadge(student.status),
+                      child: _buildStatusBadge(status),
                     ),
                   ],
                 ),
@@ -572,57 +627,40 @@ class StudentsListScreen extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Name
                       Text(
-                        student.fullName,
+                        fullName,
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
-                          color: Colors.black87,
                         ),
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                       ),
-
                       SizedBox(height: 8),
-
-                      // Info Rows
-                      _buildInfoRow(
-                        Icons.phone,
-                        student.parentPhone,
-                        cardColor,
-                      ),
+                      _buildInfoRow(Icons.class_, classFullName, cardColor),
+                      SizedBox(height: 6),
+                      _buildInfoRow(Icons.phone, parentPhone, cardColor),
                       SizedBox(height: 6),
                       _buildInfoRow(
-                        Icons.calendar_today,
-                        '${student.age} yosh',
+                        Icons.payments,
+                        '${_formatCurrency(finalMonthlyFee)} so\'m',
                         cardColor,
                       ),
-                      SizedBox(height: 6),
-                      _buildInfoRow(
-                        Icons.attach_money,
-                        '${_formatCurrency((student.finalMonthlyFee ?? 0).toDouble())} so\'m',
-                        cardColor,
-                      ),
-
                       Spacer(),
-
-                      // Actions
                       Row(
                         children: [
                           Expanded(
-                            child: _buildCardActionButton(
-                              Icons.visibility_outlined,
+                            child: _buildCardButton(
                               'Ko\'rish',
                               cardColor,
                               () => Get.toNamed(
                                 AppRoutes.studentDetail,
-                                arguments: student.id,
+                                arguments: {'studentId': id},
                               ),
                             ),
                           ),
                           SizedBox(width: 8),
-                          _buildCardIconButton(
+                          _buildIconButton(
                             Icons.more_vert,
                             cardColor,
                             () => _showStudentOptions(student),
@@ -641,37 +679,7 @@ class StudentsListScreen extends StatelessWidget {
   }
 
   Widget _buildStatusBadge(String status) {
-    Color color;
-    String text;
-    IconData icon;
-
-    switch (status) {
-      case 'active':
-        color = Color(0xFF06D6A0);
-        text = 'Faol';
-        icon = Icons.check_circle;
-        break;
-      case 'paused':
-        color = Color(0xFFFFC857);
-        text = 'To\'xtatilgan';
-        icon = Icons.pause_circle;
-        break;
-      case 'graduated':
-        color = Color(0xFF667eea);
-        text = 'Bitirgan';
-        icon = Icons.school;
-        break;
-      case 'expelled':
-        color = Color(0xFFFF6B6B);
-        text = 'Chiqarilgan';
-        icon = Icons.cancel;
-        break;
-      default:
-        color = Colors.grey;
-        text = status;
-        icon = Icons.help;
-    }
-
+    final config = _getStatusConfig(status);
     return Container(
       padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
@@ -681,19 +689,44 @@ class StudentsListScreen extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 14, color: color),
+          Icon(config['icon'], size: 14, color: config['color']),
           SizedBox(width: 4),
           Text(
-            text,
+            config['text'],
             style: TextStyle(
               fontSize: 11,
               fontWeight: FontWeight.w600,
-              color: color,
+              color: config['color'],
             ),
           ),
         ],
       ),
     );
+  }
+
+  Map<String, dynamic> _getStatusConfig(String status) {
+    switch (status) {
+      case 'active':
+        return {
+          'color': Color(0xFF06D6A0),
+          'text': 'Faol',
+          'icon': Icons.check_circle,
+        };
+      case 'paused':
+        return {
+          'color': Color(0xFFFFC857),
+          'text': 'To\'xtatilgan',
+          'icon': Icons.pause_circle,
+        };
+      case 'graduated':
+        return {
+          'color': Color(0xFF667eea),
+          'text': 'Bitirgan',
+          'icon': Icons.school,
+        };
+      default:
+        return {'color': Colors.grey, 'text': status, 'icon': Icons.help};
+    }
   }
 
   Widget _buildInfoRow(IconData icon, String text, Color color) {
@@ -713,12 +746,7 @@ class StudentsListScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildCardActionButton(
-    IconData icon,
-    String label,
-    Color color,
-    VoidCallback onTap,
-  ) {
+  Widget _buildCardButton(String label, Color color, VoidCallback onTap) {
     return Container(
       decoration: BoxDecoration(
         color: color.withOpacity(0.1),
@@ -731,20 +759,15 @@ class StudentsListScreen extends StatelessWidget {
           borderRadius: BorderRadius.circular(8),
           child: Padding(
             padding: EdgeInsets.symmetric(vertical: 8),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(icon, size: 16, color: color),
-                SizedBox(width: 4),
-                Text(
-                  label,
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: color,
-                  ),
+            child: Center(
+              child: Text(
+                label,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: color,
                 ),
-              ],
+              ),
             ),
           ),
         ),
@@ -752,7 +775,7 @@ class StudentsListScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildCardIconButton(IconData icon, Color color, VoidCallback onTap) {
+  Widget _buildIconButton(IconData icon, Color color, VoidCallback onTap) {
     return Container(
       width: 32,
       height: 32,
@@ -771,8 +794,186 @@ class StudentsListScreen extends StatelessWidget {
     );
   }
 
-  // Modern Pagination
-  Widget _buildModernPagination() {
+  // ==================== LIST VIEW ====================
+  Widget _buildListView() {
+    return ListView.builder(
+      padding: EdgeInsets.all(24),
+      itemCount: controller.students.length,
+      itemBuilder: (context, index) {
+        final student = controller.students[index];
+        return _buildStudentListItem(student);
+      },
+    );
+  }
+
+  Widget _buildStudentListItem(Map<String, dynamic> student) {
+    // Mapdan ma'lumotlarni o'qish
+    final String id = student['id'] ?? '';
+    final String photoUrl = student['photo_url'] ?? '';
+    final String firstName = student['first_name'] ?? '';
+    final String lastName = student['last_name'] ?? '';
+    final String fullName = student['full_name'] ?? '$firstName $lastName';
+    final String status = student['status'] ?? '';
+    final String classFullName = student['class_full_name'] ?? 'Sinf yo\'q';
+    final String parentPhone = student['parent_phone'] ?? '';
+    final double finalMonthlyFee = (student['final_monthly_fee'] ?? 0)
+        .toDouble();
+
+    final statusConfig = _getStatusConfig(status);
+
+    return Card(
+      margin: EdgeInsets.only(bottom: 12),
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: InkWell(
+        onTap: () =>
+            Get.toNamed(AppRoutes.studentDetail, arguments: {'studentId': id}),
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: EdgeInsets.all(16),
+          child: Row(
+            children: [
+              // Avatar
+              Container(
+                width: 60,
+                height: 60,
+                decoration: BoxDecoration(
+                  color: Color(0xFF667eea).withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: photoUrl.isNotEmpty
+                    ? ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: Image.network(photoUrl, fit: BoxFit.cover),
+                      )
+                    : Center(
+                        child: Text(
+                          firstName.isNotEmpty
+                              ? '${firstName[0]}${lastName.isNotEmpty ? lastName[0] : ''}'
+                                    .toUpperCase()
+                              : '?',
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF667eea),
+                          ),
+                        ),
+                      ),
+              ),
+              SizedBox(width: 16),
+
+              // Ma'lumotlar
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            fullName,
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                        Container(
+                          padding: EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 6,
+                          ),
+                          decoration: BoxDecoration(
+                            color: statusConfig['color'].withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                statusConfig['icon'],
+                                size: 14,
+                                color: statusConfig['color'],
+                              ),
+                              SizedBox(width: 4),
+                              Text(
+                                statusConfig['text'],
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: statusConfig['color'],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Icon(Icons.class_, size: 16, color: Colors.grey[600]),
+                        SizedBox(width: 4),
+                        Text(
+                          classFullName,
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Colors.grey[700],
+                          ),
+                        ),
+                        SizedBox(width: 16),
+                        Icon(Icons.phone, size: 16, color: Colors.grey[600]),
+                        SizedBox(width: 4),
+                        Text(
+                          parentPhone,
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Colors.grey[700],
+                          ),
+                        ),
+                        SizedBox(width: 16),
+                        Icon(Icons.payments, size: 16, color: Colors.grey[600]),
+                        SizedBox(width: 4),
+                        Text(
+                          '${_formatCurrency(finalMonthlyFee)} so\'m',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Color(0xFF06D6A0),
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+
+              // Harakatlar
+              Row(
+                children: [
+                  IconButton(
+                    onPressed: () => Get.toNamed(
+                      AppRoutes.studentDetail,
+                      arguments: {'studentId': id},
+                    ),
+                    icon: Icon(Icons.visibility, color: Color(0xFF667eea)),
+                    tooltip: 'Ko\'rish',
+                  ),
+                  IconButton(
+                    onPressed: () => _showStudentOptions(student),
+                    icon: Icon(Icons.more_vert, color: Colors.grey),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ==================== PAGINATION ====================
+  Widget _buildPagination() {
     return Container(
       padding: EdgeInsets.symmetric(horizontal: 24, vertical: 20),
       decoration: BoxDecoration(
@@ -787,50 +988,41 @@ class StudentsListScreen extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Text(
-            'Ko\'rsatilmoqda: ${controller.students.length} ta yozuv',
-            style: TextStyle(
-              fontSize: 14,
-              color: Colors.grey[600],
-              fontWeight: FontWeight.w500,
+          Obx(
+            () => Text(
+              'Ko\'rsatilmoqda: ${controller.students.length} ta yozuv',
+              style: TextStyle(fontSize: 14, color: Colors.grey[600]),
             ),
           ),
-
           Spacer(),
-
-          // Previous Button
           _buildPaginationButton(
             Icons.chevron_left,
             controller.hasPreviousPage,
-            () => controller.previousPage(),
+            controller.previousPage,
           ),
-
           SizedBox(width: 12),
-
-          // Page Info
-          Container(
-            padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            decoration: BoxDecoration(
-              color: Color(0xFF667eea).withOpacity(0.1),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Text(
-              'Sahifa ${controller.currentPage.value}',
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-                color: Color(0xFF667eea),
+          Obx(
+            () => Container(
+              padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              decoration: BoxDecoration(
+                color: Color(0xFF667eea).withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                'Sahifa ${controller.currentPage.value}',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF667eea),
+                ),
               ),
             ),
           ),
-
           SizedBox(width: 12),
-
-          // Next Button
           _buildPaginationButton(
             Icons.chevron_right,
             controller.hasNextPage,
-            () => controller.nextPage(),
+            controller.nextPage,
           ),
         ],
       ),
@@ -869,7 +1061,7 @@ class StudentsListScreen extends StatelessWidget {
     );
   }
 
-  // Empty State
+  // ==================== BO'SH HOLAT ====================
   Widget _buildEmptyState() {
     return Center(
       child: Column(
@@ -891,11 +1083,7 @@ class StudentsListScreen extends StatelessWidget {
           SizedBox(height: 32),
           Text(
             'O\'quvchilar topilmadi',
-            style: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-              color: Colors.black87,
-            ),
+            style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
           ),
           SizedBox(height: 12),
           Text(
@@ -920,7 +1108,7 @@ class StudentsListScreen extends StatelessWidget {
     );
   }
 
-  // Loading State
+  // ==================== LOADING HOLAT ====================
   Widget _buildLoadingState() {
     return Center(
       child: Column(
@@ -939,17 +1127,12 @@ class StudentsListScreen extends StatelessWidget {
     );
   }
 
-  // Helper Methods
-  String _formatCurrency(double amount) {
-    return amount
-        .toStringAsFixed(0)
-        .replaceAllMapped(
-          RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
-          (Match m) => '${m[1]},',
-        );
-  }
+  // ==================== DIALOGLAR ====================
+  void _showStudentOptions(Map<String, dynamic> student) {
+    // Mapdan ma'lumotlarni o'qish
+    final String id = student['id'] ?? '';
+    final String parentPhone = student['parent_phone'] ?? '';
 
-  void _showStudentOptions(student) {
     Get.bottomSheet(
       Container(
         decoration: BoxDecoration(
@@ -973,27 +1156,41 @@ class StudentsListScreen extends StatelessWidget {
             ),
             SizedBox(height: 20),
             ListTile(
-              leading: Icon(Icons.edit, color: Color(0xFF667eea)),
+              leading: Icon(Icons.visibility, color: Color(0xFF667eea)),
+              title: Text('Ko\'rish'),
+              onTap: () {
+                Get.back();
+                Get.toNamed(
+                  AppRoutes.studentDetail,
+                  arguments: {'studentId': id},
+                );
+              },
+            ),
+            ListTile(
+              leading: Icon(Icons.edit, color: Color(0xFF06D6A0)),
               title: Text('Tahrirlash'),
               onTap: () {
                 Get.back();
-                _editStudent(student.id);
+                Get.toNamed(
+                  AppRoutes.editStudent,
+                  arguments: {'studentId': id},
+                );
               },
             ),
             ListTile(
-              leading: Icon(Icons.payment, color: Color(0xFF06D6A0)),
+              leading: Icon(Icons.payment, color: Color(0xFFFFC857)),
               title: Text('To\'lov qabul qilish'),
               onTap: () {
                 Get.back();
-                _makePayment(student.id);
+                _makePayment(id);
               },
             ),
             ListTile(
-              leading: Icon(Icons.history, color: Color(0xFFFFC857)),
-              title: Text('To\'lovlar tarixi'),
+              leading: Icon(Icons.phone, color: Color(0xFF667eea)),
+              title: Text('Qo\'ng\'iroq qilish'),
               onTap: () {
                 Get.back();
-                _showPaymentHistory(student.id);
+                controller.callParent(parentPhone);
               },
             ),
             ListTile(
@@ -1001,7 +1198,7 @@ class StudentsListScreen extends StatelessWidget {
               title: Text('O\'chirish'),
               onTap: () {
                 Get.back();
-                _deleteStudent(student.id);
+                _confirmDelete(student);
               },
             ),
             SizedBox(height: 20),
@@ -1011,105 +1208,10 @@ class StudentsListScreen extends StatelessWidget {
     );
   }
 
-  void _showAdvancedFilters() {
-    Get.dialog(
-      AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Text('Qo\'shimcha filtrlar'),
-        content: Container(
-          width: 400,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Status filter
-              DropdownButtonFormField<String>(
-                decoration: InputDecoration(
-                  labelText: 'Status',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                items: [
-                  DropdownMenuItem(value: null, child: Text('Barchasi')),
-                  DropdownMenuItem(value: 'active', child: Text('Faol')),
-                  DropdownMenuItem(
-                    value: 'paused',
-                    child: Text('To\'xtatilgan'),
-                  ),
-                  DropdownMenuItem(value: 'graduated', child: Text('Bitirgan')),
-                  DropdownMenuItem(
-                    value: 'expelled',
-                    child: Text('Chiqarilgan'),
-                  ),
-                ],
-                onChanged: (value) => controller.setStatusFilter(value),
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              controller.clearAllFilters();
-              Get.back();
-            },
-            child: Text('Tozalash'),
-          ),
-          ElevatedButton(
-            onPressed: () => Get.back(),
-            child: Text('Qo\'llash'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Color(0xFF667eea),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+  void _confirmDelete(Map<String, dynamic> student) {
+    final String id = student['id'] ?? '';
+    final String fullName = student['full_name'] ?? 'O\'quvchi';
 
-  void _editStudent(String studentId) {
-    Get.snackbar(
-      'Ma\'lumot',
-      'Tahrirlash funksiyasi tez orada qo\'shiladi',
-      backgroundColor: Color(0xFF667eea).withOpacity(0.1),
-      colorText: Color(0xFF667eea),
-      icon: Icon(Icons.edit, color: Color(0xFF667eea)),
-      snackPosition: SnackPosition.TOP,
-      margin: EdgeInsets.all(16),
-      borderRadius: 12,
-    );
-  }
-
-  void _makePayment(String studentId) {
-    Get.snackbar(
-      'Ma\'lumot',
-      'To\'lov qabul qilish funksiyasi tez orada qo\'shiladi',
-      backgroundColor: Color(0xFF06D6A0).withOpacity(0.1),
-      colorText: Color(0xFF06D6A0),
-      icon: Icon(Icons.payment, color: Color(0xFF06D6A0)),
-      snackPosition: SnackPosition.TOP,
-      margin: EdgeInsets.all(16),
-      borderRadius: 12,
-    );
-  }
-
-  void _showPaymentHistory(String studentId) {
-    Get.snackbar(
-      'Ma\'lumot',
-      'To\'lovlar tarixi tez orada qo\'shiladi',
-      backgroundColor: Color(0xFFFFC857).withOpacity(0.1),
-      colorText: Color(0xFFFFC857),
-      icon: Icon(Icons.history, color: Color(0xFFFFC857)),
-      snackPosition: SnackPosition.TOP,
-      margin: EdgeInsets.all(16),
-      borderRadius: 12,
-    );
-  }
-
-  void _deleteStudent(String studentId) {
     Get.dialog(
       Dialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
@@ -1134,15 +1236,11 @@ class StudentsListScreen extends StatelessWidget {
               SizedBox(height: 24),
               Text(
                 'O\'quvchini o\'chirish',
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black87,
-                ),
+                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
               ),
               SizedBox(height: 16),
               Text(
-                'Haqiqatan ham bu o\'quvchini o\'chirmoqchimisiz? Bu amal qaytarilmaydi.',
+                'Haqiqatan ham $fullName ni o\'chirmoqchimisiz? Bu amal qaytarilmaydi.',
                 style: TextStyle(fontSize: 16, color: Colors.grey[600]),
                 textAlign: TextAlign.center,
               ),
@@ -1166,7 +1264,7 @@ class StudentsListScreen extends StatelessWidget {
                     child: ElevatedButton(
                       onPressed: () {
                         Get.back();
-                        controller.deleteStudent(studentId);
+                        controller.deleteStudent(id);
                       },
                       child: Text('O\'chirish'),
                       style: ElevatedButton.styleFrom(
@@ -1187,7 +1285,7 @@ class StudentsListScreen extends StatelessWidget {
     );
   }
 
-  void _exportStudents() {
+  void _showExportDialog() {
     Get.dialog(
       Dialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
@@ -1212,11 +1310,7 @@ class StudentsListScreen extends StatelessWidget {
               SizedBox(height: 24),
               Text(
                 'Export qilish',
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black87,
-                ),
+                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
               ),
               SizedBox(height: 16),
               Text(
@@ -1225,34 +1319,19 @@ class StudentsListScreen extends StatelessWidget {
                 textAlign: TextAlign.center,
               ),
               SizedBox(height: 24),
-              _buildExportButton('Excel (.xlsx)', Icons.table_chart, () {
+              _buildExportOption('Excel (.xlsx)', Icons.table_chart, () {
                 Get.back();
-                Get.snackbar(
-                  'Ma\'lumot',
-                  'Excel export tez orada qo\'shiladi',
-                  backgroundColor: Color(0xFF06D6A0).withOpacity(0.1),
-                  colorText: Color(0xFF06D6A0),
-                );
+                controller.exportToExcel();
               }),
               SizedBox(height: 12),
-              _buildExportButton('PDF', Icons.picture_as_pdf, () {
+              _buildExportOption('PDF', Icons.picture_as_pdf, () {
                 Get.back();
-                Get.snackbar(
-                  'Ma\'lumot',
-                  'PDF export tez orada qo\'shiladi',
-                  backgroundColor: Color(0xFF06D6A0).withOpacity(0.1),
-                  colorText: Color(0xFF06D6A0),
-                );
+                controller.exportToPDF();
               }),
               SizedBox(height: 12),
-              _buildExportButton('CSV', Icons.description, () {
+              _buildExportOption('CSV', Icons.description, () {
                 Get.back();
-                Get.snackbar(
-                  'Ma\'lumot',
-                  'CSV export tez orada qo\'shiladi',
-                  backgroundColor: Color(0xFF06D6A0).withOpacity(0.1),
-                  colorText: Color(0xFF06D6A0),
-                );
+                controller.exportToCSV();
               }),
             ],
           ),
@@ -1261,7 +1340,7 @@ class StudentsListScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildExportButton(String label, IconData icon, VoidCallback onTap) {
+  Widget _buildExportOption(String label, IconData icon, VoidCallback onTap) {
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(12),
@@ -1287,7 +1366,7 @@ class StudentsListScreen extends StatelessWidget {
     );
   }
 
-  void _importStudents() {
+  void _showImportDialog() {
     Get.snackbar(
       'Ma\'lumot',
       'Import funksiyasi tez orada qo\'shiladi',
@@ -1298,5 +1377,23 @@ class StudentsListScreen extends StatelessWidget {
       margin: EdgeInsets.all(16),
       borderRadius: 12,
     );
+  }
+
+  void _makePayment(String studentId) {
+    Get.snackbar(
+      'Ma\'lumot',
+      'To\'lov qabul qilish funksiyasi tez orada qo\'shiladi',
+      backgroundColor: Color(0xFF06D6A0).withOpacity(0.1),
+      colorText: Color(0xFF06D6A0),
+      icon: Icon(Icons.payment, color: Color(0xFF06D6A0)),
+      snackPosition: SnackPosition.TOP,
+      margin: EdgeInsets.all(16),
+      borderRadius: 12,
+    );
+  }
+
+  // ==================== HELPER ====================
+  String _formatCurrency(double amount) {
+    return NumberFormat('#,###').format(amount);
   }
 }

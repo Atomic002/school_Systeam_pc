@@ -201,7 +201,7 @@ class _AdvanceDialogState extends State<AdvanceDialog> {
             children: [
               Text('${staff['first_name']} ${staff['last_name']}'),
               Text(
-                '${staff['position']} • Maosh: ${NumberFormat('#,###').format(staff['base_salary'])} so\'m',
+                '${staff['position']} • Maosh: ${NumberFormat('#,###').format(staff['base_salary'] ?? 0)} so\'m',
                 style: TextStyle(fontSize: 11, color: Colors.grey[600]),
               ),
             ],
@@ -455,7 +455,7 @@ class _LoanDialogState extends State<LoanDialog> {
         .eq('id', userId!)
         .single();
 
-    final installments = int.parse(installmentsController.text);
+    int.parse(installmentsController.text);
     
     final loanData = {
       'branch_id': userInfo['branch_id'],
@@ -585,7 +585,7 @@ class _LoanDialogState extends State<LoanDialog> {
             children: [
               Text('${staff['first_name']} ${staff['last_name']}'),
               Text(
-                '${staff['position']} • Maosh: ${NumberFormat('#,###').format(staff['base_salary'])} so\'m',
+                '${staff['position']} • Maosh: ${NumberFormat('#,###').format(staff['base_salary'] ?? 0)} so\'m',
                 style: TextStyle(fontSize: 11, color: Colors.grey[600]),
               ),
             ],

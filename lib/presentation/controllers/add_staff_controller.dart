@@ -211,13 +211,22 @@ class AddStaffController extends GetxController {
 
   Future<void> _loadClasses() async {
     try {
-      final result = await _classRepo.getClassesWithDetails;
-      classes.value = result as List<Map<String, dynamic>>;
+      // 1. Filial tanlanganligini tekshiramiz
+      if (selectedBranchId.value == null) {
+        classes.value = [];
+        return;
+      }
+
+      // 2. Funksiyani to'g'ri chaqiramiz: (branchId) beramiz
+      // Va kelgan ma'lumotni to'g'ri formatga o'tkazamiz (casting)
+      final result = await _classRepo.getClassesWithDetails(selectedBranchId.value!);
+      
+      classes.value = List<Map<String, dynamic>>.from(result);
     } catch (e) {
       print('Load classes error: $e');
+      classes.value = [];
     }
   }
-
   Future<void> _loadRooms() async {
     try {
       final result = await _staffRepo.getRooms();
@@ -231,9 +240,12 @@ class AddStaffController extends GetxController {
     try {
       isLoadingVisitors.value = true;
       final result = await _visitorRepo.getUnconvertedVisitors();
-      visitors.value = result;
+      
+      // Agar null kelsa, bo'sh ro'yxat [] beramiz
+      visitors.value = result ?? []; 
     } catch (e) {
       print('Load visitors error: $e');
+      visitors.value = [];
     } finally {
       isLoadingVisitors.value = false;
     }
@@ -655,8 +667,12 @@ class AddStaffController extends GetxController {
     };
   }
 
-  Future<String?> _createUser() async {
+     Future<String?> _createUser() async {
     try {
+      print('🚀 User yaratish boshlandi...');
+      print('Username: ${usernameController.text}');
+      print('Role: ${selectedUserRole.value}');
+
       final userId = await _staffRepo.createUser(
         branchId: selectedBranchId.value!,
         firstName: firstNameController.text.trim(),
@@ -671,16 +687,35 @@ class AddStaffController extends GetxController {
         address: addressController.text.trim(),
         username: usernameController.text.trim(),
         password: passwordController.text,
-        role: selectedUserRole.value,
+        role: selectedUserRole.value, 
       );
 
+      print('✅ User muvaffaqiyatli yaratildi: $userId');
       return userId;
     } catch (e) {
-      print('Create user error: $e');
-      rethrow;
+      print('❌ USER YARATISHDA XATO: $e'); // Konsolga qarang!
+      
+      final errorMsg = e.toString().toLowerCase();
+
+      // 1. Username band bo'lsa
+      if (errorMsg.contains('users_username_key') || errorMsg.contains('duplicate key')) {
+        throw Exception("Bunday username ('${usernameController.text}') band! Iltimos, username oxiriga raqam qo'shing.");
+      }
+      
+      // 2. Telefon raqam uzun bo'lsa
+      if (errorMsg.contains('value too long') || errorMsg.contains('string data right truncation')) {
+        throw Exception("Telefon raqam yoki boshqa ma'lumot juda uzun (limit 20 ta). SQL dan limitni oshiring!");
+      }
+
+      // 3. Rol xato bo'lsa (garchi sizda to'g'ri bo'lsa ham)
+      if (errorMsg.contains('invalid input value for enum')) {
+        throw Exception("Rol noto'g'ri tanlandi: ${selectedUserRole.value}");
+      }
+      
+      // Boshqa xatolar
+      throw Exception('Tizim xatosi: $errorMsg');
     }
   }
-
   Future<void> _assignTeacherData(String staffId) async {
     for (var subjectId in selectedSubjects) {
       await _staffRepo.assignSubjectToTeacher(

@@ -748,7 +748,8 @@ class AddStudentScreen extends StatelessWidget {
                 child: TextFormField(
                   controller: controller.parentPhone2Controller,
                   decoration: const InputDecoration(
-                    labelText: 'Telefon 2',
+                    labelText: "Ota-onasining 2-raqami",
+                    counterText: "", // Pastdagi sanagich yozuvini yashirish
                     prefixIcon: Icon(
                       Icons.phone_android,
                       color: Color(0xFF2196F3),
@@ -757,6 +758,8 @@ class AddStudentScreen extends StatelessWidget {
                     hintText: '+998 90 123 45 67',
                   ),
                   keyboardType: TextInputType.phone,
+                    maxLength: 19, // Maksimum 19 ta belgi
+
                   inputFormatters: [
                     FilteringTextInputFormatter.allow(RegExp(r'[0-9+\s]')),
                   ],
@@ -1033,7 +1036,7 @@ class AddStudentScreen extends StatelessWidget {
                 child: Text(level['name']!),
               );
             }).toList(),
-            onChanged: (v) => controller.selectClassLevel(v),
+            onChanged: (v) => controller.selectClass(v),
           ),
           const SizedBox(height: 16),
           DropdownButtonFormField<String?>(

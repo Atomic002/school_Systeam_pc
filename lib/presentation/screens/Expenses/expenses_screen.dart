@@ -31,9 +31,17 @@ class ExpensesScreenV2 extends StatelessWidget {
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            CircularProgressIndicator(color: AppConstants.primaryColor),
+                            CircularProgressIndicator(
+                              color: AppConstants.primaryColor,
+                            ),
                             SizedBox(height: 16),
-                            Text('Yuklanmoqda...', style: TextStyle(fontSize: 16, color: Colors.grey[600])),
+                            Text(
+                              'Yuklanmoqda...',
+                              style: TextStyle(
+                                fontSize: 16,
+                                color: Colors.grey[600],
+                              ),
+                            ),
                           ],
                         ),
                       );
@@ -86,7 +94,11 @@ class ExpensesScreenV2 extends StatelessWidget {
               color: Colors.white.withOpacity(0.2),
               borderRadius: BorderRadius.circular(16),
             ),
-            child: Icon(Icons.receipt_long_rounded, color: Colors.white, size: 40),
+            child: Icon(
+              Icons.receipt_long_rounded,
+              color: Colors.white,
+              size: 40,
+            ),
           ),
           SizedBox(width: 20),
           Expanded(
@@ -95,12 +107,19 @@ class ExpensesScreenV2 extends StatelessWidget {
               children: [
                 Text(
                   'Xarajatlar boshqaruvi',
-                  style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.white),
+                  style: TextStyle(
+                    fontSize: 32,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
                 ),
                 SizedBox(height: 4),
                 Text(
                   'Barcha moliyaviy operatsiyalarni boshqaring',
-                  style: TextStyle(fontSize: 16, color: Colors.white.withOpacity(0.9)),
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: Colors.white.withOpacity(0.9),
+                  ),
                 ),
               ],
             ),
@@ -159,7 +178,13 @@ class ExpensesScreenV2 extends StatelessWidget {
           children: [
             Icon(icon, color: Colors.white, size: 20),
             SizedBox(width: 8),
-            Text(label, style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+            Text(
+              label,
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
           ],
         ),
       ),
@@ -169,60 +194,65 @@ class ExpensesScreenV2 extends StatelessWidget {
   Widget _buildStatisticsCards() {
     return Container(
       padding: EdgeInsets.all(24),
-      child: Obx(() => Wrap(
-        spacing: 16,
-        runSpacing: 16,
-        children: [
-          _buildStatCard(
-            title: 'Bugungi xarajatlar',
-            value: controller.formatCurrency(controller.todayExpenses.value),
-            unit: 'so\'m',
-            icon: Icons.today,
-            color: Colors.blue,
-            subtitle: DateFormat('dd MMMM, yyyy', 'uz').format(DateTime.now()),
-          ),
-          _buildStatCard(
-            title: 'Haftalik xarajatlar',
-            value: controller.formatCurrency(controller.weekExpenses.value),
-            unit: 'so\'m',
-            icon: Icons.date_range,
-            color: Colors.teal,
-            subtitle: 'Joriy hafta',
-          ),
-          _buildStatCard(
-            title: 'Oylik xarajatlar',
-            value: controller.formatCurrency(controller.monthExpenses.value),
-            unit: 'so\'m',
-            icon: Icons.calendar_month,
-            color: Colors.purple,
-            subtitle: DateFormat('MMMM yyyy', 'uz').format(DateTime.now()),
-          ),
-          _buildStatCard(
-            title: 'Jami maoshlar',
-            value: controller.formatCurrency(controller.totalSalaries.value),
-            unit: 'so\'m',
-            icon: Icons.payments,
-            color: Colors.green,
-            subtitle: 'To\'langan maoshlar',
-          ),
-          _buildStatCard(
-            title: 'Avanslar',
-            value: controller.formatCurrency(controller.totalAdvances.value),
-            unit: 'so\'m',
-            icon: Icons.money_off,
-            color: Colors.orange,
-            subtitle: 'Ushlab qolinmagan',
-          ),
-          _buildStatCard(
-            title: 'Qarzlar',
-            value: controller.formatCurrency(controller.totalLoans.value),
-            unit: 'so\'m',
-            icon: Icons.account_balance,
-            color: Colors.red,
-            subtitle: 'Qaytarilmagan',
-          ),
-        ],
-      )),
+      child: Obx(
+        () => Wrap(
+          spacing: 16,
+          runSpacing: 16,
+          children: [
+            _buildStatCard(
+              title: 'Bugungi xarajatlar',
+              value: controller.formatCurrency(controller.todayExpenses.value),
+              unit: 'so\'m',
+              icon: Icons.today,
+              color: Colors.blue,
+              subtitle: DateFormat(
+                'dd MMMM, yyyy',
+                'uz',
+              ).format(DateTime.now()),
+            ),
+            _buildStatCard(
+              title: 'Haftalik xarajatlar',
+              value: controller.formatCurrency(controller.weekExpenses.value),
+              unit: 'so\'m',
+              icon: Icons.date_range,
+              color: Colors.teal,
+              subtitle: 'Joriy hafta',
+            ),
+            _buildStatCard(
+              title: 'Oylik xarajatlar',
+              value: controller.formatCurrency(controller.monthExpenses.value),
+              unit: 'so\'m',
+              icon: Icons.calendar_month,
+              color: Colors.purple,
+              subtitle: DateFormat('MMMM yyyy', 'uz').format(DateTime.now()),
+            ),
+            _buildStatCard(
+              title: 'Jami maoshlar',
+              value: controller.formatCurrency(controller.totalSalaries.value),
+              unit: 'so\'m',
+              icon: Icons.payments,
+              color: Colors.green,
+              subtitle: 'To\'langan maoshlar',
+            ),
+            _buildStatCard(
+              title: 'Avanslar',
+              value: controller.formatCurrency(controller.totalAdvances.value),
+              unit: 'so\'m',
+              icon: Icons.money_off,
+              color: Colors.orange,
+              subtitle: 'Ushlab qolinmagan',
+            ),
+            _buildStatCard(
+              title: 'Qarzlar',
+              value: controller.formatCurrency(controller.totalLoans.value),
+              unit: 'so\'m',
+              icon: Icons.account_balance,
+              color: Colors.red,
+              subtitle: 'Qaytarilmagan',
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -268,7 +298,11 @@ class ExpensesScreenV2 extends StatelessWidget {
           SizedBox(height: 16),
           Text(
             title,
-            style: TextStyle(fontSize: 14, color: Colors.grey[600], fontWeight: FontWeight.w500),
+            style: TextStyle(
+              fontSize: 14,
+              color: Colors.grey[600],
+              fontWeight: FontWeight.w500,
+            ),
           ),
           SizedBox(height: 8),
           Row(
@@ -277,7 +311,11 @@ class ExpensesScreenV2 extends StatelessWidget {
               Flexible(
                 child: Text(
                   value,
-                  style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: color),
+                  style: TextStyle(
+                    fontSize: 28,
+                    fontWeight: FontWeight.bold,
+                    color: color,
+                  ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -286,14 +324,20 @@ class ExpensesScreenV2 extends StatelessWidget {
                 SizedBox(width: 6),
                 Padding(
                   padding: EdgeInsets.only(bottom: 4),
-                  child: Text(unit, style: TextStyle(fontSize: 14, color: Colors.grey[600])),
+                  child: Text(
+                    unit,
+                    style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+                  ),
                 ),
               ],
             ],
           ),
           if (subtitle != null) ...[
             SizedBox(height: 8),
-            Text(subtitle, style: TextStyle(fontSize: 12, color: Colors.grey[500])),
+            Text(
+              subtitle,
+              style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+            ),
           ],
         ],
       ),
@@ -307,7 +351,9 @@ class ExpensesScreenV2 extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10)],
+        boxShadow: [
+          BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10),
+        ],
       ),
       child: Row(
         children: [
@@ -331,20 +377,28 @@ class ExpensesScreenV2 extends StatelessWidget {
           child: Container(
             padding: EdgeInsets.symmetric(vertical: 14),
             decoration: BoxDecoration(
-              color: isSelected ? AppConstants.primaryColor : Colors.transparent,
+              color: isSelected
+                  ? AppConstants.primaryColor
+                  : Colors.transparent,
               borderRadius: BorderRadius.circular(12),
             ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(icon, size: 20, color: isSelected ? Colors.white : Colors.grey[600]),
+                Icon(
+                  icon,
+                  size: 20,
+                  color: isSelected ? Colors.white : Colors.grey[600],
+                ),
                 SizedBox(width: 8),
                 Flexible(
                   child: Text(
                     label,
                     style: TextStyle(
                       fontSize: 14,
-                      fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                      fontWeight: isSelected
+                          ? FontWeight.w600
+                          : FontWeight.normal,
                       color: isSelected ? Colors.white : Colors.grey[600],
                     ),
                     textAlign: TextAlign.center,
@@ -384,11 +438,7 @@ class ExpensesScreenV2 extends StatelessWidget {
   // UMUMIY XARAJATLAR TAB
   Widget _buildExpensesTab() {
     return Column(
-      children: [
-        _buildFilters(),
-        SizedBox(height: 16),
-        _buildExpensesList(),
-      ],
+      children: [_buildFilters(), SizedBox(height: 16), _buildExpensesList()],
     );
   }
 
@@ -415,7 +465,9 @@ class ExpensesScreenV2 extends StatelessWidget {
                     decoration: InputDecoration(
                       hintText: 'Qidirish...',
                       prefixIcon: Icon(Icons.search),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                       filled: true,
                       fillColor: Colors.grey[50],
                     ),
@@ -423,57 +475,79 @@ class ExpensesScreenV2 extends StatelessWidget {
                 ),
                 SizedBox(width: 16),
                 Expanded(
-                  child: Obx(() => DropdownButtonFormField<String>(
-  value: controller.selectedCategory.value,
-  isExpanded: true, // <--- SHUNI QO'SHING
-  decoration: InputDecoration(
-    labelText: 'Kategoriya',
-    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-    filled: true,
-    fillColor: Colors.grey[50],
-  ),
-  items: controller.categories.map((cat) {
-    return DropdownMenuItem<String>(
-      value: cat['id'] as String,
-      child: Row(
-        children: [
-          Icon(cat['icon'] as IconData, size: 20, color: cat['color'] as Color),
-          SizedBox(width: 8),
-          // Flexible endi bexato ishlaydi, chunki isExpanded: true bor
-          Flexible(child: Text(cat['name'] as String, overflow: TextOverflow.ellipsis)),
-        ],
-      ),
-    );
-  }).toList(),
-  onChanged: (value) {
-    controller.selectedCategory.value = value ?? 'all';
-    controller.applyFilters();
-  },
-)),
+                  child: Obx(
+                    () => DropdownButtonFormField<String>(
+                      value: controller.selectedCategory.value,
+                      isExpanded: true, // <--- SHUNI QO'SHING
+                      decoration: InputDecoration(
+                        labelText: 'Kategoriya',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        filled: true,
+                        fillColor: Colors.grey[50],
+                      ),
+                      items: controller.categories.map((cat) {
+                        return DropdownMenuItem<String>(
+                          value: cat['id'] as String,
+                          child: Row(
+                            children: [
+                              Icon(
+                                cat['icon'] as IconData,
+                                size: 20,
+                                color: cat['color'] as Color,
+                              ),
+                              SizedBox(width: 8),
+                              // Flexible endi bexato ishlaydi, chunki isExpanded: true bor
+                              Flexible(
+                                child: Text(
+                                  cat['name'] as String,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      }).toList(),
+                      onChanged: (value) {
+                        controller.selectedCategory.value = value ?? 'all';
+                        controller.applyFilters();
+                      },
+                    ),
+                  ),
                 ),
                 SizedBox(width: 16),
                 if (controller.branches.isNotEmpty)
                   Expanded(
-                    child: Obx(() => DropdownButtonFormField<String>(
-                      value: controller.selectedBranch.value,
-                      decoration: InputDecoration(
-                        labelText: 'Filial',
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                        filled: true,
-                        fillColor: Colors.grey[50],
+                    child: Obx(
+                      () => DropdownButtonFormField<String>(
+                        value: controller.selectedBranch.value,
+                        decoration: InputDecoration(
+                          labelText: 'Filial',
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          filled: true,
+                          fillColor: Colors.grey[50],
+                        ),
+                        items: [
+                          DropdownMenuItem(
+                            value: 'all',
+                            child: Text('Barcha filiallar'),
+                          ),
+                          ...controller.branches.map(
+                            (branch) => DropdownMenuItem<String>(
+                              value: branch['id'],
+                              child: Text(branch['name']),
+                            ),
+                          ),
+                        ],
+                        onChanged: (value) {
+                          controller.selectedBranch.value = value ?? 'all';
+                          controller.applyFilters();
+                        },
                       ),
-                      items: [
-                        DropdownMenuItem(value: 'all', child: Text('Barcha filiallar')),
-                        ...controller.branches.map((branch) => DropdownMenuItem<String>(
-                          value: branch['id'],
-                          child: Text(branch['name']),
-                        )),
-                      ],
-                      onChanged: (value) {
-                        controller.selectedBranch.value = value ?? 'all';
-                        controller.applyFilters();
-                      },
-                    )),
+                    ),
                   ),
                 SizedBox(width: 16),
                 ElevatedButton.icon(
@@ -482,7 +556,9 @@ class ExpensesScreenV2 extends StatelessWidget {
                   label: Text('Sana'),
                   style: ElevatedButton.styleFrom(
                     padding: EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                   ),
                 ),
                 SizedBox(width: 12),
@@ -492,7 +568,9 @@ class ExpensesScreenV2 extends StatelessWidget {
                   label: Text('Tozalash'),
                   style: OutlinedButton.styleFrom(
                     padding: EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                   ),
                 ),
               ],
@@ -506,7 +584,10 @@ class ExpensesScreenV2 extends StatelessWidget {
   Widget _buildExpensesList() {
     return Obx(() {
       if (controller.expenses.isEmpty) {
-        return _buildEmptyState('Xarajatlar topilmadi', Icons.receipt_long_outlined);
+        return _buildEmptyState(
+          'Xarajatlar topilmadi',
+          Icons.receipt_long_outlined,
+        );
       }
 
       return Card(
@@ -516,7 +597,9 @@ class ExpensesScreenV2 extends StatelessWidget {
           side: BorderSide(color: Colors.grey[300]!),
         ),
         child: Column(
-          children: controller.expenses.map((expense) => _buildExpenseItem(expense)).toList(),
+          children: controller.expenses
+              .map((expense) => _buildExpenseItem(expense))
+              .toList(),
         ),
       );
     });
@@ -542,7 +625,11 @@ class ExpensesScreenV2 extends StatelessWidget {
               color: (category['color'] as Color).withOpacity(0.1),
               borderRadius: BorderRadius.circular(12),
             ),
-            child: Icon(category['icon'] as IconData, color: category['color'] as Color, size: 28),
+            child: Icon(
+              category['icon'] as IconData,
+              color: category['color'] as Color,
+              size: 28,
+            ),
           ),
           SizedBox(width: 16),
           Expanded(
@@ -556,7 +643,11 @@ class ExpensesScreenV2 extends StatelessWidget {
                 SizedBox(height: 4),
                 Row(
                   children: [
-                    Icon(Icons.calendar_today, size: 14, color: Colors.grey[600]),
+                    Icon(
+                      Icons.calendar_today,
+                      size: 14,
+                      color: Colors.grey[600],
+                    ),
                     SizedBox(width: 4),
                     Text(
                       expense['expense_date'] ?? '',
@@ -582,7 +673,8 @@ class ExpensesScreenV2 extends StatelessWidget {
                     ],
                   ],
                 ),
-                if (expense['description'] != null && expense['description'].toString().isNotEmpty) ...[
+                if (expense['description'] != null &&
+                    expense['description'].toString().isNotEmpty) ...[
                   SizedBox(height: 4),
                   Text(
                     expense['description'],
@@ -656,7 +748,10 @@ class ExpensesScreenV2 extends StatelessWidget {
   Widget _buildSalariesTab() {
     return Obx(() {
       if (controller.salaryOperations.isEmpty) {
-        return _buildEmptyState('Maosh ma\'lumotlari topilmadi', Icons.payments);
+        return _buildEmptyState(
+          'Maosh ma\'lumotlari topilmadi',
+          Icons.payments,
+        );
       }
 
       return Card(
@@ -666,7 +761,9 @@ class ExpensesScreenV2 extends StatelessWidget {
           side: BorderSide(color: Colors.grey[300]!),
         ),
         child: Column(
-          children: controller.salaryOperations.map((salary) => _buildSalaryItem(salary)).toList(),
+          children: controller.salaryOperations
+              .map((salary) => _buildSalaryItem(salary))
+              .toList(),
         ),
       );
     });
@@ -689,7 +786,10 @@ class ExpensesScreenV2 extends StatelessWidget {
             backgroundColor: AppConstants.primaryColor.withOpacity(0.1),
             child: Text(
               '${staff['first_name'][0]}${staff['last_name'][0]}'.toUpperCase(),
-              style: TextStyle(fontWeight: FontWeight.bold, color: AppConstants.primaryColor),
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: AppConstants.primaryColor,
+              ),
             ),
           ),
           SizedBox(width: 16),
@@ -722,12 +822,13 @@ class ExpensesScreenV2 extends StatelessWidget {
                     ),
                   ],
                 ),
-                if (salary['worked_days'] != null || salary['worked_hours'] != null) ...[
+                if (salary['worked_days'] != null ||
+                    salary['worked_hours'] != null) ...[
                   SizedBox(height: 4),
                   Text(
-                    salary['worked_hours'] != null 
-                      ? 'Ishlagan: ${salary['worked_hours']} soat'
-                      : 'Ishlagan: ${salary['worked_days']} kun',
+                    salary['worked_hours'] != null
+                        ? 'Ishlagan: ${salary['worked_hours']} soat'
+                        : 'Ishlagan: ${salary['worked_days']} kun',
                     style: TextStyle(fontSize: 11, color: Colors.grey[500]),
                   ),
                 ],
@@ -749,7 +850,9 @@ class ExpensesScreenV2 extends StatelessWidget {
               Container(
                 padding: EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
-                  color: (isPaid ? Colors.green : Colors.orange).withOpacity(0.1),
+                  color: (isPaid ? Colors.green : Colors.orange).withOpacity(
+                    0.1,
+                  ),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
@@ -782,7 +885,9 @@ class ExpensesScreenV2 extends StatelessWidget {
           side: BorderSide(color: Colors.grey[300]!),
         ),
         child: Column(
-          children: controller.staffAdvances.map((advance) => _buildAdvanceItem(advance)).toList(),
+          children: controller.staffAdvances
+              .map((advance) => _buildAdvanceItem(advance))
+              .toList(),
         ),
       );
     });
@@ -821,7 +926,8 @@ class ExpensesScreenV2 extends StatelessWidget {
                   'Ushlab qolinadi: ${advance['deduction_month']}-oy, ${advance['deduction_year']}',
                   style: TextStyle(fontSize: 12, color: Colors.grey[600]),
                 ),
-                if (advance['reason'] != null && advance['reason'].toString().isNotEmpty) ...[
+                if (advance['reason'] != null &&
+                    advance['reason'].toString().isNotEmpty) ...[
                   SizedBox(height: 4),
                   Text(
                     advance['reason'],
@@ -838,18 +944,26 @@ class ExpensesScreenV2 extends StatelessWidget {
             children: [
               Text(
                 '${controller.formatCurrency((advance['amount'] as num).toDouble())} so\'m',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.orange),
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.orange,
+                ),
               ),
               SizedBox(height: 4),
               Container(
                 padding: EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                 decoration: BoxDecoration(
-                  color: (isDeducted ? Colors.green : Colors.orange).withOpacity(0.1),
+                  color: (isDeducted ? Colors.green : Colors.orange)
+                      .withOpacity(0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
                   isDeducted ? 'Ushlab qolindi' : 'Kutilmoqda',
-                  style: TextStyle(fontSize: 10, color: isDeducted ? Colors.green : Colors.orange),
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: isDeducted ? Colors.green : Colors.orange,
+                  ),
                 ),
               ),
             ],
@@ -873,7 +987,9 @@ class ExpensesScreenV2 extends StatelessWidget {
           side: BorderSide(color: Colors.grey[300]!),
         ),
         child: Column(
-          children: controller.staffLoans.map((loan) => _buildLoanItem(loan)).toList(),
+          children: controller.staffLoans
+              .map((loan) => _buildLoanItem(loan))
+              .toList(),
         ),
       );
     });
@@ -884,7 +1000,9 @@ class ExpensesScreenV2 extends StatelessWidget {
     final isSettled = loan['is_settled'] == true;
     final totalAmount = (loan['total_amount'] as num).toDouble();
     final remainingAmount = (loan['remaining_amount'] as num).toDouble();
-    final progress = totalAmount > 0 ? (totalAmount - remainingAmount) / totalAmount : 0.0;
+    final progress = totalAmount > 0
+        ? (totalAmount - remainingAmount) / totalAmount
+        : 0.0;
 
     return Container(
       padding: EdgeInsets.all(16),
@@ -911,7 +1029,10 @@ class ExpensesScreenV2 extends StatelessWidget {
                   children: [
                     Text(
                       '${staff['first_name']} ${staff['last_name']}',
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                     SizedBox(height: 4),
                     Text(
@@ -926,7 +1047,11 @@ class ExpensesScreenV2 extends StatelessWidget {
                 children: [
                   Text(
                     '${controller.formatCurrency(remainingAmount)} so\'m',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.red),
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.red,
+                    ),
                   ),
                   SizedBox(height: 4),
                   Text(
@@ -949,11 +1074,17 @@ class ExpensesScreenV2 extends StatelessWidget {
                       children: [
                         Text(
                           'To\'lov jarayoni',
-                          style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey[600],
+                          ),
                         ),
                         Text(
                           '${(progress * 100).toStringAsFixed(0)}%',
-                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                       ],
                     ),
@@ -976,7 +1107,9 @@ class ExpensesScreenV2 extends StatelessWidget {
               Container(
                 padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                 decoration: BoxDecoration(
-                  color: (isSettled ? Colors.green : Colors.red).withOpacity(0.1),
+                  color: (isSettled ? Colors.green : Colors.red).withOpacity(
+                    0.1,
+                  ),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
@@ -999,7 +1132,10 @@ class ExpensesScreenV2 extends StatelessWidget {
   Widget _buildCashRegistersTab() {
     return Obx(() {
       if (controller.cashRegisters.isEmpty) {
-        return _buildEmptyState('Kassalar topilmadi', Icons.account_balance_wallet);
+        return _buildEmptyState(
+          'Kassalar topilmadi',
+          Icons.account_balance_wallet,
+        );
       }
 
       return Column(
@@ -1009,7 +1145,9 @@ class ExpensesScreenV2 extends StatelessWidget {
           Wrap(
             spacing: 16,
             runSpacing: 16,
-            children: controller.cashRegisters.map((cash) => _buildCashRegisterCard(cash)).toList(),
+            children: controller.cashRegisters
+                .map((cash) => _buildCashRegisterCard(cash))
+                .toList(),
           ),
         ],
       );
@@ -1017,49 +1155,51 @@ class ExpensesScreenV2 extends StatelessWidget {
   }
 
   Widget _buildCashSummary() {
-    return Obx(() => Container(
-      padding: EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [Colors.blue[700]!, Colors.blue[500]!],
+    return Obx(
+      () => Container(
+        padding: EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [Colors.blue[700]!, Colors.blue[500]!],
+          ),
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.blue.withOpacity(0.3),
+              blurRadius: 20,
+              offset: Offset(0, 10),
+            ),
+          ],
         ),
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.blue.withOpacity(0.3),
-            blurRadius: 20,
-            offset: Offset(0, 10),
-          ),
-        ],
+        child: Row(
+          children: [
+            Expanded(
+              child: _buildCashSummaryItem(
+                'Naqd pul',
+                controller.totalCashBalance.value,
+                Icons.payments,
+              ),
+            ),
+            Container(width: 2, height: 60, color: Colors.white24),
+            Expanded(
+              child: _buildCashSummaryItem(
+                'Plastik karta',
+                controller.totalCardBalance.value,
+                Icons.credit_card,
+              ),
+            ),
+            Container(width: 2, height: 60, color: Colors.white24),
+            Expanded(
+              child: _buildCashSummaryItem(
+                'O\'tkazma',
+                controller.totalTransferBalance.value,
+                Icons.account_balance,
+              ),
+            ),
+          ],
+        ),
       ),
-      child: Row(
-        children: [
-          Expanded(
-            child: _buildCashSummaryItem(
-              'Naqd pul',
-              controller.totalCashBalance.value,
-              Icons.payments,
-            ),
-          ),
-          Container(width: 2, height: 60, color: Colors.white24),
-          Expanded(
-            child: _buildCashSummaryItem(
-              'Plastik karta',
-              controller.totalCardBalance.value,
-              Icons.credit_card,
-            ),
-          ),
-          Container(width: 2, height: 60, color: Colors.white24),
-          Expanded(
-            child: _buildCashSummaryItem(
-              'O\'tkazma',
-              controller.totalTransferBalance.value,
-              Icons.account_balance,
-            ),
-          ),
-        ],
-      ),
-    ));
+    );
   }
 
   Widget _buildCashSummaryItem(String label, double amount, IconData icon) {
@@ -1067,10 +1207,7 @@ class ExpensesScreenV2 extends StatelessWidget {
       children: [
         Icon(icon, color: Colors.white, size: 32),
         SizedBox(height: 8),
-        Text(
-          label,
-          style: TextStyle(fontSize: 14, color: Colors.white70),
-        ),
+        Text(label, style: TextStyle(fontSize: 14, color: Colors.white70)),
         SizedBox(height: 4),
         Text(
           '${controller.formatCurrency(amount)} so\'m',
@@ -1086,9 +1223,21 @@ class ExpensesScreenV2 extends StatelessWidget {
 
   Widget _buildCashRegisterCard(Map<String, dynamic> cash) {
     final methods = {
-      'cash': {'name': 'Naqd pul', 'icon': Icons.payments, 'color': Colors.green},
-      'card': {'name': 'Plastik karta', 'icon': Icons.credit_card, 'color': Colors.blue},
-      'transfer': {'name': 'O\'tkazma', 'icon': Icons.account_balance, 'color': Colors.purple},
+      'cash': {
+        'name': 'Naqd pul',
+        'icon': Icons.payments,
+        'color': Colors.green,
+      },
+      'card': {
+        'name': 'Plastik karta',
+        'icon': Icons.credit_card,
+        'color': Colors.blue,
+      },
+      'transfer': {
+        'name': 'O\'tkazma',
+        'icon': Icons.account_balance,
+        'color': Colors.purple,
+      },
     };
 
     final method = methods[cash['payment_method']] ?? methods['cash']!;
@@ -1125,7 +1274,11 @@ class ExpensesScreenV2 extends StatelessWidget {
                   color: Colors.white.withOpacity(0.3),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: Icon(method['icon'] as IconData, color: Colors.white, size: 32),
+                child: Icon(
+                  method['icon'] as IconData,
+                  color: Colors.white,
+                  size: 32,
+                ),
               ),
               Spacer(),
             ],
@@ -1133,22 +1286,36 @@ class ExpensesScreenV2 extends StatelessWidget {
           SizedBox(height: 24),
           Text(
             method['name'] as String,
-            style: TextStyle(fontSize: 16, color: Colors.white.withOpacity(0.9)),
+            style: TextStyle(
+              fontSize: 16,
+              color: Colors.white.withOpacity(0.9),
+            ),
           ),
           SizedBox(height: 8),
           Text(
             '${controller.formatCurrency((cash['current_balance'] as num).toDouble())} so\'m',
-            style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.white),
+            style: TextStyle(
+              fontSize: 32,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+            ),
           ),
           SizedBox(height: 16),
           Row(
             children: [
-              Icon(Icons.business, size: 14, color: Colors.white.withOpacity(0.8)),
+              Icon(
+                Icons.business,
+                size: 14,
+                color: Colors.white.withOpacity(0.8),
+              ),
               SizedBox(width: 4),
               Flexible(
                 child: Text(
                   cash['branches']?['name'] ?? 'N/A',
-                  style: TextStyle(fontSize: 12, color: Colors.white.withOpacity(0.8)),
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.white.withOpacity(0.8),
+                  ),
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
@@ -1166,7 +1333,7 @@ class ExpensesScreenV2 extends StatelessWidget {
     final descriptionController = TextEditingController();
     final receiptController = TextEditingController();
     final responsibleController = TextEditingController();
-    
+
     String selectedCategory = 'utilities';
     String? selectedCashRegister;
     DateTime selectedDate = DateTime.now();
@@ -1194,23 +1361,30 @@ class ExpensesScreenV2 extends StatelessWidget {
                   value: selectedCategory,
                   decoration: InputDecoration(
                     labelText: 'Kategoriya',
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                     prefixIcon: Icon(Icons.category),
                   ),
                   items: controller.categories
                       .where((c) => c['id'] != 'all' && c['id'] != 'salary')
                       .map((cat) {
-                    return DropdownMenuItem<String>(
-                      value: cat['id'] as String,
-                      child: Row(
-                        children: [
-                          Icon(cat['icon'] as IconData, size: 20, color: cat['color'] as Color),
-                          SizedBox(width: 8),
-                          Text(cat['name'] as String),
-                        ],
-                      ),
-                    );
-                  }).toList(),
+                        return DropdownMenuItem<String>(
+                          value: cat['id'] as String,
+                          child: Row(
+                            children: [
+                              Icon(
+                                cat['icon'] as IconData,
+                                size: 20,
+                                color: cat['color'] as Color,
+                              ),
+                              SizedBox(width: 8),
+                              Text(cat['name'] as String),
+                            ],
+                          ),
+                        );
+                      })
+                      .toList(),
                   onChanged: (value) => selectedCategory = value!,
                 ),
                 SizedBox(height: 16),
@@ -1218,7 +1392,9 @@ class ExpensesScreenV2 extends StatelessWidget {
                   controller: titleController,
                   decoration: InputDecoration(
                     labelText: 'Sarlavha *',
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                     prefixIcon: Icon(Icons.title),
                   ),
                 ),
@@ -1228,50 +1404,61 @@ class ExpensesScreenV2 extends StatelessWidget {
                   keyboardType: TextInputType.number,
                   decoration: InputDecoration(
                     labelText: 'Summa (so\'m) *',
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                     prefixIcon: Icon(Icons.attach_money),
                   ),
                 ),
                 SizedBox(height: 16),
                 if (controller.cashRegisters.isNotEmpty)
-  DropdownButtonFormField<String>(
-    value: selectedCashRegister,
-    isExpanded: true, // <--- SHUNI QO'SHING
-    decoration: InputDecoration(
-      labelText: 'Kassa *',
-      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-      prefixIcon: Icon(Icons.account_balance_wallet),
-    ),
-    items: controller.cashRegisters.map((cash) {
-      final balance = (cash['current_balance'] as num).toDouble();
-      return DropdownMenuItem<String>(
-        value: cash['id'],
-        child: Row(
-          children: [
-            // Expanded bu yerda ishlashi uchun tepadagi isExpanded: true kerak
-            Expanded(
-              child: Text(
-                '${cash['payment_method']} - ${cash['branches']?['name']}',
-                overflow: TextOverflow.ellipsis, // Matn sig'masa kesish uchun
-              ),
-            ),
-            SizedBox(width: 8), // Yopishib qolmasligi uchun
-            Text(
-              '${controller.formatCurrency(balance)} so\'m',
-              style: TextStyle(fontSize: 11, color: Colors.grey[600]),
-            ),
-          ],
-        ),
-      );
-    }).toList(),
-    onChanged: (value) => selectedCashRegister = value,
-  ),
+                  DropdownButtonFormField<String>(
+                    value: selectedCashRegister,
+                    isExpanded: true, // <--- SHUNI QO'SHING
+                    decoration: InputDecoration(
+                      labelText: 'Kassa *',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      prefixIcon: Icon(Icons.account_balance_wallet),
+                    ),
+                    items: controller.cashRegisters.map((cash) {
+                      final balance = (cash['current_balance'] as num)
+                          .toDouble();
+                      return DropdownMenuItem<String>(
+                        value: cash['id'],
+                        child: Row(
+                          children: [
+                            // Expanded bu yerda ishlashi uchun tepadagi isExpanded: true kerak
+                            Expanded(
+                              child: Text(
+                                '${cash['payment_method']} - ${cash['branches']?['name']}',
+                                overflow: TextOverflow
+                                    .ellipsis, // Matn sig'masa kesish uchun
+                              ),
+                            ),
+                            SizedBox(width: 8), // Yopishib qolmasligi uchun
+                            Text(
+                              '${controller.formatCurrency(balance)} so\'m',
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: Colors.grey[600],
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    }).toList(),
+                    onChanged: (value) => selectedCashRegister = value,
+                  ),
                 SizedBox(height: 16),
                 TextField(
                   controller: responsibleController,
                   decoration: InputDecoration(
                     labelText: 'Mas\'ul shaxs',
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                     prefixIcon: Icon(Icons.person),
                   ),
                 ),
@@ -1280,7 +1467,9 @@ class ExpensesScreenV2 extends StatelessWidget {
                   controller: receiptController,
                   decoration: InputDecoration(
                     labelText: 'Kvitansiya raqami',
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                     prefixIcon: Icon(Icons.receipt),
                   ),
                 ),
@@ -1290,7 +1479,9 @@ class ExpensesScreenV2 extends StatelessWidget {
                   maxLines: 3,
                   decoration: InputDecoration(
                     labelText: 'Izoh',
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                     prefixIcon: Icon(Icons.note),
                   ),
                 ),
@@ -1299,20 +1490,26 @@ class ExpensesScreenV2 extends StatelessWidget {
           ),
         ),
         actions: [
-          TextButton(
-            onPressed: () => Get.back(),
-            child: Text('Bekor qilish'),
-          ),
+          TextButton(onPressed: () => Get.back(), child: Text('Bekor qilish')),
           ElevatedButton.icon(
             onPressed: () {
-              if (titleController.text.isEmpty || amountController.text.isEmpty) {
-                Get.snackbar('Xato', 'Barcha majburiy maydonlarni to\'ldiring',
-                  backgroundColor: Colors.red, colorText: Colors.white);
+              if (titleController.text.isEmpty ||
+                  amountController.text.isEmpty) {
+                Get.snackbar(
+                  'Xato',
+                  'Barcha majburiy maydonlarni to\'ldiring',
+                  backgroundColor: Colors.red,
+                  colorText: Colors.white,
+                );
                 return;
               }
               if (selectedCashRegister == null) {
-                Get.snackbar('Xato', 'Kassani tanlang',
-                  backgroundColor: Colors.red, colorText: Colors.white);
+                Get.snackbar(
+                  'Xato',
+                  'Kassani tanlang',
+                  backgroundColor: Colors.red,
+                  colorText: Colors.white,
+                );
                 return;
               }
 
@@ -1321,9 +1518,15 @@ class ExpensesScreenV2 extends StatelessWidget {
                 title: titleController.text,
                 amount: double.parse(amountController.text),
                 cashRegisterId: selectedCashRegister!,
-                description: descriptionController.text.isEmpty ? null : descriptionController.text,
-                receiptNumber: receiptController.text.isEmpty ? null : receiptController.text,
-                responsiblePerson: responsibleController.text.isEmpty ? null : responsibleController.text,
+                description: descriptionController.text.isEmpty
+                    ? null
+                    : descriptionController.text,
+                receiptNumber: receiptController.text.isEmpty
+                    ? null
+                    : receiptController.text,
+                responsiblePerson: responsibleController.text.isEmpty
+                    ? null
+                    : responsibleController.text,
                 expenseDate: selectedDate,
               );
 
@@ -1348,8 +1551,12 @@ class ExpensesScreenV2 extends StatelessWidget {
           try {
             await controller.paySalary(salaryData);
           } catch (e) {
-            Get.snackbar('Xato', 'Maosh to\'lashda xatolik: $e',
-              backgroundColor: Colors.red, colorText: Colors.white);
+            Get.snackbar(
+              'Xato',
+              'Maosh to\'lashda xatolik: $e',
+              backgroundColor: Colors.red,
+              colorText: Colors.white,
+            );
           }
         },
       ),
@@ -1363,8 +1570,12 @@ class ExpensesScreenV2 extends StatelessWidget {
           try {
             await controller.giveAdvance(advanceData);
           } catch (e) {
-            Get.snackbar('Xato', 'Avans berishda xatolik: $e',
-              backgroundColor: Colors.red, colorText: Colors.white);
+            Get.snackbar(
+              'Xato',
+              'Avans berishda xatolik: $e',
+              backgroundColor: Colors.red,
+              colorText: Colors.white,
+            );
           }
         },
       ),
@@ -1378,8 +1589,12 @@ class ExpensesScreenV2 extends StatelessWidget {
           try {
             await controller.giveLoan(loanData);
           } catch (e) {
-            Get.snackbar('Xato', 'Qarz berishda xatolik: $e',
-              backgroundColor: Colors.red, colorText: Colors.white);
+            Get.snackbar(
+              'Xato',
+              'Qarz berishda xatolik: $e',
+              backgroundColor: Colors.red,
+              colorText: Colors.white,
+            );
           }
         },
       ),
@@ -1425,9 +1640,15 @@ class ExpensesScreenV2 extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _buildDetailRow('Kategoriya', controller.getCategoryName(expense['category'])),
+              _buildDetailRow(
+                'Kategoriya',
+                controller.getCategoryName(expense['category']),
+              ),
               _buildDetailRow('Sarlavha', expense['title']),
-              _buildDetailRow('Summa', '${controller.formatCurrency((expense['amount'] as num).toDouble())} so\'m'),
+              _buildDetailRow(
+                'Summa',
+                '${controller.formatCurrency((expense['amount'] as num).toDouble())} so\'m',
+              ),
               _buildDetailRow('Sana', expense['expense_date']),
               if (expense['responsible_person'] != null)
                 _buildDetailRow('Mas\'ul shaxs', expense['responsible_person']),
@@ -1441,10 +1662,7 @@ class ExpensesScreenV2 extends StatelessWidget {
           ),
         ),
         actions: [
-          TextButton(
-            onPressed: () => Get.back(),
-            child: Text('Yopish'),
-          ),
+          TextButton(onPressed: () => Get.back(), child: Text('Yopish')),
         ],
       ),
     );
@@ -1460,14 +1678,14 @@ class ExpensesScreenV2 extends StatelessWidget {
             width: 120,
             child: Text(
               '$label:',
-              style: TextStyle(fontWeight: FontWeight.w600, color: Colors.grey[700]),
+              style: TextStyle(
+                fontWeight: FontWeight.w600,
+                color: Colors.grey[700],
+              ),
             ),
           ),
           Expanded(
-            child: Text(
-              value,
-              style: TextStyle(color: Colors.grey[800]),
-            ),
+            child: Text(value, style: TextStyle(color: Colors.grey[800])),
           ),
         ],
       ),
@@ -1485,7 +1703,9 @@ class ExpensesScreenV2 extends StatelessWidget {
               Text('O\'chirishni tasdiqlang'),
             ],
           ),
-          content: Text('Ushbu xarajatni o\'chirishni xohlaysizmi? Pul kassaga qaytariladi.'),
+          content: Text(
+            'Ushbu xarajatni o\'chirishni xohlaysizmi? Pul kassaga qaytariladi.',
+          ),
           actions: [
             TextButton(
               onPressed: () => Get.back(),
@@ -1522,4 +1742,5 @@ class ExpensesScreenV2 extends StatelessWidget {
         ),
       ),
     );
-  }}
+  }
+}

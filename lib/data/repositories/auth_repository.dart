@@ -1,154 +1,210 @@
 // lib/data/repositories/auth_repository.dart
-// IZOH: Authentication uchun repository.
-// Login, logout, parol yangilash va sessiyani saqlash.
+// YANGILANGAN - Filial nomini olish va parol tekshirish yaxshilangan
 
-import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/user_model.dart';
-import 'package:crypto/crypto.dart';
-import 'dart:convert';
 
 class AuthRepository {
-  final _supabase = Supabase.instance.client;
+  final SupabaseClient _supabase = Supabase.instance.client;
+  
+  // SharedPreferences kalit
+  static const String _userIdKey = 'saved_user_id';
 
-  // SharedPreferences key lari
-  static const String _keyUserId = 'saved_user_id';
-  static const String _keyRememberMe = 'remember_me';
-
-  String? get currentUserId => _supabase.auth.currentUser?.id;
-  bool get isAuthenticated => _supabase.auth.currentUser != null;
-
-  // ========== LOGIN - Parol tekshirish va saqlash ==========
+  // ========== LOGIN ==========
   Future<UserModel?> login({
     required String username,
     required String password,
-    bool rememberMe = false, // ← YANGI: Eslab qolish parametri
+    bool rememberMe = false,
   }) async {
     try {
-      // 1. Foydalanuvchini topish
+      print('🔐 Login attempt: $username');
+
+      // 1. Foydalanuvchini topish (Filial nomi bilan)
       final response = await _supabase
           .from('users')
-          .select()
+          .select('''
+            *,
+            branches:branch_id (
+              name
+            )
+          ''')
           .eq('username', username)
-          .eq('status', 'active')
           .maybeSingle();
 
       if (response == null) {
-        throw Exception('Foydalanuvchi topilmadi');
+        print('❌ User topilmadi: $username');
+        return null;
       }
 
-      final user = UserModel.fromJson(response);
+      print('✅ User topildi: ${response['username']}');
+      print('👤 Full name: ${response['first_name']} ${response['last_name']}');
+      print('🎭 Role: ${response['role']}');
+      print('📍 Branch ID: ${response['branch_id']}');
 
-      // 2. Parolni tekshirish
-      bool passwordMatches = false;
-
-      if (user.tempPassword != null && user.tempPassword!.isNotEmpty) {
-        // Vaqtinchalik parol tekshirish
-        passwordMatches = user.tempPassword == password;
-      } else if (user.passwordHash != null && user.passwordHash!.isNotEmpty) {
-        // Hash qilingan parol tekshirish
-        final hashedInput = _hashPassword(password);
-        passwordMatches = user.passwordHash == hashedInput;
+      // 2. Parolni tekshirish (YAXSHILANGAN!)
+      final storedPassword = response['password_hash'] ?? response['temp_password'];
+      
+      print('🔐 Kiritilgan parol: $password');
+      print('🔐 DB dagi parol: $storedPassword');
+      
+      if (storedPassword == null) {
+        print('❌ DB da parol topilmadi');
+        return null;
       }
 
-      if (!passwordMatches) {
-        throw Exception('Parol noto\'g\'ri');
+      // Parolni trim qilib taqqoslash (bo'sh joylarni olib tashlash)
+      final isPasswordValid = password.trim() == storedPassword.toString().trim();
+      
+      if (!isPasswordValid) {
+        print('❌ Parol noto\'g\'ri');
+        print('   Kiritilgan: "$password" (length: ${password.length})');
+        print('   Kutilgan: "$storedPassword" (length: ${storedPassword.toString().length})');
+        return null;
       }
 
-      // 3. Last login vaqtini yangilash
-      await _supabase
-          .from('users')
-          .update({'last_login_at': DateTime.now().toIso8601String()})
-          .eq('id', user.id);
+      print('✅ Parol to\'g\'ri');
 
-      // 4. ✅ ESLAB QOLISH - Agar rememberMe true bo'lsa, saqlash
+      // 3. User aktiv emasligini tekshirish
+      final userStatus = response['status'] ?? 'active';
+      final isActive = response['is_active'] ?? (userStatus == 'active');
+      
+      if (!isActive && userStatus != 'active') {
+        print('❌ User aktiv emas (status: $userStatus)');
+        return null;
+      }
+
+      print('✅ User aktiv');
+
+      // 4. UserModel yaratish (branch_name bilan)
+      final Map<String, dynamic> userData = Map<String, dynamic>.from(response);
+      
+      // Filial nomini qo'shish
+      if (userData['branches'] != null) {
+        userData['branch_name'] = userData['branches']['name'];
+        print('🏢 Branch name: ${userData['branch_name']}');
+      }
+      
+      final user = UserModel.fromJson(userData);
+
+      // 5. Agar "Meni eslab qol" belgilangan bo'lsa - ID ni saqlash
       if (rememberMe) {
-        await _saveUserSession(user.id);
+        await _saveUserId(user.id!);
+        print('💾 User ID saqlandi: ${user.id}');
       } else {
-        await _clearUserSession();
+        await _clearUserId();
+        print('ℹ️ User ID saqlanmadi (Remember me = false)');
       }
 
+      // 6. Last login vaqtini yangilash
+      await _updateLastLogin(user.id!);
+
+      print('✅ Login muvaffaqiyatli: ${user.fullName}');
+      print('🎭 Rol: ${user.role}');
       return user;
-    } catch (e) {
-      print('Login xatolik: $e');
-      rethrow;
+
+    } catch (e, stackTrace) {
+      print('❌ Login xatolik: $e');
+      print('📍 Stack trace: $stackTrace');
+      return null;
     }
   }
 
-  // ========== SAQLANGAN SESSIYANI TEKSHIRISH ==========
-  // Ilova ochilganda chaqiriladi
+  // ========== LOGOUT ==========
+  Future<void> logout() async {
+    try {
+      await _clearUserId();
+      print('✅ Logout muvaffaqiyatli');
+    } catch (e) {
+      print('❌ Logout xatolik: $e');
+    }
+  }
+
+  // ========== USER ID NI SAQLASH ==========
+  Future<void> _saveUserId(String userId) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_userIdKey, userId);
+      print('💾 SharedPreferences ga saqlandi: $userId');
+    } catch (e) {
+      print('❌ User ID saqlashda xatolik: $e');
+    }
+  }
+
+  // ========== SAQLANGAN USER ID NI OLISH ==========
   Future<String?> getSavedUserId() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final rememberMe = prefs.getBool(_keyRememberMe) ?? false;
-
-      if (rememberMe) {
-        return prefs.getString(_keyUserId);
+      final savedId = prefs.getString(_userIdKey);
+      if (savedId != null) {
+        print('📂 Saqlangan User ID topildi: $savedId');
+      } else {
+        print('📂 Saqlangan User ID yo\'q');
       }
-      return null;
+      return savedId;
     } catch (e) {
-      print('Get saved user ID xatolik: $e');
+      print('❌ User ID olishda xatolik: $e');
       return null;
     }
   }
 
-  // ========== SESSIYANI SAQLASH ==========
-  Future<void> _saveUserSession(String userId) async {
+  // ========== USER ID NI O'CHIRISH ==========
+  Future<void> _clearUserId() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(_keyUserId, userId);
-      await prefs.setBool(_keyRememberMe, true);
-      print('✅ Sessiya saqlandi: $userId');
+      await prefs.remove(_userIdKey);
+      print('🗑️ User ID o\'chirildi');
     } catch (e) {
-      print('Save session xatolik: $e');
+      print('❌ User ID o\'chirishda xatolik: $e');
     }
   }
 
-  // ========== SESSIYANI O'CHIRISH ==========
-  Future<void> _clearUserSession() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.remove(_keyUserId);
-      await prefs.setBool(_keyRememberMe, false);
-      print('🗑️ Sessiya o\'chirildi');
-    } catch (e) {
-      print('Clear session xatolik: $e');
-    }
-  }
-
-  // ========== PAROLNI HASH QILISH ==========
-  String _hashPassword(String password) {
-    final bytes = utf8.encode(password);
-    final hash = sha256.convert(bytes);
-    return hash.toString();
-  }
-
-  // ========== FOYDALANUVCHINI ID ORQALI OLISH ==========
+  // ========== USER NI ID BO'YICHA OLISH ==========
   Future<UserModel?> getUserById(String userId) async {
     try {
+      print('🔍 User ni ID bo\'yicha qidirish: $userId');
+
       final response = await _supabase
           .from('users')
-          .select()
+          .select('''
+            *,
+            branches:branch_id (
+              name
+            )
+          ''')
           .eq('id', userId)
           .maybeSingle();
 
-      if (response == null) return null;
+      if (response == null) {
+        print('❌ User topilmadi (ID: $userId)');
+        return null;
+      }
 
-      return UserModel.fromJson(response);
+      // Branch name ni qo'shish
+      final Map<String, dynamic> userData = Map<String, dynamic>.from(response);
+      if (userData['branches'] != null) {
+        userData['branch_name'] = userData['branches']['name'];
+      }
+
+      final user = UserModel.fromJson(userData);
+      print('✅ User topildi: ${user.fullName} (${user.role})');
+      return user;
+
     } catch (e) {
-      print('Get user xatolik: $e');
+      print('❌ User olishda xatolik: $e');
       return null;
     }
   }
 
-  // ========== LOGOUT - Sessiyani o'chirish ==========
-  Future<void> logout() async {
+  // ========== LAST LOGIN VAQTINI YANGILASH ==========
+  Future<void> _updateLastLogin(String userId) async {
     try {
-      await _supabase.auth.signOut();
-      await _clearUserSession(); // ← Saqlangan sessiyani o'chirish
+      await _supabase.from('users').update({
+        'last_login_at': DateTime.now().toIso8601String(),
+      }).eq('id', userId);
+      print('⏰ Last login yangilandi');
     } catch (e) {
-      print('Logout xatolik: $e');
-      rethrow;
+      print('❌ Last login yangilashda xatolik: $e');
     }
   }
 
@@ -158,38 +214,36 @@ class AuthRepository {
     required String newPassword,
   }) async {
     try {
-      if (currentUserId == null) return false;
-
-      final user = await getUserById(currentUserId!);
-      if (user == null) return false;
+      final savedUserId = await getSavedUserId();
+      if (savedUserId == null) {
+        print('❌ User ID topilmadi');
+        return false;
+      }
 
       // Eski parolni tekshirish
-      bool oldPasswordMatches = false;
-      if (user.tempPassword != null) {
-        oldPasswordMatches = user.tempPassword == oldPassword;
-      } else if (user.passwordHash != null) {
-        oldPasswordMatches = user.passwordHash == _hashPassword(oldPassword);
-      }
-
-      if (!oldPasswordMatches) {
-        throw Exception('Eski parol noto\'g\'ri');
-      }
-
-      // Yangi parolni hash qilib saqlash
-      final newHash = _hashPassword(newPassword);
-
-      await _supabase
+      final response = await _supabase
           .from('users')
-          .update({
-            'password_hash': newHash,
-            'temp_password': null, // Vaqtinchalik parolni o'chirish
-            'updated_at': DateTime.now().toIso8601String(),
-          })
-          .eq('id', currentUserId!);
+          .select('password_hash')
+          .eq('id', savedUserId)
+          .single();
 
+      final storedPassword = response['password_hash'];
+      
+      if (storedPassword != oldPassword) {
+        print('❌ Eski parol noto\'g\'ri');
+        return false;
+      }
+
+      // Yangi parolni yangilash
+      await _supabase.from('users').update({
+        'password_hash': newPassword,
+        'updated_at': DateTime.now().toIso8601String(),
+      }).eq('id', savedUserId);
+
+      print('✅ Parol yangilandi');
       return true;
     } catch (e) {
-      print('Update password xatolik: $e');
+      print('❌ Parol yangilashda xatolik: $e');
       return false;
     }
   }
@@ -197,26 +251,52 @@ class AuthRepository {
   // ========== PROFILNI YANGILASH ==========
   Future<bool> updateUserProfile(UserModel user) async {
     try {
-      await _supabase.from('users').update(user.toJson()).eq('id', user.id);
+
+      await _supabase.from('users').update({
+        'first_name': user.firstName,
+        'last_name': user.lastName,
+        'middle_name': user.middleName,
+        'phone': user.phone,
+        'phone_secondary': user.phoneSecondary,
+        'region': user.region,
+        'district': user.district,
+        'address': user.address,
+        'updated_at': DateTime.now().toIso8601String(),
+      }).eq('id', user.id!);
+
+      print('✅ Profil yangilandi');
       return true;
     } catch (e) {
-      print('Update profile xatolik: $e');
+      print('❌ Profil yangilashda xatolik: $e');
       return false;
     }
   }
-}
 
-// ==================== QANDAY ISHLAYDI ====================
-//
-// 1. LOGIN QILGANDA (rememberMe = true):
-//    → User ID SharedPreferences ga saqlanadi
-//    → remember_me = true flag qo'yiladi
-//
-// 2. ILOVA QAYTA OCHILGANDA:
-//    → AuthController.onInit() da getSavedUserId() chaqiriladi
-//    → Agar user ID topilsa → getUserById() orqali ma'lumot olinadi
-//    → Dashboard ga avtomatik o'tadi
-//
-// 3. LOGOUT QILGANDA:
-//    → SharedPreferences dan barcha ma'lumotlar o'chiriladi
-//    → Keyingi safar login qilish kerak bo'ladi
+  // ========== DEBUG: USERS JADVALINI TEKSHIRISH ==========
+  Future<void> debugCheckUser(String username) async {
+    try {
+      print('\n========== DEBUG INFO ==========');
+      final response = await _supabase
+          .from('users')
+          .select()
+          .eq('username', username)
+          .maybeSingle();
+
+      if (response == null) {
+        print('❌ User topilmadi: $username');
+      } else {
+        print('✅ User ma\'lumotlari:');
+        print('   Username: ${response['username']}');
+        print('   Password Hash: ${response['password_hash']}');
+        print('   Temp Password: ${response['temp_password']}');
+        print('   Role: ${response['role']}');
+        print('   Status: ${response['status']}');
+        print('   Is Active: ${response['is_active']}');
+        print('   Branch ID: ${response['branch_id']}');
+      }
+      print('================================\n');
+    } catch (e) {
+      print('❌ Debug error: $e');
+    }
+  }
+}

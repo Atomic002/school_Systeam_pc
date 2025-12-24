@@ -1,334 +1,338 @@
-// lib/presentation/screens/finance/salary_screen.dart
-// IZOH: Maosh boshqaruvi ekrani - hodimlar maoshini ko'rish va to'lash
+// lib/presentation/screens/finance/complete_salary_screen.dart
+// TO'LIQ MAOSH BOSHQARUVI EKRANI - Barcha funksiyalar
 
 import 'package:flutter/material.dart';
 import 'package:flutter_application_1/presentation/controllers/SalaryController.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
+import '../../../config/constants.dart';
 
-class SalaryScreen extends StatelessWidget {
-  const SalaryScreen({Key? key}) : super(key: key);
+class CompleteSalaryScreen extends StatelessWidget {
+  const CompleteSalaryScreen({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    // Controller ni yaratish
-    final controller = Get.put(SalaryController());
-
-    // Raqamlarni formatlash uchun
-    final numberFormat = NumberFormat('#,###', 'uz');
+    final controller = Get.put(CompleteSalaryController());
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Maosh boshqaruvi'),
+        title: Obx(() => Text(_getViewTitle(controller.currentView.value))),
         elevation: 0,
         actions: [
-          // Yangi maosh hisoblash tugmasi
-          IconButton(
-            icon: const Icon(Icons.add_circle_outline),
-            onPressed: () => _showCalculateSalaryDialog(context, controller),
-            tooltip: 'Maosh hisoblash',
-          ),
+          // Export tugmasi
+          Obx(() {
+            if (controller.currentView.value == 'list' &&
+                controller.filteredOperations.isNotEmpty) {
+              return IconButton(
+                icon: const Icon(Icons.file_download),
+                onPressed: controller.exportToCSV,
+                tooltip: 'CSV yuklab olish',
+              );
+            }
+            return const SizedBox();
+          }),
         ],
       ),
-      body: Column(
-        children: [
-          // 1. STATISTIKA KARTOCHKALARI
-          // IZOH: Umumiy summalar va sonlarni ko'rsatish
-          _buildStatisticsCards(controller, numberFormat),
-
-          // 2. FILTRLAR VA QIDIRUV
-          // IZOH: Oy, yil, status va qidiruv filtrlari
-          _buildFiltersSection(controller),
-
-          // 3. MAOSH RO'YXATI
-          // IZOH: Barcha maosh operatsiyalari ro'yxati
-          Expanded(
-            child: Obx(() {
-              if (controller.isLoading.value) {
-                return const Center(child: CircularProgressIndicator());
-              }
-
-              if (controller.filteredOperations.isEmpty) {
-                return _buildEmptyState();
-              }
-
-              return _buildSalaryList(controller, numberFormat);
-            }),
-          ),
-        ],
-      ),
+      body: Obx(() => _buildCurrentView(controller)),
+      bottomNavigationBar: _buildBottomNavigation(controller),
     );
   }
 
-  // STATISTIKA KARTOCHKALARI
-  // IZOH: 4 ta karta - to'langan, to'lanmagan, soni va umumiy
-  Widget _buildStatisticsCards(
-    SalaryController controller,
-    NumberFormat numberFormat,
-  ) {
-    return Obx(
-      () => Container(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            Row(
-              children: [
-                // To'langan maoshlar
-                Expanded(
-                  child: _buildStatCard(
-                    title: 'To\'langan',
-                    value:
-                        '${numberFormat.format(controller.totalPaidSalaries.value)} so\'m',
-                    icon: Icons.check_circle,
-                    color: Colors.green,
-                    subtitle: '${controller.paidCount.value} ta',
-                  ),
+  // ASOSIY VIEW
+  Widget _buildCurrentView(CompleteSalaryController controller) {
+    switch (controller.currentView.value) {
+      case 'list':
+        return _buildListView(controller);
+      case 'calculate':
+        return _buildCalculateView(controller);
+      case 'history':
+        return _buildHistoryView(controller);
+      case 'advances':
+        return _buildAdvancesView(controller);
+      case 'loans':
+        return _buildLoansView(controller);
+      default:
+        return _buildListView(controller);
+    }
+  }
+
+  // 1. RO'YXAT VIEW
+  Widget _buildListView(CompleteSalaryController controller) {
+    return Column(
+      children: [
+        // Filtrlar va statistika
+        _buildFilterAndStats(controller),
+        
+        // Ro'yxat
+        Expanded(
+          child: Obx(() {
+            if (controller.isLoading.value) {
+              return const Center(child: CircularProgressIndicator());
+            }
+
+            if (controller.filteredOperations.isEmpty) {
+              return Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.receipt_long, size: 64, color: Colors.grey[300]),
+                    const SizedBox(height: 16),
+                    Text(
+                      'Maosh operatsiyalari topilmadi',
+                      style: TextStyle(color: Colors.grey[600]),
+                    ),
+                    const SizedBox(height: 8),
+                    ElevatedButton.icon(
+                      onPressed: () => controller.changeView('calculate'),
+                      icon: const Icon(Icons.calculate),
+                      label: const Text('Maosh hisoblash'),
+                    ),
+                  ],
                 ),
-                const SizedBox(width: 12),
-                // To'lanmagan maoshlar
-                Expanded(
-                  child: _buildStatCard(
-                    title: 'To\'lanmagan',
-                    value:
-                        '${numberFormat.format(controller.totalUnpaidSalaries.value)} so\'m',
-                    icon: Icons.pending,
-                    color: Colors.orange,
-                    subtitle: '${controller.unpaidCount.value} ta',
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                // Jami operatsiyalar
-                Expanded(
-                  child: _buildStatCard(
-                    title: 'Jami operatsiyalar',
-                    value: '${controller.salaryOperations.length} ta',
-                    icon: Icons.list_alt,
-                    color: Colors.blue,
-                    subtitle: controller.salaryOperations.isNotEmpty
-                        ? controller.salaryOperations.first.periodString
-                        : '',
-                  ),
-                ),
-                const SizedBox(width: 12),
-                // Umumiy summa
-                Expanded(
-                  child: _buildStatCard(
-                    title: 'Umumiy summa',
-                    value:
-                        '${numberFormat.format(controller.totalPaidSalaries.value + controller.totalUnpaidSalaries.value)} so\'m',
-                    icon: Icons.account_balance_wallet,
-                    color: Colors.purple,
-                    subtitle: 'Barcha maoshlar',
-                  ),
-                ),
-              ],
-            ),
-          ],
+              );
+            }
+
+            return RefreshIndicator(
+              onRefresh: controller.loadSalaryOperations,
+              child: ListView.builder(
+                padding: const EdgeInsets.all(16),
+                itemCount: controller.filteredOperations.length,
+                itemBuilder: (context, index) {
+                  final operation = controller.filteredOperations[index];
+                  return _buildSalaryCard(operation, controller);
+                },
+              ),
+            );
+          }),
         ),
-      ),
+      ],
     );
   }
 
-  // STATISTIKA KARTASI
-  // IZOH: Bitta statistika ko'rsatkichi uchun karta
-  Widget _buildStatCard({
-    required String title,
-    required String value,
-    required IconData icon,
-    required Color color,
-    String? subtitle,
-  }) {
+  // FILTR VA STATISTIKA
+  Widget _buildFilterAndStats(CompleteSalaryController controller) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          // Filial, Oy, Yil
+          Row(
+            children: [
+              Expanded(
+                flex: 2,
+                child: Obx(() => DropdownButtonFormField<String>(
+                  value: controller.selectedBranchId.value,
+                  decoration: InputDecoration(
+                    labelText: 'Filial',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
+                  ),
+                  items: controller.branches.map((branch) {
+                    return DropdownMenuItem<String>(
+                      value: branch['id'] as String,
+                      child: Text(branch['name']),
+                    );
+                  }).toList(),
+                  onChanged: controller.changeBranch,
+                )),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Obx(() => DropdownButtonFormField<int>(
+                  value: controller.selectedMonth.value,
+                  decoration: InputDecoration(
+                    labelText: 'Oy',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
+                  ),
+                  items: List.generate(12, (i) {
+                    const months = [
+                      'Yan', 'Fev', 'Mar', 'Apr', 'May', 'Iyun',
+                      'Iyul', 'Avg', 'Sen', 'Okt', 'Noy', 'Dek',
+                    ];
+                    return DropdownMenuItem(
+                      value: i + 1,
+                      child: Text(months[i]),
+                    );
+                  }),
+                  onChanged: (value) {
+                    if (value != null) {
+                      controller.changePeriod(
+                        value,
+                        controller.selectedYear.value,
+                      );
+                    }
+                  },
+                )),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Obx(() => DropdownButtonFormField<int>(
+                  value: controller.selectedYear.value,
+                  decoration: InputDecoration(
+                    labelText: 'Yil',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
+                  ),
+                  items: List.generate(5, (i) {
+                    final year = DateTime.now().year - 2 + i;
+                    return DropdownMenuItem(
+                      value: year,
+                      child: Text(year.toString()),
+                    );
+                  }),
+                  onChanged: (value) {
+                    if (value != null) {
+                      controller.changePeriod(
+                        controller.selectedMonth.value,
+                        value,
+                      );
+                    }
+                  },
+                )),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          
+          // Qidiruv va filtr
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  decoration: InputDecoration(
+                    hintText: 'Hodim qidirish...',
+                    prefixIcon: const Icon(Icons.search),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
+                  ),
+                  onChanged: controller.search,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Obx(() => SegmentedButton<String>(
+                segments: const [
+                  ButtonSegment(
+                    value: 'all',
+                    label: Text('Barchasi'),
+                  ),
+                  ButtonSegment(
+                    value: 'paid',
+                    label: Text('To\'langan'),
+                  ),
+                  ButtonSegment(
+                    value: 'unpaid',
+                    label: Text('Kutilmoqda'),
+                  ),
+                ],
+                selected: {controller.selectedStatus.value},
+                onSelectionChanged: (Set<String> newSelection) {
+                  controller.changeStatusFilter(newSelection.first);
+                },
+              )),
+            ],
+          ),
+          const SizedBox(height: 12),
+          
+          // Statistika
+          Obx(() => Row(
+            children: [
+              Expanded(
+                child: _buildStatCard(
+                  'To\'langan',
+                  controller.formatCurrency(controller.totalPaid.value),
+                  controller.paidCount.value.toString(),
+                  Colors.green,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _buildStatCard(
+                  'Kutilmoqda',
+                  controller.formatCurrency(controller.totalUnpaid.value),
+                  controller.unpaidCount.value.toString(),
+                  Colors.orange,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _buildStatCard(
+                  'Jami',
+                  controller.formatCurrency(controller.totalGross.value),
+                  (controller.paidCount.value + controller.unpaidCount.value)
+                      .toString(),
+                  AppConstants.primaryColor,
+                ),
+              ),
+            ],
+          )),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatCard(String label, String amount, String count, Color color) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
         color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(8),
         border: Border.all(color: color.withOpacity(0.3)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Icon(icon, color: color, size: 24),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  title,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.grey[600],
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
           Text(
-            value,
+            label,
             style: TextStyle(
-              fontSize: 16,
+              fontSize: 12,
+              color: color,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            amount,
+            style: TextStyle(
+              fontSize: 14,
               fontWeight: FontWeight.bold,
               color: color,
             ),
           ),
-          if (subtitle != null && subtitle.isNotEmpty) ...[
-            const SizedBox(height: 4),
-            Text(
-              subtitle,
-              style: TextStyle(fontSize: 11, color: Colors.grey[600]),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-
-  // FILTRLAR BO'LIMI
-  // IZOH: Oy, yil, status va qidiruv filtrlari
-  Widget _buildFiltersSection(SalaryController controller) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: Column(
-        children: [
-          // Oy va yil tanlash
-          Row(
-            children: [
-              // Oy tanlash
-              Expanded(
-                child: Obx(
-                  () => DropdownButtonFormField<int>(
-                    value: controller.selectedMonth.value,
-                    decoration: InputDecoration(
-                      labelText: 'Oy',
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 8,
-                      ),
-                    ),
-                    items: List.generate(12, (index) {
-                      final months = [
-                        'Yanvar',
-                        'Fevral',
-                        'Mart',
-                        'Aprel',
-                        'May',
-                        'Iyun',
-                        'Iyul',
-                        'Avgust',
-                        'Sentabr',
-                        'Oktabr',
-                        'Noyabr',
-                        'Dekabr',
-                      ];
-                      return DropdownMenuItem(
-                        value: index + 1,
-                        child: Text(months[index]),
-                      );
-                    }),
-                    onChanged: (value) {
-                      if (value != null) {
-                        controller.changePeriod(
-                          value,
-                          controller.selectedYear.value,
-                        );
-                      }
-                    },
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              // Yil tanlash
-              Expanded(
-                child: Obx(
-                  () => DropdownButtonFormField<int>(
-                    value: controller.selectedYear.value,
-                    decoration: InputDecoration(
-                      labelText: 'Yil',
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 8,
-                      ),
-                    ),
-                    items: List.generate(5, (index) {
-                      final year = DateTime.now().year - 2 + index;
-                      return DropdownMenuItem(
-                        value: year,
-                        child: Text(year.toString()),
-                      );
-                    }),
-                    onChanged: (value) {
-                      if (value != null) {
-                        controller.changePeriod(
-                          controller.selectedMonth.value,
-                          value,
-                        );
-                      }
-                    },
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          // Status filtri va qidiruv
-          Row(
-            children: [
-              // Status filtri
-              Expanded(
-                child: Obx(
-                  () => SegmentedButton<String>(
-                    segments: const [
-                      ButtonSegment(
-                        value: 'all',
-                        label: Text('Barchasi'),
-                        icon: Icon(Icons.list, size: 16),
-                      ),
-                      ButtonSegment(
-                        value: 'paid',
-                        label: Text('To\'langan'),
-                        icon: Icon(Icons.check_circle, size: 16),
-                      ),
-                      ButtonSegment(
-                        value: 'unpaid',
-                        label: Text('Kutilmoqda'),
-                        icon: Icon(Icons.pending, size: 16),
-                      ),
-                    ],
-                    selected: {controller.selectedStatus.value},
-                    onSelectionChanged: (Set<String> selected) {
-                      controller.changeStatusFilter(selected.first);
-                    },
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          // Qidiruv
-          TextField(
-            onChanged: (value) => controller.search(value),
-            decoration: InputDecoration(
-              hintText: 'Hodim nomi yoki lavozimi bo\'yicha qidirish',
-              prefixIcon: const Icon(Icons.search),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: 12,
-              ),
+          Text(
+            '$count ta',
+            style: TextStyle(
+              fontSize: 11,
+              color: color,
             ),
           ),
         ],
@@ -336,231 +340,135 @@ class SalaryScreen extends StatelessWidget {
     );
   }
 
-  // MAOSH RO'YXATI
-  // IZOH: Barcha maosh operatsiyalarini ko'rsatish
-  Widget _buildSalaryList(
-    SalaryController controller,
-    NumberFormat numberFormat,
-  ) {
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: controller.filteredOperations.length,
-      itemBuilder: (context, index) {
-        final operation = controller.filteredOperations[index];
-        return _buildSalaryCard(context, operation, controller, numberFormat);
-      },
-    );
-  }
-
-  // MAOSH KARTASI
-  // IZOH: Bitta maosh operatsiyasi uchun karta
+  // MAOSH KARTOCHKASI
   Widget _buildSalaryCard(
-    BuildContext context,
-    operation,
-    SalaryController controller,
-    NumberFormat numberFormat,
+    Map<String, dynamic> operation,
+    CompleteSalaryController controller,
   ) {
-    final statusColor = operation.isPaid ? Colors.green : Colors.orange;
+    final staff = operation['staff'];
+    final isPaid = operation['is_paid'] == true;
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
-      elevation: 2,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: statusColor.withOpacity(0.3), width: 1),
       ),
       child: InkWell(
-        onTap: () =>
-            _showOperationDetailsDialog(context, operation, controller),
         borderRadius: BorderRadius.circular(12),
+        onTap: () => _showSalaryDetails(operation, controller),
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Hodim nomi va status
               Row(
                 children: [
-                  // Hodim avatari
+                  // Avatar
                   CircleAvatar(
-                    radius: 24,
-                    backgroundColor: statusColor.withOpacity(0.2),
-                    child: Text(
-                      operation.staffFirstName?[0] ?? 'H',
-                      style: TextStyle(
-                        color: statusColor,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 18,
-                      ),
-                    ),
+                    radius: 28,
+                    backgroundColor: AppConstants.primaryColor.withOpacity(0.1),
+                    backgroundImage: staff?['photo_url'] != null
+                        ? NetworkImage(staff['photo_url'])
+                        : null,
+                    child: staff?['photo_url'] == null
+                        ? Text(
+                            '${staff?['first_name']?[0] ?? ''}${staff?['last_name']?[0] ?? ''}'
+                                .toUpperCase(),
+                            style: TextStyle(
+                              color: AppConstants.primaryColor,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          )
+                        : null,
                   ),
                   const SizedBox(width: 12),
-                  // Ism va lavozim
+                  
+                  // Ma'lumotlar
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          operation.staffFullName,
+                          '${staff?['first_name'] ?? ''} ${staff?['last_name'] ?? ''}',
                           style: const TextStyle(
                             fontSize: 16,
-                            fontWeight: FontWeight.bold,
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
-                        const SizedBox(height: 4),
                         Text(
-                          operation.staffPosition ?? 'Lavozim ko\'rsatilmagan',
+                          staff?['position'] ?? '',
                           style: TextStyle(
                             fontSize: 13,
                             color: Colors.grey[600],
                           ),
                         ),
+                        const SizedBox(height: 4),
+                        Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: isPaid
+                                    ? Colors.green.withOpacity(0.1)
+                                    : Colors.orange.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Text(
+                                isPaid ? 'To\'langan' : 'Kutilmoqda',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: isPaid ? Colors.green : Colors.orange,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              '${operation['worked_days'] ?? 0} kun',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey[600],
+                              ),
+                            ),
+                          ],
+                        ),
                       ],
                     ),
                   ),
-                  // Status belgisi
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 6,
-                    ),
-                    decoration: BoxDecoration(
-                      color: statusColor.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          operation.isPaid ? Icons.check_circle : Icons.pending,
-                          size: 16,
-                          color: statusColor,
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          operation.statusText,
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: statusColor,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              const Divider(height: 24),
-              // Maosh tafsilotlari
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  _buildInfoColumn(
-                    label: 'Asosiy maosh',
-                    value: '${numberFormat.format(operation.baseAmount)} so\'m',
-                    icon: Icons.attach_money,
-                  ),
-                  _buildInfoColumn(
-                    label: 'Bonus',
-                    value: operation.bonusAmount > 0
-                        ? '+${numberFormat.format(operation.bonusAmount)}'
-                        : '0',
-                    icon: Icons.add_circle_outline,
-                    color: Colors.green,
-                  ),
-                  _buildInfoColumn(
-                    label: 'Jarima',
-                    value: operation.penaltyAmount > 0
-                        ? '-${numberFormat.format(operation.penaltyAmount)}'
-                        : '0',
-                    icon: Icons.remove_circle_outline,
-                    color: Colors.red,
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              // Chegirmalar
-              if (operation.advanceDeduction > 0 || operation.loanDeduction > 0)
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.red.withOpacity(0.05),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.red.withOpacity(0.2)),
-                  ),
-                  child: Row(
+                  
+                  // Summa
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
-                      const Icon(
-                        Icons.warning_amber_rounded,
-                        size: 20,
-                        color: Colors.red,
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          'Chegirmalar: '
-                          '${operation.advanceDeduction > 0 ? "Avans: ${numberFormat.format(operation.advanceDeduction)}" : ""}'
-                          '${operation.advanceDeduction > 0 && operation.loanDeduction > 0 ? ", " : ""}'
-                          '${operation.loanDeduction > 0 ? "Qarz: ${numberFormat.format(operation.loanDeduction)}" : ""}',
-                          style: const TextStyle(
-                            fontSize: 12,
-                            color: Colors.red,
-                          ),
+                      Text(
+                        '${controller.formatCurrency(operation['net_amount'] ?? 0)} so\'m',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: isPaid
+                              ? AppConstants.successColor
+                              : Colors.orange,
                         ),
                       ),
+                      if (!isPaid)
+                        TextButton(
+                          onPressed: () => _confirmPayment(operation, controller),
+                          style: TextButton.styleFrom(
+                            padding: EdgeInsets.zero,
+                            minimumSize: const Size(0, 0),
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          ),
+                          child: const Text(
+                            'To\'lash',
+                            style: TextStyle(fontSize: 12),
+                          ),
+                        ),
                     ],
                   ),
-                ),
-              const SizedBox(height: 12),
-              // Yakuniy summa
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: statusColor.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text(
-                      'To\'lanadigan summa:',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    Text(
-                      '${numberFormat.format(operation.netAmount)} so\'m',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: statusColor,
-                      ),
-                    ),
-                  ],
-                ),
+                ],
               ),
-              // To'lash tugmasi
-              if (!operation.isPaid) ...[
-                const SizedBox(height: 12),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton.icon(
-                    onPressed: () =>
-                        _confirmPaySalary(context, operation, controller),
-                    icon: const Icon(Icons.payment),
-                    label: const Text('Maosh to\'lash'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.green,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
             ],
           ),
         ),
@@ -568,199 +476,812 @@ class SalaryScreen extends StatelessWidget {
     );
   }
 
-  // MA'LUMOT USTUNI
-  // IZOH: Kichik ma'lumot ko'rsatish uchun widget
-  Widget _buildInfoColumn({
-    required String label,
-    required String value,
-    required IconData icon,
-    Color? color,
-  }) {
+  // 2. HISOBLASH VIEW
+  Widget _buildCalculateView(CompleteSalaryController controller) {
+    return Obx(() {
+      if (controller.calculationResults.isNotEmpty) {
+        return _buildCalculationResults(controller);
+      }
+      return _buildStaffSelection(controller);
+    });
+  }
+
+  Widget _buildStaffSelection(CompleteSalaryController controller) {
     return Column(
       children: [
-        Icon(icon, size: 20, color: color ?? Colors.grey[700]),
-        const SizedBox(height: 4),
-        Text(label, style: TextStyle(fontSize: 11, color: Colors.grey[600])),
-        const SizedBox(height: 2),
-        Text(
-          value,
-          style: TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.bold,
-            color: color ?? Colors.black87,
+        // Filter va tanlash
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.05),
+                blurRadius: 10,
+              ),
+            ],
+          ),
+          child: Column(
+            children: [
+              Row(
+                children: [
+                  Text(
+                    'Tanlandi: ${controller.selectedStaffIds.length} / ${controller.staffList.length}',
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const Spacer(),
+                  TextButton(
+                    onPressed: controller.selectAllStaff,
+                    child: const Text('Barchasi'),
+                  ),
+                  TextButton(
+                    onPressed: controller.deselectAllStaff,
+                    child: const Text('Bekor qilish'),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+        
+        // Hodimlar ro'yxati
+        Expanded(
+          child: Obx(() {
+            if (controller.isLoading.value) {
+              return const Center(child: CircularProgressIndicator());
+            }
+
+            if (controller.staffList.isEmpty) {
+              return const Center(
+                child: Text('Hodimlar topilmadi'),
+              );
+            }
+
+            return ListView.builder(
+              padding: const EdgeInsets.all(16),
+              itemCount: controller.staffList.length,
+              itemBuilder: (context, index) {
+                final staff = controller.staffList[index];
+                final staffId = staff['id'] as String;
+                final isSelected = controller.selectedStaffIds.contains(staffId);
+
+                return Card(
+                  margin: const EdgeInsets.only(bottom: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    side: BorderSide(
+                      color: isSelected
+                          ? AppConstants.primaryColor
+                          : Colors.grey.shade300,
+                      width: isSelected ? 2 : 1,
+                    ),
+                  ),
+                  child: CheckboxListTile(
+                    value: isSelected,
+                    onChanged: (_) => controller.toggleStaffSelection(staffId),
+                    secondary: CircleAvatar(
+                      backgroundColor:
+                          AppConstants.primaryColor.withOpacity(0.1),
+                      backgroundImage: staff['photo_url'] != null
+                          ? NetworkImage(staff['photo_url'])
+                          : null,
+                      child: staff['photo_url'] == null
+                          ? Text(
+                              '${staff['first_name'][0]}${staff['last_name'][0]}'
+                                  .toUpperCase(),
+                              style: TextStyle(
+                                color: AppConstants.primaryColor,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            )
+                          : null,
+                    ),
+                    title: Text(
+                      '${staff['first_name']} ${staff['last_name']}',
+                      style: const TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                    subtitle: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(staff['position'] ?? ''),
+                        const SizedBox(height: 4),
+                        Text(
+                          _getSalaryInfo(staff),
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey[700],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            );
+          }),
+        ),
+        
+        // Hisoblash tugmasi
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.1),
+                blurRadius: 10,
+              ),
+            ],
+          ),
+          child: Obx(() => ElevatedButton(
+            onPressed: controller.isCalculating.value ||
+                    controller.selectedStaffIds.isEmpty
+                ? null
+                : controller.calculateSalaries,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppConstants.primaryColor,
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              minimumSize: const Size.fromHeight(50),
+            ),
+            child: controller.isCalculating.value
+                ? const SizedBox(
+                    height: 20,
+                    width: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white,
+                    ),
+                  )
+                : const Text(
+                    'Maosh hisoblash',
+                    style: TextStyle(fontSize: 16),
+                  ),
+          )),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildCalculationResults(CompleteSalaryController controller) {
+    final results = controller.calculationResults;
+    final totalNet = results.fold<double>(
+      0,
+      (sum, r) => sum + (r['net_amount'] ?? 0),
+    );
+
+    return Column(
+      children: [
+        // Umumiy ma'lumot
+        Container(
+          padding: const EdgeInsets.all(16),
+          color: AppConstants.primaryColor.withOpacity(0.1),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              Column(
+                children: [
+                  const Text('Hodimlar'),
+                  Text(
+                    '${results.length}',
+                    style: const TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+              Column(
+                children: [
+                  const Text('Jami summa'),
+                  Text(
+                    controller.formatCurrency(totalNet),
+                    style: const TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color: AppConstants.successColor,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+        
+        // Natijalar ro'yxati
+        Expanded(
+          child: ListView.builder(
+            padding: const EdgeInsets.all(16),
+            itemCount: results.length,
+            itemBuilder: (context, index) {
+              final result = results[index];
+              return _buildResultCard(result, controller);
+            },
+          ),
+        ),
+        
+        // Saqlash tugmalari
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.1),
+                blurRadius: 10,
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: () {
+                    controller.calculationResults.clear();
+                  },
+                  child: const Text('Bekor qilish'),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                flex: 2,
+                child: Obx(() => ElevatedButton(
+                  onPressed: controller.isCalculating.value
+                      ? null
+                      : controller.saveSalaries,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppConstants.primaryColor,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                  ),
+                  child: controller.isCalculating.value
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Text('Saqlash'),
+                )),
+              ),
+            ],
           ),
         ),
       ],
     );
   }
 
-  // BO'SH HOLAT
-  // IZOH: Ma'lumot yo'q bo'lganda ko'rsatiladigan widget
-  Widget _buildEmptyState() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.inbox_outlined, size: 80, color: Colors.grey[400]),
-          const SizedBox(height: 16),
-          Text(
-            'Maosh operatsiyalari topilmadi',
-            style: TextStyle(fontSize: 16, color: Colors.grey[600]),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Yangi maosh hisoblash uchun + tugmasini bosing',
-            style: TextStyle(fontSize: 13, color: Colors.grey[500]),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // MAOSH TO'LASHNI TASDIQLASH
-  // IZOH: Foydalanuvchidan tasdiqlash so'rash
-  void _confirmPaySalary(
-    BuildContext context,
-    operation,
-    SalaryController controller,
+  Widget _buildResultCard(
+    Map<String, dynamic> result,
+    CompleteSalaryController controller,
   ) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Maosh to\'lash'),
-        content: Text(
-          '${operation.staffFullName} ga '
-          '${NumberFormat('#,###', 'uz').format(operation.netAmount)} so\'m '
-          'maosh to\'lashni tasdiqlaysizmi?',
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      child: ExpansionTile(
+        leading: CircleAvatar(
+          backgroundColor: AppConstants.successColor.withOpacity(0.1),
+          child: const Icon(Icons.check, color: AppConstants.successColor),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Bekor qilish'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              controller.paySalary(operation.id);
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.green,
-              foregroundColor: Colors.white,
-            ),
-            child: const Text('Tasdiqlash'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // OPERATSIYA TAFSILOTLARI DIALOGI
-  // IZOH: To'liq tafsilotlarni ko'rsatish
-  void _showOperationDetailsDialog(
-    BuildContext context,
-    operation,
-    SalaryController controller,
-  ) {
-    final numberFormat = NumberFormat('#,###', 'uz');
-
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(operation.staffFullName),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildDetailRow('Davr', operation.periodString),
-              _buildDetailRow('Lavozim', operation.staffPosition ?? 'N/A'),
-              _buildDetailRow('Maosh turi', operation.staffSalaryType ?? 'N/A'),
-              const Divider(),
-              _buildDetailRow(
-                'Asosiy maosh',
-                '${numberFormat.format(operation.baseAmount)} so\'m',
+        title: Text(
+          result['staff_name'],
+          style: const TextStyle(fontWeight: FontWeight.w600),
+        ),
+        subtitle: Text(result['position']),
+        trailing: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            Text(
+              '${controller.formatCurrency(result['net_amount'])}',
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: AppConstants.successColor,
               ),
-              if (operation.workedDays != null)
+            ),
+            const Text(
+              'so\'m',
+              style: TextStyle(fontSize: 11),
+            ),
+          ],
+        ),
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              children: [
+                _buildDetailRow(
+                  'Asosiy maosh',
+                  '${controller.formatCurrency(result['base_amount'])} so\'m',
+                ),
                 _buildDetailRow(
                   'Ishlagan kunlar',
-                  '${operation.workedDays} kun',
+                  '${result['worked_days']} kun',
                 ),
-              if (operation.workedHours != null)
                 _buildDetailRow(
                   'Ishlagan soatlar',
-                  '${operation.workedHours} soat',
+                  '${result['worked_hours'].toStringAsFixed(1)} soat',
                 ),
-              if (operation.bonusPercent > 0)
+                if (result['bonus_amount'] > 0)
+                  _buildDetailRow(
+                    'Bonus (${result['bonus_percent']}%)',
+                    '${controller.formatCurrency(result['bonus_amount'])} so\'m',
+                    color: Colors.green,
+                  ),
+                if (result['penalty_amount'] > 0)
+                  _buildDetailRow(
+                    'Jarima (${result['penalty_percent']}%)',
+                    '${controller.formatCurrency(result['penalty_amount'])} so\'m',
+                    color: Colors.red,
+                  ),
+                if (result['advance_deduction'] > 0)
+                  _buildDetailRow(
+                    'Avans chegirma',
+                    '${controller.formatCurrency(result['advance_deduction'])} so\'m',
+                    color: Colors.orange,
+                  ),
+                if (result['loan_deduction'] > 0)
+                  _buildDetailRow(
+                    'Qarz chegirma',
+                    '${controller.formatCurrency(result['loan_deduction'])} so\'m',
+                    color: Colors.orange,
+                  ),
+                if (result['late_deductions'] > 0)
+                  _buildDetailRow(
+                    'Kechikish jarimasi',
+                    '${controller.formatCurrency(result['late_deductions'])} so\'m',
+                    color: Colors.red,
+                  ),
+                if (result['early_leave_deductions'] > 0)
+                  _buildDetailRow(
+                    'Erta ketish jarimasi',
+                    '${controller.formatCurrency(result['early_leave_deductions'])} so\'m',
+                    color: Colors.red,
+                  ),
+                const Divider(height: 24),
                 _buildDetailRow(
-                  'Bonus',
-                  '+${numberFormat.format(operation.bonusAmount)} so\'m '
-                      '(${operation.bonusPercent}%)',
-                  color: Colors.green,
+                  'Gross summa',
+                  '${controller.formatCurrency(result['gross_amount'])} so\'m',
+                  isBold: true,
                 ),
-              if (operation.penaltyPercent > 0)
                 _buildDetailRow(
-                  'Jarima',
-                  '-${numberFormat.format(operation.penaltyAmount)} so\'m '
-                      '(${operation.penaltyPercent}%)',
-                  color: Colors.red,
+                  'Net summa (to\'lanadigan)',
+                  '${controller.formatCurrency(result['net_amount'])} so\'m',
+                  isBold: true,
+                  color: AppConstants.successColor,
                 ),
-              if (operation.advanceDeduction > 0)
-                _buildDetailRow(
-                  'Avans ushlab qolish',
-                  '-${numberFormat.format(operation.advanceDeduction)} so\'m',
-                  color: Colors.orange,
-                ),
-              if (operation.loanDeduction > 0)
-                _buildDetailRow(
-                  'Qarz ushlab qolish',
-                  '-${numberFormat.format(operation.loanDeduction)} so\'m',
-                  color: Colors.orange,
-                ),
-              const Divider(),
-              _buildDetailRow(
-                'Gross summa',
-                '${numberFormat.format(operation.grossAmount)} so\'m',
-                isBold: true,
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // 3. TARIX VIEW
+  Widget _buildHistoryView(CompleteSalaryController controller) {
+    return Column(
+      children: [
+        // Sana filtri
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.05),
+                blurRadius: 10,
               ),
-              _buildDetailRow(
-                'Net summa (to\'lanadigan)',
-                '${numberFormat.format(operation.netAmount)} so\'m',
-                isBold: true,
-                color: operation.isPaid ? Colors.green : Colors.orange,
-              ),
-              const Divider(),
-              _buildDetailRow('Status', operation.statusText),
-              if (operation.isPaid && operation.paidAt != null)
-                _buildDetailRow(
-                  'To\'langan vaqt',
-                  DateFormat('dd.MM.yyyy HH:mm').format(operation.paidAt!),
+            ],
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: () async {
+                    final date = await showDatePicker(
+                      context: Get.context!,
+                      initialDate: controller.historyStartDate.value,
+                      firstDate: DateTime(2020),
+                      lastDate: DateTime.now(),
+                    );
+                    if (date != null) {
+                      controller.historyStartDate.value = date;
+                      controller.loadSalaryHistory();
+                    }
+                  },
+                  icon: const Icon(Icons.calendar_today, size: 16),
+                  label: Obx(() => Text(
+                    DateFormat('dd.MM.yyyy')
+                        .format(controller.historyStartDate.value),
+                  )),
                 ),
-              if (operation.notes != null && operation.notes!.isNotEmpty)
-                _buildDetailRow('Izoh', operation.notes!),
+              ),
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 8),
+                child: Text('-'),
+              ),
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: () async {
+                    final date = await showDatePicker(
+                      context: Get.context!,
+                      initialDate: controller.historyEndDate.value,
+                      firstDate: DateTime(2020),
+                      lastDate: DateTime.now(),
+                    );
+                    if (date != null) {
+                      controller.historyEndDate.value = date;
+                      controller.loadSalaryHistory();
+                    }
+                  },
+                  icon: const Icon(Icons.calendar_today, size: 16),
+                  label: Obx(() => Text(
+                    DateFormat('dd.MM.yyyy')
+                        .format(controller.historyEndDate.value),
+                  )),
+                ),
+              ),
             ],
           ),
         ),
-        actions: [
-          if (!operation.isPaid)
-            TextButton(
-              onPressed: () {
-                Navigator.pop(context);
-                controller.deleteSalaryOperation(operation.id);
+        
+        // Tarix ro'yxati
+        Expanded(
+          child: Obx(() {
+            if (controller.isLoading.value) {
+              return const Center(child: CircularProgressIndicator());
+            }
+
+            if (controller.salaryHistory.isEmpty) {
+              return const Center(
+                child: Text('Tarix topilmadi'),
+              );
+            }
+
+            return ListView.builder(
+              padding: const EdgeInsets.all(16),
+              itemCount: controller.salaryHistory.length,
+              itemBuilder: (context, index) {
+                final operation = controller.salaryHistory[index];
+                return _buildHistoryCard(operation, controller);
               },
-              style: TextButton.styleFrom(foregroundColor: Colors.red),
-              child: const Text('O\'chirish'),
+            );
+          }),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildHistoryCard(
+    Map<String, dynamic> operation,
+    CompleteSalaryController controller,
+  ) {
+    final staff = operation['staff'];
+    final isPaid = operation['is_paid'] == true;
+    
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      child: ListTile(
+        leading: CircleAvatar(
+          backgroundImage: staff?['photo_url'] != null
+              ? NetworkImage(staff['photo_url'])
+              : null,
+          child: staff?['photo_url'] == null
+              ? Text(
+                  '${staff?['first_name']?[0] ?? ''}${staff?['last_name']?[0] ?? ''}'
+                      .toUpperCase(),
+                )
+              : null,
+        ),
+        title: Text('${staff?['first_name'] ?? ''} ${staff?['last_name'] ?? ''}'),
+        subtitle: Text(
+          '${_formatDate(operation['created_at'])} • ${operation['operation_type']}',
+        ),
+        trailing: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            Text(
+              '${controller.formatCurrency(operation['net_amount'])} so\'m',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: isPaid ? Colors.green : Colors.orange,
+              ),
             ),
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Yopish'),
-          ),
-        ],
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: isPaid
+                    ? Colors.green.withOpacity(0.1)
+                    : Colors.orange.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: Text(
+                isPaid ? 'To\'langan' : 'Kutilmoqda',
+                style: TextStyle(
+                  fontSize: 10,
+                  color: isPaid ? Colors.green : Colors.orange,
+                ),
+              ),
+            ),
+          ],
+        ),
+        onTap: () => _showSalaryDetails(operation, controller),
       ),
     );
   }
 
-  // TAFSILOT QATORI
-  // IZOH: Dialog ichida ma'lumot ko'rsatish uchun
+  // 4. AVANSLAR VIEW
+  Widget _buildAdvancesView(CompleteSalaryController controller) {
+    return Obx(() {
+      if (controller.isLoading.value) {
+        return const Center(child: CircularProgressIndicator());
+      }
+
+      if (controller.advancesList.isEmpty) {
+        return const Center(
+          child: Text('Avanslar topilmadi'),
+        );
+      }
+
+      return ListView.builder(
+        padding: const EdgeInsets.all(16),
+        itemCount: controller.advancesList.length,
+        itemBuilder: (context, index) {
+          final advance = controller.advancesList[index];
+          final staff = advance['staff'];
+          final isDeducted = advance['is_deducted'] == true;
+
+          return Card(
+            margin: const EdgeInsets.only(bottom: 12),
+            child: ListTile(
+              leading: Icon(
+                Icons.payments,
+                color: isDeducted ? Colors.grey : Colors.orange,
+              ),
+              title: Text(
+                '${staff?['first_name'] ?? ''} ${staff?['last_name'] ?? ''}',
+              ),
+              subtitle: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(staff?['position'] ?? ''),
+                  Text(
+                    _formatDate(advance['advance_date']),
+                    style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                  ),
+                ],
+              ),
+              trailing: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    '${controller.formatCurrency(advance['amount'])} so\'m',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: isDeducted ? Colors.grey : Colors.orange,
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 2,
+                    ),
+                    decoration: BoxDecoration(
+                      color: isDeducted
+                          ? Colors.grey.withOpacity(0.1)
+                          : Colors.orange.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Text(
+                      isDeducted ? 'Ushlab qolingan' : 'Kutilmoqda',
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: isDeducted ? Colors.grey : Colors.orange,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      );
+    });
+  }
+
+  // 5. QARZLAR VIEW
+  Widget _buildLoansView(CompleteSalaryController controller) {
+    return Obx(() {
+      if (controller.isLoading.value) {
+        return const Center(child: CircularProgressIndicator());
+      }
+
+      if (controller.loansList.isEmpty) {
+        return const Center(
+          child: Text('Qarzlar topilmadi'),
+        );
+      }
+
+      return ListView.builder(
+        padding: const EdgeInsets.all(16),
+        itemCount: controller.loansList.length,
+        itemBuilder: (context, index) {
+          final loan = controller.loansList[index];
+          final staff = loan['staff'];
+          final isSettled = loan['is_settled'] == true;
+          final progress = (loan['loan_amount'] - loan['remaining_amount']) /
+              loan['loan_amount'];
+
+          return Card(
+            margin: const EdgeInsets.only(bottom: 12),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.account_balance_wallet,
+                        color: isSettled ? Colors.grey : Colors.red,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              '${staff?['first_name'] ?? ''} ${staff?['last_name'] ?? ''}',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            Text(
+                              staff?['position'] ?? '',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey[600],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: isSettled
+                              ? Colors.grey.withOpacity(0.1)
+                              : Colors.red.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          isSettled ? 'To\'langan' : 'Faol',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: isSettled ? Colors.grey : Colors.red,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Qarz summasi',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: Colors.grey[600],
+                            ),
+                          ),
+                          Text(
+                            '${controller.formatCurrency(loan['loan_amount'])} so\'m',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Text(
+                            'Qoldiq',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: Colors.grey[600],
+                            ),
+                          ),
+                          Text(
+                            '${controller.formatCurrency(loan['remaining_amount'])} so\'m',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: isSettled ? Colors.grey : Colors.red,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  
+                  LinearProgressIndicator(
+                    value: progress,
+                    backgroundColor: Colors.grey[200],
+                    color: isSettled ? Colors.grey : Colors.red,
+                  ),
+                  const SizedBox(height: 4),
+                  
+                  Text(
+                    'Oylik to\'lov: ${controller.formatCurrency(loan['monthly_deduction'])} so\'m',
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      );
+    });
+  }
+
+  // PASTKI NAVIGATSIYA
+  Widget _buildBottomNavigation(CompleteSalaryController controller) {
+    return Obx(() => BottomNavigationBar(
+      currentIndex: _getNavIndex(controller.currentView.value),
+      onTap: (index) {
+        final views = ['list', 'calculate', 'history', 'advances', 'loans'];
+        controller.changeView(views[index]);
+      },
+      type: BottomNavigationBarType.fixed,
+      selectedItemColor: AppConstants.primaryColor,
+      unselectedItemColor: Colors.grey,
+      selectedFontSize: 12,
+      unselectedFontSize: 11,
+      items: const [
+        BottomNavigationBarItem(
+          icon: Icon(Icons.list),
+          label: 'Ro\'yxat',
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.calculate),
+          label: 'Hisoblash',
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.history),
+          label: 'Tarix',
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.payments),
+          label: 'Avanslar',
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.account_balance_wallet),
+          label: 'Qarzlar',
+        ),
+      ],
+    ));
+  }
+
+  // YORDAMCHI FUNKSIYALAR
   Widget _buildDetailRow(
     String label,
     String value, {
@@ -772,16 +1293,19 @@ class SalaryScreen extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: TextStyle(fontSize: 14, color: Colors.grey[700])),
-          Flexible(
-            child: Text(
-              value,
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
-                color: color ?? Colors.black87,
-              ),
-              textAlign: TextAlign.right,
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 14,
+              color: Colors.grey[700],
+            ),
+          ),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
+              color: color ?? Colors.black87,
             ),
           ),
         ],
@@ -789,20 +1313,274 @@ class SalaryScreen extends StatelessWidget {
     );
   }
 
-  // MAOSH HISOBLASH DIALOGI
-  // IZOH: Yangi maosh hisoblash uchun forma
-  void _showCalculateSalaryDialog(
-    BuildContext context,
-    SalaryController controller,
+  void _showSalaryDetails(
+    Map<String, dynamic> operation,
+    CompleteSalaryController controller,
   ) {
-    // Bu juda katta forma bo'lgani uchun, alohida screen yoki
-    // maxsus widget yaratish tavsiya etiladi.
-    // Bu yerda faqat placeholder ko'rsatamiz:
+    final staff = operation['staff'];
+    final isPaid = operation['is_paid'] == true;
 
-    Get.snackbar(
-      'Xabarnoma',
-      'Maosh hisoblash formasi uchun alohida screen yarating',
-      snackPosition: SnackPosition.BOTTOM,
+    Get.bottomSheet(
+      Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              margin: const EdgeInsets.symmetric(vertical: 8),
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey[300],
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      CircleAvatar(
+                        radius: 30,
+                        backgroundImage: staff?['photo_url'] != null
+                            ? NetworkImage(staff['photo_url'])
+                            : null,
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              '${staff?['first_name'] ?? ''} ${staff?['last_name'] ?? ''}',
+                              style: const TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            Text(staff?['position'] ?? ''),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const Divider(height: 24),
+                  
+                  _buildDetailRow('Asosiy maosh',
+                      '${controller.formatCurrency(operation['base_amount'])} so\'m'),
+                  _buildDetailRow('Ishlagan kunlar',
+                      '${operation['worked_days']} kun'),
+                  _buildDetailRow('Ishlagan soatlar',
+                      '${operation['worked_hours']} soat'),
+                  
+                  if (operation['bonus_amount'] > 0)
+                    _buildDetailRow(
+                      'Bonus (${operation['bonus_percent']}%)',
+                      '${controller.formatCurrency(operation['bonus_amount'])} so\'m',
+                      color: Colors.green,
+                    ),
+                  
+                  if (operation['penalty_amount'] > 0)
+                    _buildDetailRow(
+                      'Jarima (${operation['penalty_percent']}%)',
+                      '${controller.formatCurrency(operation['penalty_amount'])} so\'m',
+                      color: Colors.red,
+                    ),
+                  
+                  if (operation['advance_deduction'] > 0)
+                    _buildDetailRow(
+                      'Avans chegirma',
+                      '${controller.formatCurrency(operation['advance_deduction'])} so\'m',
+                      color: Colors.orange,
+                    ),
+                  
+                  if (operation['loan_deduction'] > 0)
+                    _buildDetailRow(
+                      'Qarz chegirma',
+                      '${controller.formatCurrency(operation['loan_deduction'])} so\'m',
+                      color: Colors.orange,
+                    ),
+                  
+                  const Divider(height: 24),
+                  
+                  _buildDetailRow(
+                    'Gross summa',
+                    '${controller.formatCurrency(operation['gross_amount'])} so\'m',
+                    isBold: true,
+                  ),
+                  
+                  _buildDetailRow(
+                    'Net summa',
+                    '${controller.formatCurrency(operation['net_amount'])} so\'m',
+                    isBold: true,
+                    color: AppConstants.successColor,
+                  ),
+                  
+                  const SizedBox(height: 16),
+                  
+                  Row(
+                    children: [
+                      if (!isPaid) ...[
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            onPressed: () {
+                              Get.back();
+                              _confirmPayment(operation, controller);
+                            },
+                            icon: const Icon(Icons.payment),
+                            label: const Text('To\'lash'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppConstants.successColor,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                      ],
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: () {
+                            Get.back();
+                            _confirmDelete(operation, controller);
+                          },
+                          icon: const Icon(Icons.delete),
+                          label: const Text('O\'chirish'),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: Colors.red,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+      isScrollControlled: true,
     );
+  }
+
+  void _confirmPayment(
+    Map<String, dynamic> operation,
+    CompleteSalaryController controller,
+  ) {
+    Get.dialog(
+      AlertDialog(
+        title: const Text('Maosh to\'lash'),
+        content: Text(
+          'Maoshni to\'lashni tasdiqlaysizmi?\n\nSumma: ${controller.formatCurrency(operation['net_amount'])} so\'m',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Get.back(),
+            child: const Text('Bekor qilish'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Get.back();
+              controller.paySalary(operation['id']);
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppConstants.successColor,
+            ),
+            child: const Text('To\'lash'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _confirmDelete(
+    Map<String, dynamic> operation,
+    CompleteSalaryController controller,
+  ) {
+    Get.dialog(
+      AlertDialog(
+        title: const Text('O\'chirish'),
+        content: const Text('Bu maosh operatsiyasini o\'chirishni xohlaysizmi?'),
+        actions: [
+          TextButton(
+            onPressed: () => Get.back(),
+            child: const Text('Bekor qilish'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Get.back();
+              controller.deleteSalaryOperation(operation['id']);
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+            ),
+            child: const Text('O\'chirish'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _getViewTitle(String view) {
+    switch (view) {
+      case 'list':
+        return 'Maosh ro\'yxati';
+      case 'calculate':
+        return 'Maosh hisoblash';
+      case 'history':
+        return 'Maosh tarixi';
+      case 'advances':
+        return 'Avanslar';
+      case 'loans':
+        return 'Qarzlar';
+      default:
+        return 'Maosh';
+    }
+  }
+
+  int _getNavIndex(String view) {
+    switch (view) {
+      case 'list':
+        return 0;
+      case 'calculate':
+        return 1;
+      case 'history':
+        return 2;
+      case 'advances':
+        return 3;
+      case 'loans':
+        return 4;
+      default:
+        return 0;
+    }
+  }
+
+  String _getSalaryInfo(Map<String, dynamic> staff) {
+    final type = staff['salary_type'];
+    final numberFormat = NumberFormat('#,###');
+
+    switch (type) {
+      case 'monthly':
+        return 'Oylik: ${numberFormat.format(staff['base_salary'] ?? 0)} so\'m';
+      case 'hourly':
+        return 'Soatlik: ${numberFormat.format(staff['hourly_rate'] ?? 0)} so\'m';
+      case 'daily':
+        return 'Kunlik: ${numberFormat.format(staff['daily_rate'] ?? 0)} so\'m';
+      default:
+        return 'N/A';
+    }
+  }
+
+  String _formatDate(String? dateString) {
+    if (dateString == null) return '';
+    try {
+      final date = DateTime.parse(dateString);
+      return DateFormat('dd.MM.yyyy').format(date);
+    } catch (e) {
+      return dateString;
+    }
   }
 }

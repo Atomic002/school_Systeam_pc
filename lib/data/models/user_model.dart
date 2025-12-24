@@ -125,6 +125,8 @@ class UserModel {
 
   bool get isActive => status == 'active';
 
+  get branchName => null;
+
   bool hasRole(String roleToCheck) => role == roleToCheck;
 
   bool hasAnyRole(List<String> roles) => roles.contains(role);

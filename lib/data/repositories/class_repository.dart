@@ -1,4 +1,4 @@
-// lib/data/repositories/class_repository.dart - YAKUNIY TUZATILGAN
+// lib/data/repositories/class_repository.dart - TO'LIQ TUZATILGAN
 
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -8,7 +8,7 @@ class ClassRepository {
   /// Sinf darajalarini olish
   Future<List<Map<String, dynamic>>> getClassLevels() async {
     try {
-      print('🔄 Fetching class levels...');
+      print('🔄 Sinf darajalarini olish...');
 
       final response = await _supabase
           .from('class_levels')
@@ -16,17 +16,19 @@ class ClassRepository {
           .eq('is_active', true)
           .order('order_number');
 
-      print('✅ Class levels fetched: ${response.length}');
+      print('✅ Olingan sinf darajalari: ${response.length}');
 
       return response
-          .map<Map<String, dynamic>>((item) => {
-                'id': item['id'] as String,
-                'name': item['name'] as String,
-                'order_number': item['order_number'] as int,
-              })
+          .map<Map<String, dynamic>>(
+            (item) => {
+              'id': item['id'] as String,
+              'name': item['name'] as String,
+              'order_number': item['order_number'] as int,
+            },
+          )
           .toList();
     } catch (e) {
-      print('❌ getClassLevels error: $e');
+      print('❌ getClassLevels xatosi: $e');
       return [];
     }
   }
@@ -39,18 +41,20 @@ class ClassRepository {
       print('🔄 ========== LOADING CLASSES ==========');
       print('Branch ID: $branchId');
 
-      // 1. Faqat sinflarni olish
+      // 1. Faqat sinflarni olish (JOIN ishlatmasdan)
       final classesResponse = await _supabase
           .from('classes')
-          .select('id, name, code, class_level_id, main_teacher_id, default_room_id, monthly_fee, max_students')
+          .select(
+            'id, name, code, class_level_id, main_teacher_id, default_room_id, monthly_fee, max_students',
+          )
           .eq('branch_id', branchId)
           .eq('is_active', true)
           .order('name');
 
-      print('📦 Classes raw: ${classesResponse.length}');
+      print('📦 Xom sinflar: ${classesResponse.length}');
 
       if (classesResponse.isEmpty) {
-        print('⚠️ No classes found for this branch');
+        print('⚠️ Ushbu filial uchun hech qanday sinf topilmadi');
         return [];
       }
 
@@ -82,7 +86,8 @@ class ClassRepository {
 
             if (levelResponse != null) {
               processedClass['class_level_name'] = levelResponse['name'];
-              processedClass['class_level_order'] = levelResponse['order_number'];
+              processedClass['class_level_order'] =
+                  levelResponse['order_number'];
             }
           } catch (e) {
             print('⚠️ Level fetch error: $e');
@@ -99,9 +104,13 @@ class ClassRepository {
                 .maybeSingle();
 
             if (teacherResponse != null) {
-              processedClass['teacher'] = '${teacherResponse['last_name']} ${teacherResponse['first_name']} ${teacherResponse['middle_name'] ?? ''}'.trim();
-              processedClass['teacher_first_name'] = teacherResponse['first_name'];
-              processedClass['teacher_last_name'] = teacherResponse['last_name'];
+              processedClass['teacher'] =
+                  '${teacherResponse['last_name']} ${teacherResponse['first_name']} ${teacherResponse['middle_name'] ?? ''}'
+                      .trim();
+              processedClass['teacher_first_name'] =
+                  teacherResponse['first_name'];
+              processedClass['teacher_last_name'] =
+                  teacherResponse['last_name'];
             }
           } catch (e) {
             print('⚠️ Teacher fetch error: $e');
@@ -127,21 +136,23 @@ class ClassRepository {
         }
 
         classes.add(processedClass);
-        print('✅ ${processedClass['name']}: ${processedClass['teacher']} | ${processedClass['room']}');
+        print(
+          '✅ ${processedClass['name']}: ${processedClass['teacher']} | ${processedClass['room']}',
+        );
       }
 
-      print('✅ ========== LOADED ${classes.length} CLASSES ==========\n');
+      print('✅ ========== YUKLANGAN ${classes.length} SINFLAR ==========\n');
       return classes;
     } catch (e) {
-      print('❌ getClassesWithDetails error: $e');
+      print('❌ getClassesWithDetails xatosi: $e');
       return [];
     }
   }
 
-  /// O'qituvchilarni BATAFSIL olish
+  /// O'qituvchilarni BATAFSIL formatida olish
   Future<List<Map<String, dynamic>>> getTeachers(String branchId) async {
     try {
-      print('🔄 ========== LOADING TEACHERS ==========');
+      print('🔄 ============ LOADING TEACHERS ==========');
       print('Branch ID: $branchId');
 
       // 1. Faol o'qituvchilarni olish
@@ -156,7 +167,7 @@ class ClassRepository {
       print('📦 Teachers raw: ${staffResponse.length}');
 
       if (staffResponse.isEmpty) {
-        print('⚠️ No teachers found');
+        print('⚠️ O\'qituvchi topilmadi');
         return [];
       }
 
@@ -170,7 +181,9 @@ class ClassRepository {
           'middle_name': staff['middle_name'],
           'phone': staff['phone'],
           'position': staff['position'],
-          'full_name': '${staff['last_name']} ${staff['first_name']} ${staff['middle_name'] ?? ''}'.trim(),
+          'full_name':
+              '${staff['last_name']} ${staff['first_name']} ${staff['middle_name'] ?? ''}'
+                  .trim(),
         };
 
         // O'qituvchining sinfini topish
@@ -208,18 +221,20 @@ class ClassRepository {
         print('✅ ${teacher['full_name']}: ${teacher['class_name'] ?? 'Yo\'q'}');
       }
 
-      print('✅ ========== LOADED ${teachers.length} TEACHERS ==========\n');
+      print(
+        '✅ ========== YUKLANGAN ${teachers.length} O\'QITUVCHILAR ==========\n',
+      );
       return teachers;
     } catch (e) {
-      print('❌ getTeachers error: $e');
+      print('❌ getTeachers xatosi: $e');
       return [];
     }
   }
 
-  /// Xonalarni BATAFSIL olish
+  /// Xonalarni BATAFSIL formatida olish
   Future<List<Map<String, dynamic>>> getRooms(String branchId) async {
     try {
-      print('🔄 ========== LOADING ROOMS ==========');
+      print('🔄 ============ LOADING ROOMS ==========');
       print('Branch ID: $branchId');
 
       // 1. Xonalarni olish
@@ -230,10 +245,10 @@ class ClassRepository {
           .eq('is_active', true)
           .order('name');
 
-      print('📦 Rooms raw: ${roomsResponse.length}');
+      print('📦 Xonalarning xomligi: ${roomsResponse.length}');
 
       if (roomsResponse.isEmpty) {
-        print('⚠️ No rooms found');
+        print('⚠️ Xona topilmadi');
         return [];
       }
 
@@ -271,7 +286,8 @@ class ClassRepository {
 
               if (teacherResponse != null) {
                 room['teacher_id'] = classResponse['main_teacher_id'];
-                room['teacher_name'] = '${teacherResponse['last_name']} ${teacherResponse['first_name']}';
+                room['teacher_name'] =
+                    '${teacherResponse['last_name']} ${teacherResponse['first_name']}';
               }
             }
           }
@@ -283,10 +299,10 @@ class ClassRepository {
         print('✅ ${room['name']}: ${room['class_name'] ?? 'Yo\'q'}');
       }
 
-      print('✅ ========== LOADED ${rooms.length} ROOMS ==========\n');
+      print('✅ ========== YUKLANGAN ${rooms.length} XONALAR ==========\n');
       return rooms;
     } catch (e) {
-      print('❌ getRooms error: $e');
+      print('❌ getRooms xatosi: $e');
       return [];
     }
   }
@@ -302,7 +318,7 @@ class ClassRepository {
 
       return response;
     } catch (e) {
-      print('❌ getClassById error: $e');
+      print('❌ getClassById xatosi: $e');
       return null;
     }
   }

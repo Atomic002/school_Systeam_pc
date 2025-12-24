@@ -1294,7 +1294,7 @@ class DashboardScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildCashRegisterStatus() {
+      Widget _buildCashRegisterStatus() {
     return Obx(() => Card(
       elevation: 2,
       shape: RoundedRectangleBorder(
@@ -1319,8 +1319,11 @@ class DashboardScreen extends StatelessWidget {
               ],
             ),
             SizedBox(height: AppConstants.paddingLarge),
+            
+            // 4 ta ustunli qator
             Row(
               children: [
+                // 1. NAQD PUL
                 Expanded(
                   child: _buildBalanceCard(
                     'Naqd pul',
@@ -1330,21 +1333,36 @@ class DashboardScreen extends StatelessWidget {
                   ),
                 ),
                 SizedBox(width: AppConstants.paddingMedium),
+                
+                // 2. PLASTIK KARTA (TERMINAL)
                 Expanded(
                   child: _buildBalanceCard(
                     'Plastik karta',
-                    controller.cashBalance.value,
+                    controller.cardBalance.value, // To'g'irlandi
                     Icons.credit_card,
                     Colors.blue,
                   ),
                 ),
                 SizedBox(width: AppConstants.paddingMedium),
+                
+                // 3. O'TKAZMA (CLICK)
                 Expanded(
                   child: _buildBalanceCard(
-                    'O\'tkazma',
+                    'O\'tkazma (Click)',
                     controller.transferBalance.value,
                     Icons.account_balance,
                     Colors.purple,
+                  ),
+                ),
+                SizedBox(width: AppConstants.paddingMedium),
+                
+                // 4. EGA KASSASI (YANGI)
+                Expanded(
+                  child: _buildBalanceCard(
+                    'Ega kassasi',
+                    controller.ownerFundBalance.value,
+                    Icons.savings_rounded,
+                    Colors.orange,
                   ),
                 ),
               ],

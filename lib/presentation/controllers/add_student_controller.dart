@@ -1,4 +1,5 @@
 // lib/controllers/add_student_controller.dart - TO'LIQ TUZATILGAN
+// BARCHA SINF MA'LUMOTLARI BILAN
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -16,7 +17,7 @@ import 'auth_controller.dart';
 class AddStudentController extends GetxController {
   final StudentRepository _studentRepo = StudentRepository();
   final VisitorRepository _visitorRepo = VisitorRepository();
-  final ClassRepository _classRepo = ClassRepository(); // ✅ YANGI REPOSITORY
+  final ClassRepository _classRepo = ClassRepository();
   final BranchRepository _branchRepo = BranchRepository();
   final AuthController _authController = Get.find<AuthController>();
   final ImagePicker _imagePicker = ImagePicker();
@@ -71,7 +72,8 @@ class AddStudentController extends GetxController {
   // SINF MA'LUMOTLARI
   final RxList<Map<String, dynamic>> classLevels = <Map<String, dynamic>>[].obs;
   final RxList<Map<String, dynamic>> classes = <Map<String, dynamic>>[].obs;
-  final RxList<Map<String, dynamic>> filteredClasses = <Map<String, dynamic>>[].obs;
+  final RxList<Map<String, dynamic>> filteredClasses =
+      <Map<String, dynamic>>[].obs;
   final RxList<Map<String, dynamic>> teachers = <Map<String, dynamic>>[].obs;
   final RxList<Map<String, dynamic>> rooms = <Map<String, dynamic>>[].obs;
 
@@ -85,6 +87,7 @@ class AddStudentController extends GetxController {
   final RxString selectedClassRoom = ''.obs;
   final RxString selectedTeacherName = ''.obs;
   final RxString selectedClassName = ''.obs;
+  final RxString selectedClassLevelName = ''.obs;
 
   final RxString selectionMode = 'class'.obs;
 
@@ -114,7 +117,7 @@ class AddStudentController extends GetxController {
         await selectBranch(branches.first['id']);
       }
     } catch (e) {
-      _showError('Initialization error', e.toString());
+      _showError('Boshlash xatosi', e.toString());
     } finally {
       isLoading.value = false;
     }
@@ -172,13 +175,14 @@ class AddStudentController extends GetxController {
       final prefs = await SharedPreferences.getInstance();
       final savedBranchId = prefs.getString('selected_branch_id');
 
-      if (savedBranchId != null && branches.any((b) => b['id'] == savedBranchId)) {
+      if (savedBranchId != null &&
+          branches.any((b) => b['id'] == savedBranchId)) {
         await selectBranch(savedBranchId, showMessage: false);
       } else if (branches.isNotEmpty) {
         showBranchSelector.value = true;
       }
     } catch (e) {
-      print('Load saved branch error: $e');
+      print('Saqlangan filialni yuklashda xato: $e');
     }
   }
 
@@ -198,7 +202,7 @@ class AddStudentController extends GetxController {
       if (showMessage) {
         Get.snackbar(
           'Muvaffaqiyatli',
-          '${selectedBranchName.value} fililiga o\'tildi',
+          '${selectedBranchName.value} filialiga o\'tildi',
           backgroundColor: const Color(0xFF2196F3).withOpacity(0.1),
           colorText: const Color(0xFF2196F3),
           snackPosition: SnackPosition.TOP,
@@ -235,17 +239,16 @@ class AddStudentController extends GetxController {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('selected_branch_id', branchId);
     } catch (e) {
-      print('Save branch error: $e');
+      print('Saqlash filiali xatosi: $e');
     }
   }
 
-  // ========== BRANCH DATA YUKLASH - TO'LIQ TUZATILGAN ==========
+  // =========== FILIAL MA'LUMOTLARINI YUKLASH - TO'LIQ TUZATILGAN =========
   Future<void> _loadBranchData(String branchId) async {
     try {
-      print('🔄 ========== LOADING BRANCH DATA ==========');
-      print('Branch ID: $branchId');
+      print('🔄 ========== FILIAL MA\'LUMOTLARI YUKLANMOQDA ==========');
+      print('Filial identifikatori: $branchId');
 
-      // Parallel yuklash
       await Future.wait([
         _loadVisitors(branchId),
         _loadClassLevels(),
@@ -254,127 +257,274 @@ class AddStudentController extends GetxController {
         _loadRooms(branchId),
       ]);
 
-      print('✅ ========== BRANCH DATA LOADED ==========');
-      print('📊 Class Levels: ${classLevels.length}');
-      print('📊 Classes: ${classes.length}');
-      print('📊 Teachers: ${teachers.length}');
-      print('📊 Rooms: ${rooms.length}');
-      print('📊 Visitors: ${visitors.length}');
-      print('============================================\n');
+      print('✅ ========== FILIAL MA\'LUMOTLARI YUKLANDI ===========');
+      print('📊 Sinf darajalari: ${classLevels.length}');
+      print('📊 Sinflar: ${classes.length}');
+      print('📊 O\'qituvchilar: ${teachers.length}');
+      print('📊 Xonalar: ${rooms.length}');
+      print('📊 Mehmonlar: ${visitors.length}');
+      print(
+        '===================================================================\n',
+      );
     } catch (e) {
-      print('❌ _loadBranchData error: $e');
+      print('❌ _loadBranchData xatosi: $e');
       _showError('Xatolik', 'Filial ma\'lumotlarini yuklashda xatolik');
     }
   }
 
   Future<void> _loadClassLevels() async {
     try {
-      print('🔄 Loading class levels...');
+      print('🔄 Sinf darajalari yuklanmoqda...');
       final result = await _classRepo.getClassLevels();
       classLevels.value = result;
-      print('✅ Loaded ${result.length} class levels');
+      print('✅ ${result.length} sinf darajalari yuklandi');
     } catch (e) {
-      print('❌ Load class levels error: $e');
+      print('❌ Sinf darajalarini yuklashda xato: $e');
       classLevels.value = [];
     }
   }
 
+  // =========== YANGILANGAN LOAD CLASSES ===========
+    // =========== YANGILANGAN LOAD CLASSES (Academic Year bilan) ===========
   Future<void> _loadClasses(String branchId) async {
     try {
-      print('🔄 Loading classes for branch...');
-      final result = await _classRepo.getClassesWithDetails(branchId);
-      classes.value = result;
-      print('✅ Loaded ${result.length} classes');
+      print('🔄 Filial uchun sinflar yuklanmoqda...');
+
+      final response = await Supabase.instance.client
+          .from('classes')
+          .select('''
+            *,
+            academic_year_id, 
+            class_levels(id, name),
+            staff:main_teacher_id(id, first_name, last_name),
+            rooms:default_room_id(id, name)
+          ''')
+          .eq('branch_id', branchId)
+          .eq('is_active', true);
+
+      List<Map<String, dynamic>> loadedClasses = [];
+
+      for (var item in response) {
+        String teacherName = 'Tayinlanmagan';
+        if (item['staff'] != null) {
+          teacherName = "${item['staff']['first_name']} ${item['staff']['last_name']}";
+        }
+
+        String roomName = 'Tayinlanmagan';
+        if (item['rooms'] != null) {
+          roomName = item['rooms']['name'];
+        }
+
+        String levelName = '';
+        if (item['class_levels'] != null) {
+          levelName = item['class_levels']['name'];
+        }
+
+        loadedClasses.add({
+          'id': item['id'],
+          'name': item['name'],
+          'class_level_id': item['class_level_id'],
+          'class_level_name': levelName,
+          'main_teacher_id': item['main_teacher_id'],
+          'teacher': teacherName,
+          'default_room_id': item['default_room_id'],
+          'room': roomName,
+          'monthly_fee': item['monthly_fee'],
+          'academic_year_id': item['academic_year_id'], // MUHIM: Bu qator qo'shildi
+        });
+      }
+
+      classes.value = loadedClasses;
       
-      if (result.isNotEmpty) {
-        final firstClass = result.first;
-        print('   Example: ${firstClass['name']} - ${firstClass['teacher']} - ${firstClass['room']}');
+      if (selectedClassLevelId.value == null) {
+        filteredClasses.value = loadedClasses;
+      } else {
+        filteredClasses.value = loadedClasses
+            .where((c) => c['class_level_id'] == selectedClassLevelId.value)
+            .toList();
       }
     } catch (e) {
-      print('❌ Load classes error: $e');
-      classes.value = [];
+      print('❌ Sinflarni yuklashda xato: $e');
     }
   }
 
+  // =========== YANGILANGAN LOAD TEACHERS ===========
   Future<void> _loadTeachers(String branchId) async {
     try {
-      print('🔄 Loading teachers for branch...');
-      final result = await _classRepo.getTeachers(branchId);
-      teachers.value = result;
-      print('✅ Loaded ${result.length} teachers');
-      
-      if (result.isNotEmpty) {
-        final firstTeacher = result.first;
-        print('   Example: ${firstTeacher['full_name']} - ${firstTeacher['class_name'] ?? 'Sinf yo\'q'}');
+      print('🔄 O\'qituvchilar yuklanmoqda...');
+
+      // O'qituvchilar (staff) va ularning sinflarini (classes) olamiz
+      final response = await Supabase.instance.client
+          .from('staff')
+          .select('''
+            id, first_name, last_name,
+            classes!main_teacher_id(id, name, default_room_id, rooms(name))
+          ''')
+          .eq('branch_id', branchId)
+          .eq('role', 'teacher') // Faqat o'qituvchilarni
+          .eq('status', 'active');
+
+      List<Map<String, dynamic>> loadedTeachers = [];
+
+      for (var item in response) {
+        String fullName = "${item['first_name']} ${item['last_name']}";
+
+        String? classId;
+        String? className;
+        String? roomId;
+        String? roomName;
+
+        // Agar o'qituvchining sinfi bo'lsa (List qaytadi, shuning uchun birinchisini olamiz)
+        if (item['classes'] != null && (item['classes'] as List).isNotEmpty) {
+          final cls = (item['classes'] as List).first;
+          classId = cls['id'];
+          className = cls['name'];
+          roomId = cls['default_room_id'];
+          if (cls['rooms'] != null) {
+            roomName = cls['rooms']['name'];
+          }
+        }
+
+        loadedTeachers.add({
+          'id': item['id'],
+          'full_name': fullName,
+          'class_id': classId,
+          'class_name': className ?? 'Sinf yo\'q',
+          'room_id': roomId,
+          'room_name': roomName ?? 'Xona yo\'q',
+        });
       }
+
+      teachers.value = loadedTeachers;
+      print('✅ ${loadedTeachers.length} o\'qituvchilar yuklandi');
     } catch (e) {
-      print('❌ Load teachers error: $e');
+      print('❌ Teachers yuklashda xato: $e');
       teachers.value = [];
     }
   }
 
+  // =========== YANGILANGAN LOAD ROOMS ===========
   Future<void> _loadRooms(String branchId) async {
     try {
-      print('🔄 Loading rooms for branch...');
-      final result = await _classRepo.getRooms(branchId);
-      rooms.value = result;
-      print('✅ Loaded ${result.length} rooms');
-      
-      if (result.isNotEmpty) {
-        final firstRoom = result.first;
-        print('   Example: ${firstRoom['name']} - ${firstRoom['class_name'] ?? 'Sinf yo\'q'}');
+      print('🔄 Xonalar yuklanmoqda...');
+
+      final response = await Supabase.instance.client
+          .from('rooms')
+          .select('''
+            id, name, capacity,
+            classes!default_room_id(id, name, main_teacher_id, staff(first_name, last_name))
+          ''')
+          .eq('branch_id', branchId);
+
+      List<Map<String, dynamic>> loadedRooms = [];
+
+      for (var item in response) {
+        String? classId;
+        String? className;
+        String? teacherId;
+        String? teacherName;
+
+        // Agar xonaga sinf biriktirilgan bo'lsa
+        if (item['classes'] != null && (item['classes'] as List).isNotEmpty) {
+          final cls = (item['classes'] as List).first;
+          classId = cls['id'];
+          className = cls['name'];
+          teacherId = cls['main_teacher_id'];
+          if (cls['staff'] != null) {
+            teacherName =
+                "${cls['staff']['first_name']} ${cls['staff']['last_name']}";
+          }
+        }
+
+        loadedRooms.add({
+          'id': item['id'],
+          'name': item['name'],
+          'class_id': classId,
+          'class_name': className,
+          'teacher_id': teacherId,
+          'teacher_name': teacherName,
+        });
       }
+
+      rooms.value = loadedRooms;
+      print('✅ ${loadedRooms.length} xonalar yuklandi');
     } catch (e) {
-      print('❌ Load rooms error: $e');
+      print('❌ Xonalarni yuklashda xato: $e');
       rooms.value = [];
     }
   }
 
-  // ========== SINF ORQALI TANLASH ==========
-  void selectClassLevel(String? levelId) {
-    print('🎯 SELECT CLASS LEVEL: $levelId');
-    selectedClassLevelId.value = levelId;
-    selectedClassId.value = null;
-
-    if (levelId == null) {
-      filteredClasses.value = [];
-      _clearClassInfo();
-      return;
-    }
-
-    filteredClasses.value = classes.where((c) => c['class_level_id'] == levelId).toList();
-    print('📋 Filtered ${filteredClasses.length} classes');
-  }
-
+  // =========== SINF ORQALI TANLASH ==========
+  // =========== 100% AVTOMATIK SELECT CLASS ===========
   void selectClass(String? classId) {
     print('🎯 SELECT CLASS: $classId');
-    selectedClassId.value = classId;
 
+    // 1. Agar bo'shatilsa, hammasini tozalaymiz
     if (classId == null) {
+      selectedClassId.value = null;
       _clearClassInfo();
       return;
     }
 
+    // 2. Sinfni ro'yxatdan topamiz
     final selectedClass = classes.firstWhereOrNull((c) => c['id'] == classId);
 
     if (selectedClass != null) {
-      selectedClassName.value = selectedClass['name'] ?? '';
-      selectedTeacherId.value = selectedClass['main_teacher_id'];
-      selectedTeacherName.value = selectedClass['teacher'] ?? 'Tayinlanmagan';
-      selectedRoomId.value = selectedClass['default_room_id'];
-      selectedClassRoom.value = selectedClass['room'] ?? 'Tayinlanmagan';
+      // A. ID larni o'rnatamiz
+      selectedClassId.value = selectedClass['id'];
 
-      if (selectedClass['monthly_fee'] != null) {
-        final classFee = double.tryParse(selectedClass['monthly_fee'].toString()) ?? 900000;
-        monthlyFeeController.text = classFee.toStringAsFixed(0);
-        updateDiscountAmount();
+      // B. Sinf darajasini avtomatik qo'yamiz
+      if (selectedClass['class_level_id'] != null) {
+        selectedClassLevelId.value = selectedClass['class_level_id'];
+        selectedClassLevelName.value = selectedClass['class_level_name'] ?? '';
+
+        // Daraja tanlanganda ro'yxatni filtrlaymiz, lekin tanlangan sinf qolishini ta'minlaymiz
+        filteredClasses.value = classes
+            .where(
+              (c) => c['class_level_id'] == selectedClass['class_level_id'],
+            )
+            .toList();
       }
 
-      print('✅ Updated: ${selectedClassName.value} | ${selectedTeacherName.value} | ${selectedClassRoom.value}');
+      // C. O'qituvchini avtomatik tanlaymiz
+      if (selectedClass['main_teacher_id'] != null) {
+        selectedTeacherId.value = selectedClass['main_teacher_id'];
+        selectedTeacherName.value = selectedClass['teacher'] ?? 'Noma\'lum';
+      } else {
+        selectedTeacherId.value = null;
+        selectedTeacherName.value = 'Tayinlanmagan';
+      }
+
+      // D. Xonani avtomatik tanlaymiz
+      if (selectedClass['default_room_id'] != null) {
+        selectedRoomId.value = selectedClass['default_room_id'];
+        selectedClassRoom.value = selectedClass['room'] ?? 'Noma\'lum';
+      } else {
+        selectedRoomId.value = null;
+        selectedClassRoom.value = 'Tayinlanmagan';
+      }
+
+      // E. Narxni avtomatik qo'yamiz
+      if (selectedClass['monthly_fee'] != null) {
+        final classFee =
+            double.tryParse(selectedClass['monthly_fee'].toString()) ?? 900000;
+        monthlyFeeController.text = classFee.toStringAsFixed(0);
+        updateDiscountAmount(); // Chegirma hisobini yangilash
+      }
+
+      // F. Nomini qo'yamiz
+      selectedClassName.value = selectedClass['name'] ?? '';
+
+      print('✅ AVTO TO\'LDIRILDI:');
+      print('   Sinf: ${selectedClassName.value}');
+      print('   O\'qituvchi: ${selectedTeacherName.value}');
+      print('   Xona: ${selectedClassRoom.value}');
+      print('   Narx: ${monthlyFeeController.text}');
     }
   }
 
-  // ========== O'QITUVCHI ORQALI TANLASH ==========
+  // =========== O'QITUVCHI ORQALI TANLASH ==========
+  // =========== 100% AVTOMATIK SELECT TEACHER ===========
   void selectTeacher(String? teacherId) {
     print('🎯 SELECT TEACHER: $teacherId');
     selectedTeacherId.value = teacherId;
@@ -389,26 +539,34 @@ class AddStudentController extends GetxController {
     if (teacher != null) {
       selectedTeacherName.value = teacher['full_name'] ?? '';
 
+      // ⚠️ MUHIM: Agar o'qituvchining sinfi bo'lsa, SINFNING o'zini tanlaymiz
+      // Bu esa o'z navbatida xona va narxlarni ham avtomatik to'ldiradi (Chain Reaction)
       if (teacher['class_id'] != null) {
-        selectedClassId.value = teacher['class_id'];
-        selectedClassName.value = teacher['class_name'] ?? '';
+        print('🔗 O\'qituvchi orqali sinf tanlanmoqda: ${teacher['class_id']}');
 
-        final selectedClass = classes.firstWhereOrNull((c) => c['id'] == teacher['class_id']);
-        if (selectedClass != null) {
-          selectedClassLevelId.value = selectedClass['class_level_id'];
+        // Bu yerda selectClass funksiyasini chaqiramiz, u qolgan ishni qiladi
+        selectClass(teacher['class_id']);
+
+        // Mode ni o'zgartiramizki, foydalanuvchi to'ldirilgan ma'lumotni ko'rsin
+        selectionMode.value = 'class';
+      } else {
+        // Agar sinfi yo'q bo'lsa, faqat xonasini qo'yamiz
+        if (teacher['room_id'] != null) {
+          selectedRoomId.value = teacher['room_id'];
+          selectedClassRoom.value = teacher['room_name'] ?? '';
         }
+        selectedClassId.value = null;
+        selectedClassName.value = '';
+        Get.snackbar(
+          'Eslatma',
+          'Bu o\'qituvchiga hozircha sinf biriktirilmagan',
+        );
       }
-
-      if (teacher['room_id'] != null) {
-        selectedRoomId.value = teacher['room_id'];
-        selectedClassRoom.value = teacher['room_name'] ?? '';
-      }
-
-      print('✅ Updated: ${selectedTeacherName.value} | ${selectedClassName.value} | ${selectedClassRoom.value}');
     }
   }
 
-  // ========== XONA ORQALI TANLASH ==========
+  // =========== XONA ORQALI TANLASH ==========
+  // =========== 100% AVTOMATIK SELECT ROOM ===========
   void selectRoom(String? roomId) {
     print('🎯 SELECT ROOM: $roomId');
     selectedRoomId.value = roomId;
@@ -423,22 +581,24 @@ class AddStudentController extends GetxController {
     if (room != null) {
       selectedClassRoom.value = room['name'] ?? '';
 
+      // ⚠️ MUHIM: Agar xonada sinf o'tirsa, SINFNING o'zini tanlaymiz
       if (room['class_id'] != null) {
-        selectedClassId.value = room['class_id'];
-        selectedClassName.value = room['class_name'] ?? '';
+        print('🔗 Xona orqali sinf tanlanmoqda: ${room['class_id']}');
 
-        final selectedClass = classes.firstWhereOrNull((c) => c['id'] == room['class_id']);
-        if (selectedClass != null) {
-          selectedClassLevelId.value = selectedClass['class_level_id'];
+        // selectClass ni chaqiramiz, u o'qituvchi va narxlarni to'ldiradi
+        selectClass(room['class_id']);
+
+        selectionMode.value = 'class';
+      } else {
+        // Agar xona bo'sh bo'lsa yoki sinf yo'q bo'lsa
+        if (room['teacher_id'] != null) {
+          selectedTeacherId.value = room['teacher_id'];
+          selectedTeacherName.value = room['teacher_name'] ?? '';
         }
+        selectedClassId.value = null;
+        selectedClassName.value = '';
+        Get.snackbar('Eslatma', 'Bu xonaga hozircha sinf biriktirilmagan');
       }
-
-      if (room['teacher_id'] != null) {
-        selectedTeacherId.value = room['teacher_id'];
-        selectedTeacherName.value = room['teacher_name'] ?? '';
-      }
-
-      print('✅ Updated: ${selectedClassRoom.value} | ${selectedClassName.value} | ${selectedTeacherName.value}');
     }
   }
 
@@ -446,15 +606,18 @@ class AddStudentController extends GetxController {
     selectedClassName.value = '';
     selectedTeacherName.value = '';
     selectedClassRoom.value = '';
+    selectedClassLevelName.value = '';
+    monthlyFeeController.text = '900000'; // Default narxga qaytarish
+    updateDiscountAmount();
   }
 
-  // ========== VISITOR ==========
+  // =========== MEHMON =========
   Future<void> _loadVisitors(String branchId) async {
     try {
       final result = await _visitorRepo.getPotentialStudents(branchId);
       visitors.value = result;
     } catch (e) {
-      print('Load visitors error: $e');
+      print('Mehmonlarni yuklashda xato: $e');
       visitors.value = [];
     }
   }
@@ -497,7 +660,7 @@ class AddStudentController extends GetxController {
     photoUrl.value = '';
   }
 
-  // ========== SINF BOSHQARUVI ==========
+  // =========== SINF BOSHQARUVI ==========
   void changeSelectionMode(String mode) {
     selectionMode.value = mode;
     _clearSelection();
@@ -512,13 +675,16 @@ class AddStudentController extends GetxController {
     selectedClassName.value = '';
     selectedTeacherName.value = '';
     selectedClassRoom.value = '';
+    selectedClassLevelName.value = '';
   }
 
-  // ========== TUG'ILGAN SANA ==========
+  // ==================== SANA TANLASH ====================
   Future<void> selectBirthDate(BuildContext context) async {
     final picked = await showDatePicker(
       context: context,
-      initialDate: birthDate.value ?? DateTime.now().subtract(const Duration(days: 365 * 7)),
+      initialDate:
+          birthDate.value ??
+          DateTime.now().subtract(const Duration(days: 365 * 7)),
       firstDate: DateTime(2000),
       lastDate: DateTime.now(),
       builder: (context, child) {
@@ -536,7 +702,7 @@ class AddStudentController extends GetxController {
     }
   }
 
-  // ========== RASM YUKLASH ==========
+  // =========== RASM YUKLASH =========
   Future<void> pickImage() async {
     try {
       final XFile? image = await _imagePicker.pickImage(
@@ -558,7 +724,7 @@ class AddStudentController extends GetxController {
         );
       }
     } catch (e) {
-      _showError('Xatolik', 'Rasm tanlashda xatolik: ${e.toString()}');
+      _showError('Xatolik', 'Rasm belgilashda xatolik: ${e.toString()}');
     }
   }
 
@@ -575,7 +741,7 @@ class AddStudentController extends GetxController {
         selectedImage.value = File(image.path);
         Get.snackbar(
           'Muvaffaqiyatli',
-          'Rasm olindi',
+          'Rasm oldi',
           backgroundColor: const Color(0xFF2196F3).withOpacity(0.1),
           colorText: const Color(0xFF2196F3),
           snackPosition: SnackPosition.TOP,
@@ -598,14 +764,19 @@ class AddStudentController extends GetxController {
     try {
       isUploadingImage.value = true;
 
-      final fileName = 'student_${studentId}_${DateTime.now().millisecondsSinceEpoch}.jpg';
+      final fileName =
+          'student_${studentId}_${DateTime.now().millisecondsSinceEpoch}.jpg';
       final filePath = 'students/$fileName';
 
       final bytes = await selectedImage.value!.readAsBytes();
 
-      await Supabase.instance.client.storage.from('student-photos').uploadBinary(filePath, bytes);
+      await Supabase.instance.client.storage
+          .from('student-photos')
+          .uploadBinary(filePath, bytes);
 
-      final url = Supabase.instance.client.storage.from('student-photos').getPublicUrl(filePath);
+      final url = Supabase.instance.client.storage
+          .from('student-photos')
+          .getPublicUrl(filePath);
 
       return url;
     } catch (e) {
@@ -617,11 +788,13 @@ class AddStudentController extends GetxController {
     }
   }
 
-  // ========== MOLIYAVIY ==========
+  // =========== MOLIYAVIY ==========
   void updateDiscountAmount() {
-    final fee = double.tryParse(
+    final fee =
+        double.tryParse(
           monthlyFeeController.text.replaceAll(',', '').replaceAll(' ', ''),
-        ) ?? 0;
+        ) ??
+        0;
     final percent = double.tryParse(discountPercentController.text) ?? 0;
 
     final discount = fee * (percent / 100);
@@ -630,19 +803,26 @@ class AddStudentController extends GetxController {
     finalMonthlyFee.value = fee - discount;
   }
 
-  // ========== SAQLASH ==========
+  // ========== SAQLASH - TO'LIQ TUZATILGAN ==========
+  // ========== SAQLASH (TUZATILGAN) ==========
+    // ========== SAQLASH (TUZATILGAN SQL GA MOS) ==========
   Future<void> saveStudent() async {
     if (!_validateForm()) return;
 
     try {
       isSaving.value = true;
-
       final currentUser = _authController.currentUser.value;
-      if (currentUser == null) {
-        _showError('Xatolik', 'Foydalanuvchi ma\'lumotlari aniqlanmadi');
+
+      // Tanlangan sinfni topamiz
+      final selectedClass = classes.firstWhereOrNull((c) => c['id'] == selectedClassId.value);
+      if (selectedClass == null) {
+        _showError('Xatolik', 'Sinf ma\'lumotlari topilmadi');
         return;
       }
 
+      print('💾 1. Students jadvaliga yozilmoqda...');
+
+      // 1. O'quvchi profilini yaratamiz (STUDENTS jadvali)
       final student = await _studentRepo.createStudent(
         branchId: selectedBranchId.value!,
         firstName: firstNameController.text.trim(),
@@ -658,7 +838,7 @@ class AddStudentController extends GetxController {
         parentLastName: parentLastNameController.text.trim(),
         parentMiddleName: parentMiddleNameController.text.trim(),
         parentPhone: parentPhoneController.text.trim(),
-        parentPhoneSecondary: parentPhone2Controller.text.trim(),
+        parentPhone2: parentPhone2Controller.text.trim(),
         parentWorkplace: parentWorkplaceController.text.trim(),
         parentRelation: parentRelation.value,
         monthlyFee: double.tryParse(monthlyFeeController.text.replaceAll(',', '')) ?? 0.0,
@@ -668,44 +848,76 @@ class AddStudentController extends GetxController {
         notes: notesController.text.trim(),
         medicalNotes: medicalNotesController.text.trim(),
         visitorId: selectedVisitorId.value,
-        createdBy: currentUser.id,
-        classId: selectedClassId.value,
+        createdBy: currentUser!.id,
+        
+        // Students jadvalidagi qo'shimcha ustunlar
+        classId: selectedClass['id'],
+        mainTeacherId: selectedClass['main_teacher_id'],
+        roomId: selectedClass['default_room_id'],
       );
 
       if (student != null) {
+        print('✅ Student ID: ${student.id}');
+
+        // 2. ENROLLMENTS jadvaliga yozish (SIZNING JADVALINGIZGA MOSLANDI)
+        print('💾 2. Enrollments jadvaliga yozilmoqda...');
+        
+        try {
+          await Supabase.instance.client.from('enrollments').insert({
+            'student_id': student.id,
+            'class_id': selectedClass['id'],
+            
+            // XATO TUZATILDI: 'branch_id' olib tashlandi (Sizning jadvalda bu yo'q)
+            // XATO TUZATILDI: 'status' olib tashlandi (Sizning jadvalda bu yo'q)
+            
+            // 'start_date' EMAS -> 'enrolled_at'
+            'enrolled_at': DateTime.now().toIso8601String(),
+            
+            'is_active': true,
+            'academic_year_id': selectedClass['academic_year_id'], // Agar bo'lsa yozadi
+            'created_by': currentUser?.id,
+            
+            // Moliyaviy kelishuv (ixtiyoriy)
+            'custom_monthly_fee': double.tryParse(monthlyFeeController.text.replaceAll(',', '')) ?? 0.0,
+            'custom_discount_percent': double.tryParse(discountPercentController.text) ?? 0.0,
+          });
+          print('✅ Enrollment muvaffaqiyatli yaratildi');
+        } catch (e) {
+          print('❌ Enrollment yozishda xato: $e');
+          // Bu xato student yaratilgan bo'lsa ham foydalanuvchini to'xtatmasligi kerak
+        }
+
+        // 3. Rasm yuklash
         if (selectedImage.value != null) {
           final imageUrl = await _uploadImage(student.id);
           if (imageUrl != null) {
-            await _studentRepo.updateStudent(studentId: student.id, photoUrl: imageUrl);
+            await _studentRepo.updateStudent(
+              studentId: student.id,
+              photoUrl: imageUrl,
+            );
           }
         }
 
         Get.snackbar(
-          'Muvaffaqiyatli',
-          'O\'quvchi ${selectedBranchName.value} filialiga qo\'shildi',
-          backgroundColor: const Color(0xFF2196F3).withOpacity(0.1),
-          colorText: const Color(0xFF2196F3),
-          snackPosition: SnackPosition.TOP,
-          duration: const Duration(seconds: 3),
+          'Muvaffaqiyatli', 
+          'O\'quvchi ${selectedClassName.value} sinfiga qabul qilindi',
+          backgroundColor: Colors.green.shade100,
+          colorText: Colors.green.shade900
         );
-
         Get.offNamed(AppRoutes.studentDetail, arguments: student.id);
-      } else {
-        throw Exception('O\'quvchi ma\'lumotlari qaytarilmadi');
       }
     } catch (e) {
-      _showError('Xatolik', 'O\'quvchini saqlashda xatolik: ${e.toString()}');
+      print('❌ Umumiy xatolik: $e');
+      _showError('Xatolik', 'Saqlashda xatolik: $e');
     } finally {
       isSaving.value = false;
     }
   }
-
   bool _validateForm() {
     if (selectedBranchId.value == null || selectedBranchId.value!.isEmpty) {
       _showError('Xatolik', 'Iltimos, filialni tanlang');
       return false;
     }
-
     if (!formKey.currentState!.validate()) {
       _showError('Xatolik', 'Iltimos, barcha majburiy maydonlarni to\'ldiring');
       return false;

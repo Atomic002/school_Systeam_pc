@@ -335,4 +335,36 @@ class StaffRepository {
     required String password,
     required String role,
   }) async {}
+  Future<List<StaffEnhanced>> getStaffByUserId(String userId) async {
+    try {
+      final response = await _supabase
+          .from('staff')
+          .select('''
+            *,
+            branches!inner(name)
+          ''')
+          .eq('user_id', userId)
+          .eq('status', 'active');
+
+      if (response == null || response.isEmpty) {
+        return [];
+      }
+
+      return (response as List).map((json) {
+        // Branch name ni qo'shish
+        final staffData = Map<String, dynamic>.from(json);
+        if (json['branches'] != null) {
+          staffData['branch_name'] = json['branches']['name'];
+        }
+        return StaffEnhanced.fromJson(staffData);
+      }).toList();
+    } catch (e) {
+      print('❌ getStaffByUserId xatolik: $e');
+      return [];
+    }
+  }
+
+  // Staff ID orqali to'liq ma'lumotlarni olish
+
+
 }

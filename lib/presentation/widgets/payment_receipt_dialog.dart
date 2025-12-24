@@ -1,6 +1,5 @@
 // lib/presentation/widgets/payment_receipt_dialog_v4.dart
 import 'package:flutter/material.dart';
-import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
