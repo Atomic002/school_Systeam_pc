@@ -1,6 +1,6 @@
 // lib/main.dart
-
 import 'package:flutter/material.dart';
+import 'package:flutter_application_1/data/models/auth_service.dart';
 import 'package:get/get.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:intl/date_symbol_data_local.dart';
@@ -13,16 +13,14 @@ import 'presentation/screens/auth/login_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
   // Supabase init
   await Supabase.initialize(
     url: SupabaseConfig.supabaseUrl,
     anonKey: SupabaseConfig.supabaseAnonKey,
   );
-
+  Get.put(AuthService());
   // Sana formatlari uchun (uz)
   await initializeDateFormatting('uz', null);
-
   runApp(const SchoolSystemApp());
 }
 
@@ -34,13 +32,9 @@ class SchoolSystemApp extends StatelessWidget {
     return GetMaterialApp(
       title: 'School System',
       debugShowCheckedModeBanner: false,
-
       // GLOBAL bindlar (SupabaseService, AuthController va h.k.)
       initialBinding: AppBindings(),
-
-      // ========================================================
       // 1. LOCALIZATION SOZLAMALARI (DatePicker xatosini tuzatadi)
-      // ========================================================
       localizationsDelegates: const [
         GlobalMaterialLocalizations.delegate,
         GlobalWidgetsLocalizations.delegate,
@@ -51,8 +45,6 @@ class SchoolSystemApp extends StatelessWidget {
         Locale('en', 'US'), // Ingliz tili
         Locale('ru', 'RU'), // Rus tili
       ],
-      // ========================================================
-
       // Asosiy til
       locale: const Locale('uz', 'UZ'),
 

@@ -251,10 +251,14 @@ class TeacherSubjectsScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildTeacherItem(Map<String, dynamic> teacher) {
-    final subjects = teacher['subjects'] as List? ?? [];
-    final primarySubject = subjects.firstWhere(
-      (s) => s['is_primary'] == true,
+Widget _buildTeacherItem(Map<String, dynamic> teacher) {
+  final subjects = teacher['subjects'] as List? ?? [];
+  
+  // O'zgartirilgan joy:
+final primarySubject = subjects
+    .cast<Map<String, dynamic>?>() 
+    .firstWhere(
+      (s) => s?['is_primary'] == true,
       orElse: () => null,
     );
 

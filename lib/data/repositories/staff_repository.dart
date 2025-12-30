@@ -1,5 +1,7 @@
 // lib/data/repositories/staff_repository.dart
 
+import 'dart:io';
+
 import 'package:flutter_application_1/data/models/schedule_model.dart';
 import 'package:flutter_application_1/data/models/staff.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -85,6 +87,7 @@ class StaffRepository {
     required String notes,
     required String createdBy,
     String? defaultRoomId,
+    String? photoUrl, // <--- YANGI PARAMETR
   }) async {
     try {
       final response = await _supabase
@@ -99,9 +102,7 @@ class StaffRepository {
             'gender': gender,
             'birth_date': birthDate.toIso8601String().split('T')[0],
             'phone': phone,
-            'phone_secondary': phoneSecondary.isNotEmpty
-                ? phoneSecondary
-                : null,
+            'phone_secondary': phoneSecondary.isNotEmpty ? phoneSecondary : null,
             'region': region.isNotEmpty ? region : null,
             'district': district.isNotEmpty ? district : null,
             'address': address.isNotEmpty ? address : null,
@@ -118,14 +119,12 @@ class StaffRepository {
             'education': education.isNotEmpty ? education : null,
             'experience': experience.isNotEmpty ? experience : null,
             'notes': notes.isNotEmpty ? notes : null,
+            'photo_url': photoUrl, // <--- BAZAGA YOZISH
             'created_by': createdBy,
             'status': 'active',
             'default_room_id': defaultRoomId,
           })
-          .select('''
-      *,
-      branches:branch_id(name)
-    ''')
+          .select('*, branches:branch_id(name)')
           .single();
 
       return StaffEnhanced.fromJson({
@@ -137,7 +136,6 @@ class StaffRepository {
       rethrow;
     }
   }
-
   // ==================== O'QITUVCHIGA FAN BIRIKTIRISH ====================
   Future<void> assignSubjectToTeacher({
     required String staffId,
@@ -231,6 +229,7 @@ class StaffRepository {
       rethrow;
     }
   }
+  
 
   // ==================== XODIMNI O'CHIRISH ====================
   Future<void> deleteStaff(String id) async {
@@ -318,8 +317,26 @@ class StaffRepository {
       rethrow;
     }
   }
+  // ✅ YANGI: RASM YUKLASH FUNKSIYASI
+  Future<String?> uploadProfileImage(File file) async {
+    try {
+      final fileExt = file.path.split('.').last;
+      final fileName = '${DateTime.now().millisecondsSinceEpoch}.$fileExt';
+      final filePath = 'staff_avatars/$fileName';
 
-  Future<dynamic> createUser({
+      // 'avatars' bu Supabase Storage dagi bucket nomi.
+      // Supabase dashboardingizda 'avatars' nomli public bucket yaratishingiz kerak!
+      await _supabase.storage.from('avatars').upload(filePath, file);
+
+      // Public URL ni olish
+      final imageUrl = _supabase.storage.from('avatars').getPublicUrl(filePath);
+      return imageUrl;
+    } catch (e) {
+      print('Rasm yuklashda xatolik: $e');
+      return null;
+    }
+  }
+   Future<String?> createUser({
     required String branchId,
     required String firstName,
     required String lastName,
@@ -334,7 +351,44 @@ class StaffRepository {
     required String username,
     required String password,
     required String role,
-  }) async {}
+  }) async {
+    try {
+      // Users jadvaliga ma'lumot qo'shish va ID ni qaytarib olish
+      final response = await _supabase
+          .from('users')
+          .insert({
+            'branch_id': branchId,
+            'first_name': firstName,
+            'last_name': lastName,
+            'middle_name': middleName.isNotEmpty ? middleName : null,
+            'gender': gender,
+            'birth_date': birthDate.toIso8601String().split('T')[0],
+            'phone': phone,
+            'phone_secondary': phoneSecondary.isNotEmpty ? phoneSecondary : null,
+            'region': region,
+            'district': district,
+            'address': address,
+            'role': role,
+            'username': username,
+            'password_hash': password, // Haqiqiy loyihada buni hash qilish kerak!
+            'status': 'active',
+          })
+          .select('id') // <--- MUHIM: ID ni so'rash
+          .single();
+
+      return response['id'] as String;
+    } catch (e) {
+      print('Create user error: $e');
+      // Xatoni aniqroq qaytarish uchun:
+      if (e.toString().contains('users_username_key')) {
+         throw Exception("Bu username allaqachon mavjud");
+      }
+      rethrow;
+    }
+  }
+
+  // Staff ID orqali to'liq ma'lumotlarni olish
+    // ==================== USER ID ORQALI STAFFNI OLISH ====================
   Future<List<StaffEnhanced>> getStaffByUserId(String userId) async {
     try {
       final response = await _supabase
@@ -346,16 +400,21 @@ class StaffRepository {
           .eq('user_id', userId)
           .eq('status', 'active');
 
-      if (response == null || response.isEmpty) {
+      if (response == null || (response as List).isEmpty) {
         return [];
       }
 
       return (response as List).map((json) {
-        // Branch name ni qo'shish
         final staffData = Map<String, dynamic>.from(json);
+        
+        // Branch nomini to'g'irlash
         if (json['branches'] != null) {
           staffData['branch_name'] = json['branches']['name'];
         }
+        
+        // Rasm URL ni aniq ko'rsatish
+        staffData['photo_url'] = json['photo_url'];
+
         return StaffEnhanced.fromJson(staffData);
       }).toList();
     } catch (e) {
@@ -363,8 +422,7 @@ class StaffRepository {
       return [];
     }
   }
+} // <--- Class mana shu yerda tugaydi
 
-  // Staff ID orqali to'liq ma'lumotlarni olish
 
 
-}

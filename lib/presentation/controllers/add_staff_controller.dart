@@ -1,8 +1,12 @@
 // lib/presentation/controllers/add_staff_controller.dart
 
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_application_1/data/repositories/visitior_repitory.dart';
 import 'package:get/get.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../data/repositories/staff_repository.dart';
 import '../../config/app_routes.dart';
 import 'auth_controller.dart';
@@ -37,7 +41,8 @@ class AddStaffController extends GetxController {
   final usernameController = TextEditingController();
   final passwordController = TextEditingController();
   final confirmPasswordController = TextEditingController();
-
+  final Rx<File?> profileImage = Rx<File?>(null);
+  final ImagePicker _picker = ImagePicker();
   // ==================== REACTIVE VARIABLES ====================
   final RxString selectedGender = 'male'.obs;
   final Rx<String?> selectedBranchId = Rx<String?>(null);
@@ -53,6 +58,11 @@ class AddStaffController extends GetxController {
   final RxBool showConfirmPassword = false.obs;
   final Rx<String?> selectedVisitorId = Rx<String?>(null);
   final RxBool isLoadingVisitors = false.obs;
+
+    // --- YANGI QO'SHILGAN QISM (TAHRIRLASH UCHUN) ---
+  final RxBool isEditMode = false.obs;
+  String? editingStaffId;
+  final _supabase = Supabase.instance.client; // Bazadan o'qish uchun
 
   // Online ma'lumotlar
   final RxList<Map<String, dynamic>> branches = <Map<String, dynamic>>[].obs;
@@ -81,6 +91,21 @@ class AddStaffController extends GetxController {
     super.onInit();
     _loadInitialData();
     _setupListeners();
+
+    // --- YANGI QO'SHILGAN QISM ---
+    if (Get.arguments != null && Get.arguments['isEdit'] == true) {
+      isEditMode.value = true;
+      editingStaffId = Get.arguments['staffId'];
+      createUser.value = false; // Tahrirlashda yangi user ochilmaydi
+
+      // Dropdownlar (filial, fanlar) yuklanib bo'lishini 1 soniya kutamiz
+      Future.delayed(const Duration(seconds: 1), () {
+        if (editingStaffId != null) {
+          _loadStaffForEditing(editingStaffId!);
+        }
+      });
+    }
+    // -----------------------------
   }
 
   @override
@@ -159,7 +184,66 @@ class AddStaffController extends GetxController {
     passwordController.text = password;
     confirmPasswordController.text = password;
   }
+    // --- YANGI FUNKSIYA: MA'LUMOTLARNI YUKLASH ---
+    // --- YANGI FUNKSIYA: MA'LUMOTLARNI YUKLASH ---
+  Future<void> _loadStaffForEditing(String id) async {
+    try {
+      isLoading.value = true;
+      print("Tahrirlash uchun yuklanmoqda: $id");
 
+      final data = await _supabase.from('staff').select().eq('id', id).single();
+
+      // 1. Matn maydonlari
+      firstNameController.text = data['first_name'] ?? '';
+      lastNameController.text = data['last_name'] ?? '';
+      middleNameController.text = data['middle_name'] ?? '';
+      phoneController.text = data['phone'] ?? '';
+      phoneSecondaryController.text = data['phone_secondary'] ?? '';
+      regionController.text = data['region'] ?? '';
+      districtController.text = data['district'] ?? '';
+      addressController.text = data['address'] ?? '';
+      positionController.text = data['position'] ?? '';
+      departmentController.text = data['department'] ?? '';
+      skillsController.text = data['skills'] ?? '';
+      educationController.text = data['education'] ?? '';
+      experienceController.text = data['experience'] ?? '';
+      notesController.text = data['notes'] ?? '';
+
+      // 2. Tanlovlar
+      if (data['branch_id'] != null) {
+        selectedBranchId.value = data['branch_id'];
+        _filterClassesAndRooms(); // Filial o'zgargani uchun filtrlash
+      }
+      
+      selectedGender.value = data['gender'] ?? 'male';
+      
+      if (data['birth_date'] != null) {
+        birthDate.value = DateTime.parse(data['birth_date']);
+      }
+      if (data['hire_date'] != null) {
+        hireDate.value = DateTime.parse(data['hire_date']);
+      }
+
+      // 3. Maosh
+      selectedSalaryType.value = data['salary_type'] ?? 'monthly';
+      if (data['base_salary'] != null) baseSalaryController.text = data['base_salary'].toString();
+      if (data['hourly_rate'] != null) hourlyRateController.text = data['hourly_rate'].toString();
+      if (data['daily_rate'] != null) dailyRateController.text = data['daily_rate'].toString();
+      if (data['expected_hours_per_month'] != null) expectedHoursController.text = data['expected_hours_per_month'].toString();
+
+      // 4. O'qituvchilik
+      isTeacher.value = data['is_teacher'] ?? false;
+      
+      // DIQQAT: O'qituvchi fanlari va sinflarini yuklash bu yerda murakkabroq.
+      // Hozircha asosiy ma'lumotlarni yukladik.
+      
+    } catch (e) {
+      print("Tahrirlash xatosi: $e");
+      Get.snackbar('Xatolik', 'Ma\'lumotlarni yuklab bo\'lmadi');
+    } finally {
+      isLoading.value = false;
+    }
+  }
   // ==================== MA'LUMOTLARNI YUKLASH ====================
   Future<void> _loadInitialData() async {
     try {
@@ -233,6 +317,19 @@ class AddStaffController extends GetxController {
       rooms.value = result;
     } catch (e) {
       print('Load rooms error: $e');
+    }
+  }
+   Future<void> pickImage() async {
+    try {
+      final XFile? image = await _picker.pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 70, // Rasmni hajmini kichraytirish
+      );
+      if (image != null) {
+        profileImage.value = File(image.path);
+      }
+    } catch (e) {
+      Get.snackbar('Xatolik', 'Rasm tanlashda xatolik: $e');
     }
   }
 
@@ -540,95 +637,128 @@ class AddStaffController extends GetxController {
   }
 
   // ==================== XODIMNI SAQLASH ====================
-  Future<void> saveStaff() async {
+   Future<void> saveStaff() async {
     if (!_validateForm()) return;
 
     final currentUserId = _authController.currentUser.value?.id;
-    if (currentUserId == null) {
-      Get.snackbar(
-        'Xatolik',
-        'Foydalanuvchi ma\'lumotlari aniqlanmadi',
-        backgroundColor: Colors.red.shade100,
-        snackPosition: SnackPosition.TOP,
-      );
-      return;
-    }
+    if (currentUserId == null) return;
 
     try {
       isSaving.value = true;
 
+      // Rasm yuklash (agar yangi tanlangan bo'lsa)
+      String? uploadedPhotoUrl;
+      if (profileImage.value != null) {
+        uploadedPhotoUrl = await _staffRepo.uploadProfileImage(profileImage.value!);
+      }
+
       final salaryData = _calculateSalary();
-      String? userId;
 
-      if (createUser.value) {
-        userId = await _createUser();
-        if (userId == null) {
-          throw Exception('User yaratishda xatolik yuz berdi');
+      // ---------------------------------------------------------
+      // 1. TAHRIRLASH REJIMI (UPDATE)
+      // ---------------------------------------------------------
+      if (isEditMode.value && editingStaffId != null) {
+        // Update query
+        final updateData = {
+          'branch_id': selectedBranchId.value,
+          'first_name': firstNameController.text.trim(),
+          'last_name': lastNameController.text.trim(),
+          'middle_name': middleNameController.text.trim(),
+          'gender': selectedGender.value,
+          'birth_date': birthDate.value!.toIso8601String(),
+          'phone': phoneController.text.trim(),
+          'phone_secondary': phoneSecondaryController.text.trim(),
+          'region': regionController.text.trim(),
+          'district': districtController.text.trim(),
+          'address': addressController.text.trim(),
+          'position': positionController.text.trim(),
+          'department': departmentController.text.trim(),
+          'is_teacher': isTeacher.value,
+          'salary_type': selectedSalaryType.value,
+          'base_salary': salaryData['baseSalary'],
+          'hourly_rate': salaryData['hourlyRate'],
+          'daily_rate': salaryData['dailyRate'],
+          'expected_hours_per_month': salaryData['expectedHours'],
+          'hire_date': hireDate.value!.toIso8601String(),
+          'skills': skillsController.text.trim(),
+          'education': educationController.text.trim(),
+          'experience': experienceController.text.trim(),
+          'notes': notesController.text.trim(),
+          'updated_at': DateTime.now().toIso8601String(),
+        };
+
+        // Agar rasm yangilangan bo'lsa, uni ham qo'shamiz
+        if (uploadedPhotoUrl != null) {
+          updateData['photo_url'] = uploadedPhotoUrl;
         }
-      }
 
-      final staff = await _staffRepo.createStaff(
-        userId: userId,
-        branchId: selectedBranchId.value!,
-        visitorId: selectedVisitorId.value,
-        firstName: firstNameController.text.trim(),
-        lastName: lastNameController.text.trim(),
-        middleName: middleNameController.text.trim(),
-        gender: selectedGender.value,
-        birthDate: birthDate.value!,
-        phone: phoneController.text.trim(),
-        phoneSecondary: phoneSecondaryController.text.trim(),
-        region: regionController.text.trim(),
-        district: districtController.text.trim(),
-        address: addressController.text.trim(),
-        position: positionController.text.trim(),
-        department: departmentController.text.trim(),
-        isTeacher: isTeacher.value,
-        salaryType: selectedSalaryType.value,
-        baseSalary: salaryData['baseSalary'],
-        hourlyRate: salaryData['hourlyRate'],
-        dailyRate: salaryData['dailyRate'],
-        expectedHoursPerMonth: salaryData['expectedHours'],
-        hireDate: hireDate.value!,
-        skills: skillsController.text.trim(),
-        education: educationController.text.trim(),
-        experience: experienceController.text.trim(),
-        notes: notesController.text.trim(),
-        createdBy: currentUserId,
-        defaultRoomId: defaultRoomId,
-      );
+        await _supabase.from('staff').update(updateData).eq('id', editingStaffId!);
 
-      if (staff == null) {
-        throw Exception('Xodim yaratishda xatolik');
-      }
+        Get.snackbar('Muvaffaqiyat', 'Xodim ma\'lumotlari yangilandi', 
+            backgroundColor: Colors.green.shade100);
+            
+        // Profil sahifasiga qaytish va yangilash signalini berish
+        Get.back(result: true); 
+      } 
+      
+      // ---------------------------------------------------------
+      // 2. QO'SHISH REJIMI (CREATE) - Eski kodingiz
+      // ---------------------------------------------------------
+      else {
+        String? userId;
+        if (createUser.value) {
+          userId = await _createUser();
+          if (userId == null) throw Exception('User yaratilmadi');
+        }
 
-      if (isTeacher.value) {
-        await _assignTeacherData(staff.id);
-      }
-
-      if (selectedVisitorId.value != null) {
-        await _visitorRepo.convertVisitorToStaff(
-          visitorId: selectedVisitorId.value!,
-          staffId: staff.id,
+        final staff = await _staffRepo.createStaff(
+          userId: userId,
+          branchId: selectedBranchId.value!,
+          visitorId: selectedVisitorId.value,
+          firstName: firstNameController.text.trim(),
+          lastName: lastNameController.text.trim(),
+          middleName: middleNameController.text.trim(),
+          gender: selectedGender.value,
+          birthDate: birthDate.value!,
+          phone: phoneController.text.trim(),
+          phoneSecondary: phoneSecondaryController.text.trim(),
+          region: regionController.text.trim(),
+          district: districtController.text.trim(),
+          address: addressController.text.trim(),
+          position: positionController.text.trim(),
+          department: departmentController.text.trim(),
+          isTeacher: isTeacher.value,
+          salaryType: selectedSalaryType.value,
+          baseSalary: salaryData['baseSalary'],
+          hourlyRate: salaryData['hourlyRate'],
+          dailyRate: salaryData['dailyRate'],
+          expectedHoursPerMonth: salaryData['expectedHours'],
+          hireDate: hireDate.value!,
+          skills: skillsController.text.trim(),
+          education: educationController.text.trim(),
+          experience: experienceController.text.trim(),
+          notes: notesController.text.trim(),
+          createdBy: currentUserId,
+          defaultRoomId: defaultRoomId,
+          photoUrl: uploadedPhotoUrl,
         );
+        
+        if (staff != null && isTeacher.value) {
+           await _assignTeacherData(staff.id);
+        }
+        
+        _showSuccessMessage(userId);
+        Get.offNamed(AppRoutes.staff);
       }
 
-      _showSuccessMessage(userId);
-      Get.offNamed(AppRoutes.staff);
     } catch (e) {
       print('Save staff error: $e');
-      Get.snackbar(
-        'Xatolik',
-        'Xodimni saqlashda xatolik: ${e.toString()}',
-        backgroundColor: Colors.red.shade100,
-        snackPosition: SnackPosition.TOP,
-        duration: const Duration(seconds: 5),
-      );
+      Get.snackbar('Xatolik', 'Xatolik yuz berdi: $e', backgroundColor: Colors.red.shade100);
     } finally {
       isSaving.value = false;
     }
   }
-
+  
   Map<String, dynamic> _calculateSalary() {
     double? baseSalary;
     double? hourlyRate;

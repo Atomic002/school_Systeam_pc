@@ -1,17 +1,14 @@
-// lib/presentation/screens/visitors/visitors_screen.dart
-// BRANCH FILTER bilan (Owner uchun)
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_application_1/presentation/Administrator/controllers/visitors_controller.dart';
+import 'package:flutter_application_1/presentation/widgets/sidebar.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
-import '../../controllers/visitors_controller.dart';
-import '../../widgets/sidebar.dart';
 
-class VisitorsScreen extends StatelessWidget {
-  VisitorsScreen({Key? key}) : super(key: key);
+class VisitorsScreenadmin extends StatelessWidget {
+  VisitorsScreenadmin({Key? key}) : super(key: key);
 
-  final VisitorsController controller = Get.put(VisitorsController());
+  final VisitorsControlleradmin controller = Get.put(VisitorsControlleradmin());
 
   @override
   Widget build(BuildContext context) {
@@ -80,10 +77,10 @@ class VisitorsScreen extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 16),
-              Column(
+              const Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
+                  Text(
                     'Tashrif buyuruvchilar',
                     style: TextStyle(
                       fontSize: 24,
@@ -91,40 +88,10 @@ class VisitorsScreen extends StatelessWidget {
                       color: Colors.black87,
                     ),
                   ),
-                  const SizedBox(height: 4),
-
-                  // TUZATILDI: Obx mantiqi ajratildi
-                  Row(
-                    children: [
-                      const Icon(
-                        Icons.location_on,
-                        size: 16,
-                        color: Colors.grey,
-                      ),
-                      const SizedBox(width: 4),
-                      // Agar Owner bo'lmasa - oddiy Text
-                      if (!controller.isOwner)
-                        Text(
-                          controller.getBranchName(controller.userBranchId),
-                          style: const TextStyle(
-                            fontSize: 14,
-                            color: Colors.grey,
-                          ),
-                        )
-                      // Agar Owner bo'lsa - Obx bilan o'ralgan Text (chunki filter o'zgaradi)
-                      else
-                        Obx(
-                          () => Text(
-                            controller.getBranchName(
-                              controller.selectedBranchFilter.value,
-                            ),
-                            style: const TextStyle(
-                              fontSize: 14,
-                              color: Colors.grey,
-                            ),
-                          ),
-                        ),
-                    ],
+                  SizedBox(height: 4),
+                  Text(
+                    'Potentsial o\'quvchilar va xodimlar',
+                    style: TextStyle(fontSize: 14, color: Colors.grey),
                   ),
                 ],
               ),
@@ -138,7 +105,6 @@ class VisitorsScreen extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 12),
-              // convertedCount getter bo'lsa ham visitors ga bog'langan, shuning uchun ishlaydi
               Obx(
                 () => _buildStatCard(
                   'Konvertatsiya qilingan',
@@ -208,7 +174,6 @@ class VisitorsScreen extends StatelessWidget {
       color: Colors.white,
       child: Row(
         children: [
-          // Qidiruv
           Expanded(
             flex: 3,
             child: TextField(
@@ -230,45 +195,6 @@ class VisitorsScreen extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 12),
-
-          // Branch filter (Faqat owner uchun)
-          // TUZATILDI: if sharti Obx dan tashqariga olindi
-          if (controller.isOwner) ...[
-            Expanded(
-              child: Obx(
-                () => DropdownButtonFormField<String?>(
-                  value: controller.selectedBranchFilter.value,
-                  decoration: InputDecoration(
-                    prefixIcon: const Icon(
-                      Icons.business,
-                      color: Color(0xFF2196F3),
-                    ),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    filled: true,
-                    fillColor: Colors.grey[50],
-                  ),
-                  items: [
-                    const DropdownMenuItem(
-                      value: null,
-                      child: Text('Barcha filiallar'),
-                    ),
-                    ...controller.branches.map((branch) {
-                      return DropdownMenuItem<String>(
-                        value: branch['id'],
-                        child: Text(branch['name'] ?? ''),
-                      );
-                    }),
-                  ],
-                  onChanged: controller.filterByBranch,
-                ),
-              ),
-            ),
-            const SizedBox(width: 12),
-          ],
-
-          // Tur bo'yicha filter
           Expanded(
             child: Obx(
               () => DropdownButtonFormField<String>(
@@ -301,8 +227,6 @@ class VisitorsScreen extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 12),
-
-          // Holat bo'yicha filter
           Expanded(
             child: Obx(
               () => DropdownButtonFormField<String>(
@@ -505,7 +429,7 @@ class VisitorsScreen extends StatelessWidget {
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
                     if (!isConverted) ...[
-                      ElevatedButton.icon(
+                      TextButton.icon(
                         onPressed: () => _showConvertDialog(visitor),
                         icon: const Icon(Icons.person_add, size: 18),
                         label: Text(
@@ -513,13 +437,8 @@ class VisitorsScreen extends StatelessWidget {
                               ? 'O\'quvchiga aylantirish'
                               : 'Xodimga aylantirish',
                         ),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF4CAF50),
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 12,
-                          ),
+                        style: TextButton.styleFrom(
+                          foregroundColor: const Color(0xFF4CAF50),
                         ),
                       ),
                       const SizedBox(width: 8),
@@ -727,7 +646,7 @@ class VisitorsScreen extends StatelessWidget {
         ),
         content: Text(
           visitor['visitor_type'] == 'student'
-              ? 'Ushbu tashrif buyuruvchini o\'quvchiga aylantirasizmi?\n\nSiz o\'quvchi qo\'shish sahifasiga yo\'naltirilasiz.'
+              ? 'Ushbu tashrif buyuruvchini o\'quvchiga aylantirasizmi?'
               : 'Ushbu tashrif buyuruvchini xodimga aylantirasizmi?',
         ),
         actions: [
@@ -743,7 +662,7 @@ class VisitorsScreen extends StatelessWidget {
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF4CAF50),
             ),
-            child: const Text('Davom etish'),
+            child: const Text('Konvertatsiya qilish'),
           ),
         ],
       ),
@@ -795,9 +714,8 @@ class VisitorsScreen extends StatelessWidget {
   }
 }
 
-// ==================== VISITOR FORM ====================
 class _VisitorForm extends StatelessWidget {
-  final VisitorsController controller;
+  final VisitorsControlleradmin controller;
   final bool isEdit;
 
   const _VisitorForm({required this.controller, this.isEdit = false});
@@ -834,29 +752,20 @@ class _VisitorForm extends StatelessWidget {
           const SizedBox(height: 24),
 
           // Branch selection
- Obx(() {
+          Obx(() {
             if (controller.branches.isEmpty) {
               return const SizedBox.shrink();
             }
             return Column(
               children: [
                 DropdownButtonFormField<String>(
-                  value: controller.selectedBranchId.value,
-                  decoration: InputDecoration(
+                  value: controller.selectedBranchId.value?.isEmpty ?? true
+                      ? null
+                      : controller.selectedBranchId.value,
+                  decoration: const InputDecoration(
                     labelText: 'Filial *',
-                    prefixIcon: const Icon(
-                      Icons.business,
-                      color: Color(0xFF2196F3),
-                    ),
-                    border: const OutlineInputBorder(),
-                    // MANTIQ O'ZGARDI: controller.canChangeBranch getteridan foydalanamiz
-                    // Agar userBranchId bor bo'lsa, dropdown disable (false) bo'ladi
-                    enabled: controller.canChangeBranch, 
-                    helperText: controller.canChangeBranch
-                        ? 'Filialni tanlang'
-                        : 'Siz faqat o\'z filialingizga visitor qo\'sha olasiz',
-                    fillColor: controller.canChangeBranch ? null : Colors.grey[200],
-                    filled: !controller.canChangeBranch,
+                    prefixIcon: Icon(Icons.business, color: Color(0xFF2196F3)),
+                    border: OutlineInputBorder(),
                   ),
                   items: controller.branches.map((branch) {
                     return DropdownMenuItem<String>(
@@ -864,9 +773,7 @@ class _VisitorForm extends StatelessWidget {
                       child: Text(branch['name'] ?? 'N/A'),
                     );
                   }).toList(),
-                  onChanged: controller.canChangeBranch 
-                      ? controller.updateBranch 
-                      : null, // Agar o'zgartirish mumkin bo'lmasa, funksiya ishlamaydi
+                  onChanged: (value) => controller.updateBranch(value),
                 ),
                 const SizedBox(height: 16),
               ],
@@ -1103,10 +1010,9 @@ class _VisitorForm extends StatelessWidget {
   }
 }
 
-// ==================== VISITOR DETAILS VIEW ====================
 class _VisitorDetailsView extends StatelessWidget {
   final Map<String, dynamic> visitor;
-  final VisitorsController controller;
+  final VisitorsControlleradmin controller;
 
   const _VisitorDetailsView({required this.visitor, required this.controller});
 

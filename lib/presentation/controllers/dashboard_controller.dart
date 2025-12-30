@@ -583,7 +583,7 @@ class DashboardController extends GetxController {
         (sum, s) => sum + ((s['amount'] ?? 0) as num).toDouble(),
       );
     } catch (e) {
-      print('Error loading staff metrics: $e');
+      print('Error loading staff metrics: $e' );
     }
   }
 

@@ -1,20 +1,16 @@
 // lib/presentation/controllers/visitors_controller.dart
-// BRANCH-BASED ACCESS CONTROL bilan
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../../data/models/auth_service.dart';
 
-class VisitorsController extends GetxController {
-
-    bool get canChangeBranch => userBranchId == null; 
+class VisitorsControlleradmin extends GetxController {
   final supabase = Supabase.instance.client;
-final AuthService _authService = Get.find<AuthService>();
 
   // Observable lists
   final RxList<Map<String, dynamic>> visitors = <Map<String, dynamic>>[].obs;
-  final RxList<Map<String, dynamic>> filteredVisitors = <Map<String, dynamic>>[].obs;
+  final RxList<Map<String, dynamic>> filteredVisitors =
+      <Map<String, dynamic>>[].obs;
   final RxList<Map<String, dynamic>> branches = <Map<String, dynamic>>[].obs;
 
   // Loading states
@@ -48,19 +44,22 @@ final AuthService _authService = Get.find<AuthService>();
   final RxString selectedTypeFilter = 'all'.obs;
   final RxString selectedStatusFilter = 'all'.obs;
   final RxString searchQuery = ''.obs;
-  final RxnString selectedBranchFilter = RxnString(null); // Branch filtri
-
-  // User ma'lumotlari
-  String? userBranchId;
-  String? userRole;
-  bool isOwner = false;
 
   // Edit mode
   String? editingVisitorId;
+  String _getVisitorTypeEnum(String value) {
+    return value; // lowercase uchun
+  }
+
+  String _getGenderEnum(String value) {
+    return value; // lowercase uchun
+  }
 
   // Statistics
-  int get convertedCount => visitors.where((v) => v['is_converted'] == true).length;
-  int get pendingCount => visitors.where((v) => v['is_converted'] != true).length;
+  int get convertedCount =>
+      visitors.where((v) => v['is_converted'] == true).length;
+  int get pendingCount =>
+      visitors.where((v) => v['is_converted'] != true).length;
 
   @override
   void onInit() {
@@ -69,32 +68,8 @@ final AuthService _authService = Get.find<AuthService>();
   }
 
   Future<void> _initialize() async {
-    // User ma'lumotlarini olish
-    await _loadUserInfo();
-    
-    // Ma'lumotlarni yuklash
     await fetchBranches();
     await fetchVisitors();
-  }
-
- Future<void> _loadUserInfo() async {
-    try {
-      final user = _authService.currentUser.value;
-      if (user != null) {
-        userBranchId = user.branchId;
-        userRole = user.role.toLowerCase();
-        isOwner = userRole == 'owner';
-
-        // MANTIQ O'ZGARDI:
-        // Agar foydalanuvchi filialga biriktirilgan bo'lsa, avtomatik tanlaymiz
-        if (userBranchId != null) {
-          selectedBranchId.value = userBranchId;
-          selectedBranchFilter.value = userBranchId;
-        }
-      }
-    } catch (e) {
-      print('❌ Load user info error: $e');
-    }
   }
 
   @override
@@ -116,37 +91,24 @@ final AuthService _authService = Get.find<AuthService>();
     super.onClose();
   }
 
-  // ==================== FETCH BRANCHES ====================
-  // ==================== FETCH BRANCHES ====================
+  // Fetch branches
   Future<void> fetchBranches() async {
     try {
-      PostgrestFilterBuilder query = supabase
+      final response = await supabase
           .from('branches')
           .select()
-          .eq('is_active', true);
+          .eq('is_active', true)
+          .order('is_main', ascending: false);
 
-      // AGAR FOYDALANUVCHI FILIALGA BIRIKTIRILGAN BO'LSA
-      // Faqat o'sha filialni yuklaymiz
-      if (userBranchId != null) {
-        query = query.eq('id', userBranchId!);
-      }
-
-      final response = await query.order('is_main', ascending: false);
       branches.value = List<Map<String, dynamic>>.from(response);
 
-      // Agar ro'yxatda faqat bitta filial bo'lsa yoki avval tanlanmagan bo'lsa
-      if (branches.isNotEmpty && selectedBranchId.value == null) {
+      // Auto-select first branch if available and none selected
+      if (branches.isNotEmpty &&
+          (selectedBranchId.value == null || selectedBranchId.value!.isEmpty)) {
         selectedBranchId.value = branches.first['id'];
       }
-      
-      // Agar user filialga biriktirilgan bo'lsa, majburan shu ID ni tanlaymiz
-      if (userBranchId != null) {
-        selectedBranchId.value = userBranchId;
-      }
-
-      print('✅ Loaded ${branches.length} branches');
     } catch (e) {
-      print('❌ Error fetching branches: $e');
+      print('Error fetching branches: $e');
       Get.snackbar(
         'Xatolik',
         'Filiallarni yuklashda xatolik: ${e.toString()}',
@@ -157,31 +119,19 @@ final AuthService _authService = Get.find<AuthService>();
     }
   }
 
-  // ==================== FETCH VISITORS ====================
+  // Fetch all visitors
   Future<void> fetchVisitors() async {
     try {
       isLoading.value = true;
 
-      PostgrestFilterBuilder query = supabase
+      final response = await supabase
           .from('visitors')
-          .select();
+          .select()
+          .order('created_at', ascending: false);
 
-      // Owner bo'lmasa, faqat o'z branchidagi visitorlarni ko'rish
-      if (!isOwner && userBranchId != null) {
-        query = query.eq('branch_id', userBranchId!);
-      }
-      // Owner bo'lsa va branch filtri tanlangan bo'lsa
-      else if (isOwner && selectedBranchFilter.value != null) {
-        query = query.eq('branch_id', selectedBranchFilter.value!);
-      }
-
-      final response = await query.order('created_at', ascending: false);
       visitors.value = List<Map<String, dynamic>>.from(response);
-      
-      print('✅ Loaded ${visitors.length} visitors');
       applyFilters();
     } catch (e) {
-      print('❌ Error fetching visitors: $e');
       Get.snackbar(
         'Xatolik',
         'Ma\'lumotlarni yuklashda xatolik: ${e.toString()}',
@@ -194,7 +144,7 @@ final AuthService _authService = Get.find<AuthService>();
     }
   }
 
-  // ==================== APPLY FILTERS ====================
+  // Apply filters
   void applyFilters() {
     var filtered = visitors.toList();
 
@@ -228,13 +178,13 @@ final AuthService _authService = Get.find<AuthService>();
     filteredVisitors.value = filtered;
   }
 
-  // ==================== SEARCH ====================
+  // Search
   void searchVisitors(String query) {
     searchQuery.value = query;
     applyFilters();
   }
 
-  // ==================== FILTER BY TYPE ====================
+  // Filter by type
   void filterByType(String? type) {
     if (type != null) {
       selectedTypeFilter.value = type;
@@ -242,7 +192,7 @@ final AuthService _authService = Get.find<AuthService>();
     }
   }
 
-  // ==================== FILTER BY STATUS ====================
+  // Filter by status
   void filterByStatus(String? status) {
     if (status != null) {
       selectedStatusFilter.value = status;
@@ -250,29 +200,12 @@ final AuthService _authService = Get.find<AuthService>();
     }
   }
 
-  // ==================== FILTER BY BRANCH (Owner uchun) ====================
-  void filterByBranch(String? branchId) {
-    selectedBranchFilter.value = branchId;
-    fetchVisitors(); // Serverdan qayta yuklash
-  }
-
-  // ==================== UPDATE BRANCH ====================
+  // Update branch
   void updateBranch(String? branchId) {
-    // HIMOYA: Agar user filialga biriktirilgan bo'lsa va boshqa filial tanlamoqchi bo'lsa
-    if (userBranchId != null && branchId != userBranchId) {
-      Get.snackbar(
-        'Taqiqlandi',
-        'Siz faqat o\'zingizga biriktirilgan filialga ma\'lumot qo\'sha olasiz',
-        backgroundColor: Colors.orange,
-        colorText: Colors.white,
-      );
-      selectedBranchId.value = userBranchId; // O'z filialiga qaytarish
-      return;
-    }
     selectedBranchId.value = branchId;
   }
 
-  // ==================== GET BRANCH NAME ====================
+  // Get branch name by ID
   String getBranchName(String? branchId) {
     if (branchId == null) return 'N/A';
     try {
@@ -286,37 +219,18 @@ final AuthService _authService = Get.find<AuthService>();
     }
   }
 
-  // ==================== ADD VISITOR ====================
+  // Add new visitor
+  // Visitors Controller - addVisitor metodini tuzatish
+
+  // Visitors Controller - addVisitor metodini tuzatish
+
   Future<void> addVisitor() async {
     if (!_validateForm()) return;
-
-    // Branch tekshiruvi
-    if (selectedBranchId.value == null) {
-      Get.snackbar(
-        'Xatolik',
-        'Filialni tanlang',
-        snackPosition: SnackPosition.BOTTOM,
-        backgroundColor: Colors.orange,
-        colorText: Colors.white,
-      );
-      return;
-    }
-
-    // Owner bo'lmasa, faqat o'z branchiga qo'shishi mumkin
-    if (!isOwner && selectedBranchId.value != userBranchId) {
-      Get.snackbar(
-        'Xatolik',
-        'Siz faqat o\'z filialingizga visitor qo\'sha olasiz',
-        snackPosition: SnackPosition.BOTTOM,
-        backgroundColor: Colors.red,
-        colorText: Colors.white,
-      );
-      return;
-    }
 
     try {
       isSaving.value = true;
 
+      // TUZATISH: created_by ni butunlay olib tashlaymiz
       final visitorData = {
         'branch_id': selectedBranchId.value,
         'visitor_type': visitorType.value,
@@ -342,13 +256,13 @@ final AuthService _authService = Get.find<AuthService>();
             : addressController.text.trim(),
         'interested_course': visitorType.value == 'student'
             ? interestedCourseController.text.trim().isEmpty
-                ? null
-                : interestedCourseController.text.trim()
+                  ? null
+                  : interestedCourseController.text.trim()
             : null,
         'desired_position': visitorType.value != 'student'
             ? desiredPositionController.text.trim().isEmpty
-                ? null
-                : desiredPositionController.text.trim()
+                  ? null
+                  : desiredPositionController.text.trim()
             : null,
         'skills': skillsController.text.trim().isEmpty
             ? null
@@ -359,11 +273,13 @@ final AuthService _authService = Get.find<AuthService>();
         'education': educationController.text.trim().isEmpty
             ? null
             : educationController.text.trim(),
+        // 'source': source.value, // Vaqtincha o'chirib qo'yamiz - enum muammosi
         'notes': notesController.text.trim().isEmpty
             ? null
             : notesController.text.trim(),
         'visit_date': DateTime.now().toIso8601String().split('T')[0],
         'is_converted': false,
+        // created_by ni o'chirdik - database-da nullable
       };
 
       await supabase.from('visitors').insert(visitorData);
@@ -380,7 +296,7 @@ final AuthService _authService = Get.find<AuthService>();
         colorText: Colors.white,
       );
     } catch (e) {
-      print('❌ Add visitor error: $e');
+      print('Xatolik tafsiloti: $e');
       Get.snackbar(
         'Xatolik',
         'Saqlashda xatolik: ${e.toString()}',
@@ -394,7 +310,7 @@ final AuthService _authService = Get.find<AuthService>();
     }
   }
 
-  // ==================== UPDATE VISITOR ====================
+  // QOSHIMCHA: updateVisitor metodini ham tuzatish
   Future<void> updateVisitor() async {
     if (!_validateForm() || editingVisitorId == null) return;
 
@@ -403,13 +319,13 @@ final AuthService _authService = Get.find<AuthService>();
 
       final visitorData = {
         'branch_id': selectedBranchId.value,
-        'visitor_type': visitorType.value,
+        'visitor_type': _getVisitorTypeEnum(visitorType.value),
         'first_name': firstNameController.text.trim(),
         'last_name': lastNameController.text.trim(),
         'middle_name': middleNameController.text.trim().isEmpty
             ? null
             : middleNameController.text.trim(),
-        'gender': gender.value,
+        'gender': _getGenderEnum(gender.value),
         'birth_date': birthDate.value?.toIso8601String().split('T')[0],
         'phone': phoneController.text.trim(),
         'phone_secondary': phoneSecondaryController.text.trim().isEmpty
@@ -426,13 +342,13 @@ final AuthService _authService = Get.find<AuthService>();
             : addressController.text.trim(),
         'interested_course': visitorType.value == 'student'
             ? interestedCourseController.text.trim().isEmpty
-                ? null
-                : interestedCourseController.text.trim()
+                  ? null
+                  : interestedCourseController.text.trim()
             : null,
         'desired_position': visitorType.value != 'student'
             ? desiredPositionController.text.trim().isEmpty
-                ? null
-                : desiredPositionController.text.trim()
+                  ? null
+                  : desiredPositionController.text.trim()
             : null,
         'skills': skillsController.text.trim().isEmpty
             ? null
@@ -465,7 +381,7 @@ final AuthService _authService = Get.find<AuthService>();
         colorText: Colors.white,
       );
     } catch (e) {
-      print('❌ Update visitor error: $e');
+      print('Xatolik tafsiloti: $e');
       Get.snackbar(
         'Xatolik',
         'Yangilashda xatolik: ${e.toString()}',
@@ -479,10 +395,11 @@ final AuthService _authService = Get.find<AuthService>();
     }
   }
 
-  // ==================== DELETE VISITOR ====================
+  // Delete visitor
   Future<void> deleteVisitor(String id) async {
     try {
       await supabase.from('visitors').delete().eq('id', id);
+
       await fetchVisitors();
 
       Get.snackbar(
@@ -493,7 +410,6 @@ final AuthService _authService = Get.find<AuthService>();
         colorText: Colors.white,
       );
     } catch (e) {
-      print('❌ Delete visitor error: $e');
       Get.snackbar(
         'Xatolik',
         'O\'chirishda xatolik: ${e.toString()}',
@@ -504,45 +420,28 @@ final AuthService _authService = Get.find<AuthService>();
     }
   }
 
-  // ==================== CONVERT TO STUDENT/STAFF ====================
+  // Convert visitor to student/staff
   Future<void> convertVisitor(Map<String, dynamic> visitor) async {
     try {
-      // AddStudentScreen ga yo'naltirish
       if (visitor['visitor_type'] == 'student') {
-        final result = await Get.toNamed(
-          '/add-student',
-          arguments: {'visitor': visitor},
-        );
-        
-        // Agar muvaffaqiyatli qo'shilgan bo'lsa, converted qilib belgilash
-        if (result == true) {
-          await supabase.from('visitors').update({
+        // Navigate to add student screen with visitor data
+        Get.toNamed('/add-student', arguments: {'visitor': visitor});
+      } else {
+        // Navigate to add staff screen with visitor data
+        Get.toNamed('/add-staff', arguments: {'visitor': visitor});
+      }
+
+      // Mark as converted
+      await supabase
+          .from('visitors')
+          .update({
             'is_converted': true,
             'converted_at': DateTime.now().toIso8601String(),
-          }).eq('id', visitor['id']);
-          
-          await fetchVisitors();
-          
-          Get.snackbar(
-            'Muvaffaqiyat',
-            'Visitor o\'quvchiga aylantirildi',
-            snackPosition: SnackPosition.BOTTOM,
-            backgroundColor: Colors.green,
-            colorText: Colors.white,
-          );
-        }
-      } else {
-        // Teacher/Staff uchun ham xuddi shunday
-        Get.snackbar(
-          'Ma\'lumot',
-          'Xodim qo\'shish funksiyasi tez orada qo\'shiladi',
-          snackPosition: SnackPosition.BOTTOM,
-          backgroundColor: Colors.blue,
-          colorText: Colors.white,
-        );
-      }
+          })
+          .eq('id', visitor['id']);
+
+      await fetchVisitors();
     } catch (e) {
-      print('❌ Convert visitor error: $e');
       Get.snackbar(
         'Xatolik',
         'Konvertatsiya qilishda xatolik: ${e.toString()}',
@@ -553,7 +452,7 @@ final AuthService _authService = Get.find<AuthService>();
     }
   }
 
-  // ==================== PREPARE EDIT ====================
+  // Prepare for editing
   void prepareEdit(Map<String, dynamic> visitor) {
     editingVisitorId = visitor['id'];
     selectedBranchId.value = visitor['branch_id'];
@@ -583,11 +482,12 @@ final AuthService _authService = Get.find<AuthService>();
     }
   }
 
-  // ==================== SELECT BIRTH DATE ====================
+  // Select birth date
   Future<void> selectBirthDate(BuildContext context) async {
     final DateTime? picked = await showDatePicker(
       context: context,
-      initialDate: birthDate.value ?? 
+      initialDate:
+          birthDate.value ??
           DateTime.now().subtract(const Duration(days: 7300)),
       firstDate: DateTime(1950),
       lastDate: DateTime.now(),
@@ -605,7 +505,7 @@ final AuthService _authService = Get.find<AuthService>();
     }
   }
 
-  // ==================== VALIDATE FORM ====================
+  // Validate form
   bool _validateForm() {
     if (firstNameController.text.trim().isEmpty) {
       Get.snackbar(
@@ -643,7 +543,7 @@ final AuthService _authService = Get.find<AuthService>();
     return true;
   }
 
-  // ==================== CLEAR FORM ====================
+  // Clear form
   void _clearForm() {
     editingVisitorId = null;
     firstNameController.clear();
@@ -664,10 +564,6 @@ final AuthService _authService = Get.find<AuthService>();
     gender.value = 'male';
     birthDate.value = null;
     source.value = 'walk_in';
-    
-    // Branch tanlovini saqlab qolish
-    if (!isOwner && userBranchId != null) {
-      selectedBranchId.value = userBranchId;
-    }
+    // Keep the last used branch selected
   }
 }

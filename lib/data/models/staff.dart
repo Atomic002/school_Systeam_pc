@@ -30,6 +30,7 @@ class StaffEnhanced {
   final DateTime? hireDate;
   final String status;
   final DateTime createdAt;
+    final String? photoUrl;
 
   // Qo'shimcha statistika
   final int certificationsCount;
@@ -69,6 +70,7 @@ class StaffEnhanced {
     this.latestRating,
     this.achievementsCount = 0,
     this.activeWarningsCount = 0,
+    this.photoUrl,
   });
 
   factory StaffEnhanced.fromJson(Map<String, dynamic> json) {
@@ -109,6 +111,7 @@ class StaffEnhanced {
       latestRating: json['latest_rating']?.toDouble(),
       achievementsCount: json['achievements_count'] ?? 0,
       activeWarningsCount: json['active_warnings_count'] ?? 0,
+         photoUrl: json['photo_url'],
     );
   }
 

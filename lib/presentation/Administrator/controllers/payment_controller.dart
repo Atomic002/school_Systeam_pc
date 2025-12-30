@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_application_1/data/models/student_model.dart';
+import 'package:flutter_application_1/data/repositories/payment_repositry.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../../data/models/student_model.dart';
-import '../../data/repositories/payment_repositry.dart';
+import '../../controllers/auth_controller.dart';
 import '../widgets/payment_history_dialog.dart';
 import '../widgets/payment_receipt_dialog.dart';
-import 'auth_controller.dart';
 
 // ============================================================================
 // MODELS
@@ -187,7 +187,7 @@ class PaymentHistoryModel {
 // ============================================================================
 // CONTROLLER
 // ============================================================================
-class NewPaymentControllerV4 extends GetxController {
+class NewPaymentControllerV4admin extends GetxController {
   final PaymentRepository _paymentRepo = PaymentRepository();
   final _supabase = Supabase.instance.client;
   final formKey = GlobalKey<FormState>();

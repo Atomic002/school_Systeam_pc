@@ -95,6 +95,8 @@ class AddStaffScreen extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+_buildAvatarPicker(), // <--- 1. MANA SHU YERGA QO'SHILDI
+          const SizedBox(height: 24),
           _buildVisitorSelection(),
           const SizedBox(height: 24),
           _buildPersonalInfo(),
@@ -123,7 +125,67 @@ class AddStaffScreen extends StatelessWidget {
       ),
     );
   }
-
+ Widget _buildAvatarPicker() {
+    return Center(
+      child: Stack(
+        children: [
+          Obx(() {
+            return Container(
+              width: 120,
+              height: 120,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.white,
+                border: Border.all(color: Colors.grey.shade300, width: 2),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.1),
+                    blurRadius: 10,
+                    offset: const Offset(0, 5),
+                  ),
+                ],
+              ),
+              child: controller.profileImage.value != null
+                  ? ClipOval(
+                      child: Image.file(
+                        controller.profileImage.value!,
+                        fit: BoxFit.cover,
+                        width: 120,
+                        height: 120,
+                      ),
+                    )
+                  : const Icon(
+                      Icons.person,
+                      size: 60,
+                      color: Colors.grey,
+                    ),
+            );
+          }),
+          Positioned(
+            bottom: 0,
+            right: 0,
+            child: Material(
+              color: const Color(0xFF2196F3),
+              shape: const CircleBorder(),
+              elevation: 4,
+              child: InkWell(
+                onTap: controller.pickImage,
+                customBorder: const CircleBorder(),
+                child: const Padding(
+                  padding: EdgeInsets.all(8.0),
+                  child: Icon(
+                    Icons.camera_alt,
+                    color: Colors.white,
+                    size: 20,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
   Widget _buildVisitorSelection() {
     return _buildCard(
       title: 'Tashrif buyuruvchidan tanlash',

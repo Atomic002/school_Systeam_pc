@@ -34,7 +34,7 @@ class _DirectorSidebarState extends State<DirectorSidebar> {
       final user = authController.currentUser.value;
       if (user != null && user.id != null) {
         // User ID orqali staff ma'lumotlarini olish
-        final staffList = await _staffRepository.getStaffByUserId(user.id!);
+        final staffList = await _staffRepository.getStaffByUserId(user.id);
         if (staffList.isNotEmpty) {
           setState(() {
             _staffInfo = staffList.first;
@@ -49,6 +49,7 @@ class _DirectorSidebarState extends State<DirectorSidebar> {
       setState(() => _isLoading = false);
     }
   }
+  
 
   @override
   Widget build(BuildContext context) {
@@ -217,14 +218,15 @@ class _DirectorSidebarState extends State<DirectorSidebar> {
           // Staff ma'lumotlaridan yoki User ma'lumotlaridan foydalanish
           String displayName = 'Direktor';
           String? branchInfo;
-          
+          String? photoUrl; // <--- Rasm URL uchun o'zgaruvchi
+
           if (_staffInfo != null) {
-            // Staff modelidan ma'lumot olish
             displayName = _staffInfo!.fullName;
             branchInfo = _staffInfo!.branchName;
+            photoUrl = _staffInfo!.photoUrl; // <--- Model dan o'qib olamiz
           }
 
-          // Avatar uchun harf
+          // Avatar uchun harf (fallback)
           String avatarLetter = 'D';
           if (_staffInfo != null && _staffInfo!.firstName.isNotEmpty) {
             avatarLetter = _staffInfo!.firstName[0].toUpperCase();
@@ -233,10 +235,14 @@ class _DirectorSidebarState extends State<DirectorSidebar> {
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Avatar
+              // --- AVATAR QISMI O'ZGARTIRILDI ---
               CircleAvatar(
                 radius: 30,
                 backgroundColor: Colors.deepOrange,
+                // Agar rasm bor bo'lsa, uni orqa fon qilib qo'yamiz
+                backgroundImage: (photoUrl != null && photoUrl.isNotEmpty)
+                    ? NetworkImage(photoUrl)
+                    : null,
                 child: _isLoading
                     ? SizedBox(
                         width: 20,
@@ -246,15 +252,19 @@ class _DirectorSidebarState extends State<DirectorSidebar> {
                           valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                         ),
                       )
-                    : Text(
-                        avatarLetter,
-                        style: TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
-                      ),
+                    : (photoUrl != null && photoUrl.isNotEmpty)
+                        ? null // Rasm bor bo'lsa, harf yozmaymiz (null)
+                        : Text( // Rasm yo'q bo'lsa, harfni chiqaramiz
+                            avatarLetter,
+                            style: TextStyle(
+                              fontSize: 24,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          ),
               ),
+              // ----------------------------------
+              
               SizedBox(height: AppConstants.paddingMedium),
               
               // Ism

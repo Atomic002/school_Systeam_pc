@@ -8,7 +8,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-class StaffDashboardController extends GetxController {
+class StaffDashboardControlleradmin extends GetxController {
   final _supabase = Supabase.instance.client;
 
   final staff = Rxn<Map<String, dynamic>>();
@@ -73,23 +73,16 @@ class StaffDashboardController extends GetxController {
       loadStaffData();
     }
   }
-  
 
-    Future<void> loadStaffData() async {
+  Future<void> loadStaffData() async {
     try {
       isLoading.value = true;
-      
-      // ✅ TO'G'RILANGAN SO'ROV
       final response = await _supabase
           .from('staff')
           .select('''
             *,
             branches:branch_id(name),
-            users:user_id(
-              username,
-              status,
-              role
-            )
+            users:user_id(role, username, status)
           ''')
           .eq('id', staffId!)
           .single();
@@ -100,7 +93,6 @@ class StaffDashboardController extends GetxController {
       await Future.wait([
         loadAttendance(),
         loadSalaryHistory(),
-        // is_teacher null bo'lishi mumkin, shuning uchun == true tekshiramiz
         if (response['is_teacher'] == true) ...[
           loadTeacherSchedule(),
           loadTeacherStudents(),
@@ -109,18 +101,17 @@ class StaffDashboardController extends GetxController {
         loadEvaluations(),
       ]);
     } catch (e) {
-      print('Load data error: $e'); // Konsolga to'liq xatoni chiqarish
       Get.snackbar(
         'Xatolik',
-        'Ma\'lumotlar yuklanmadi: ${e.toString()}', // Xatoni ko'rsatish
+        'Ma\'lumotlar yuklanmadi: $e',
         backgroundColor: Colors.red.shade100,
         snackPosition: SnackPosition.TOP,
-        duration: Duration(seconds: 5),
       );
     } finally {
       isLoading.value = false;
     }
   }
+
   Future<void> loadAttendance() async {
     try {
       isLoadingAttendance.value = true;
@@ -162,71 +153,53 @@ class StaffDashboardController extends GetxController {
     }
   }
 
-       Future<void> loadSalaryHistory() async {
+  Future<void> loadSalaryHistory() async {
     try {
       isLoadingSalary.value = true;
-      
-      // SalaryController dagi kabi 'salary_operations' jadvalidan o'qiyapmiz
       final response = await _supabase
           .from('salary_operations')
           .select('*')
           .eq('staff_id', staffId!)
-          .eq('is_paid', true) // <--- MUHIM: Faqat to'langanlarini chiqaramiz
-          .order('paid_at', ascending: false); // Oxirgi to'lov birinchi chiqadi
+          .order('year', ascending: false)
+          .order('month', ascending: false);
 
       salaryHistory.value = List<Map<String, dynamic>>.from(response);
-      
-      // Statistika hisoblash
       _calculateSalaryStats();
 
-      // --- AVANSLAR (O'zgarishsiz qoladi) ---
       final advancesResponse = await _supabase
           .from('staff_advances')
           .select('amount')
           .eq('staff_id', staffId!)
-          .eq('is_deducted', false); // Hali ish haqidan ushlanmagan avanslar
+          .eq('is_deducted', false);
 
       totalAdvances.value = advancesResponse.fold(
         0.0,
-        (sum, item) => sum + ((item['amount'] as num?)?.toDouble() ?? 0.0),
+        (sum, item) => sum + (item['amount'] ?? 0),
       );
 
-      // --- QARZLAR (O'zgarishsiz qoladi) ---
       final loansResponse = await _supabase
           .from('staff_loans')
           .select('remaining_amount')
           .eq('staff_id', staffId!)
-          .eq('is_settled', false); // Hali yopilmagan qarzlar
+          .eq('is_settled', false);
 
       totalLoans.value = loansResponse.fold(
         0.0,
-        (sum, item) => sum + ((item['remaining_amount'] as num?)?.toDouble() ?? 0.0),
+        (sum, item) => sum + (item['remaining_amount'] ?? 0),
       );
-      
     } catch (e) {
-      print('Load salary history error: $e');
+      print('Load salary error: $e');
     } finally {
       isLoadingSalary.value = false;
     }
   }
 
-    void _calculateSalaryStats() {
-    try {
-      double total = 0.0;
-      
-      for (var item in salaryHistory) {
-        // MUHIM: 'amount' emas, 'net_amount' ni olamiz
-        final amount = (item['net_amount'] as num?)?.toDouble() ?? 0.0;
-        total += amount;
-      }
-
-      totalPaid.value = total;
-    } catch (e) {
-      print('Maosh statistikasini hisoblashda xato: $e');
-      totalPaid.value = 0.0;
-    }
+  void _calculateSalaryStats() {
+    totalPaid.value = salaryHistory.fold(
+      0.0,
+      (sum, item) => sum + (item['amount'] ?? 0),
+    );
   }
-
 
   Future<void> loadTeacherSchedule() async {
     try {
@@ -268,127 +241,85 @@ class StaffDashboardController extends GetxController {
     }
   }
 
-     Future<void> loadTeacherStudents() async {
+  Future<void> loadTeacherStudents() async {
     try {
       isLoadingStudents.value = true;
-      teacherStudents.clear(); // Eski ma'lumotlarni tozalash
+      final classIds = assignedClasses.map((c) => c['id']).toList();
 
-      // 1-QADAM: O'qituvchiga tegishli SINF ID larini yig'amiz
-      Set<String> classIds = {};
-
-      // A) Sinf rahbari bo'lgan sinflar
-      final mainClasses = await _supabase
-          .from('classes')
-          .select('id')
-          .eq('main_teacher_id', staffId!);
-      
-      for (var item in mainClasses) {
-        classIds.add(item['id']);
+      if (classIds.isEmpty) {
+        teacherStudents.value = [];
+        return;
       }
 
-      // B) Fan o'qituvchisi sifatida dars o'tadigan sinflar
-      final subjectClasses = await _supabase
-          .from('teacher_classes')
-          .select('class_id')
-          .eq('staff_id', staffId!)
+      final enrollments = await _supabase
+          .from('class_enrollments')
+          .select('student_id')
+          .inFilter('class_id', classIds)
           .eq('is_active', true);
 
-      for (var item in subjectClasses) {
-        if (item['class_id'] != null) {
-          classIds.add(item['class_id']);
-        }
+      final studentIds = enrollments.map((e) => e['student_id']).toList();
+
+      if (studentIds.isEmpty) {
+        teacherStudents.value = [];
+        return;
       }
 
-      // 2-QADAM: O'quvchilarni yuklash
-      List<Map<String, dynamic>> loadedStudents = [];
-
-      // Agar sinflar bo'lsa, o'sha sinfdagi o'quvchilarni olamiz
-      if (classIds.isNotEmpty) {
-        final classStudents = await _supabase
-            .from('students')
-            .select('*, classes:class_id(name)') // 'payments' ni bu yerdan olib tashladim, alohida yuklaymiz
-            .inFilter('class_id', classIds.toList())
-            .eq('status', 'active');
-        
-        loadedStudents.addAll(List<Map<String, dynamic>>.from(classStudents));
-      }
-
-      // Qo'shimcha: To'g'ridan-to'g'ri biriktirilgan o'quvchilar (Sinfda bo'lmasa ham)
-      final directStudents = await _supabase
+      final students = await _supabase
           .from('students')
-          .select('*, classes:class_id(name)')
-          .eq('main_teacher_id', staffId!)
+          .select('*')
+          .inFilter('id', studentIds)
           .eq('status', 'active');
 
-      // Takrorlanishni oldini olish
-      for (var ds in directStudents) {
-        if (!loadedStudents.any((s) => s['id'] == ds['id'])) {
-          loadedStudents.add(ds);
-        }
-      }
-
-      // 3-QADAM: To'lovlarni hisoblash (Xatolik bermasligi uchun try-catch ichida)
-      double totalRev = 0;
-      int paidCount = 0;
-      int debtCount = 0;
-
-      for (var student in loadedStudents) {
-        try {
-          final monthlyFee = (student['monthly_fee'] ?? 0).toDouble();
-          
-          // To'lovlarni alohida so'rov bilan olamiz. 
-          // DIQQAT: 'status' ustunini ishlatmaymiz, chunki u yo'q ekan.
-          final payments = await _supabase
-              .from('payments')
-              .select('amount')
-              .eq('student_id', student['id']);
-
-          double paidSum = 0;
-          for (var p in payments) {
-            paidSum += (p['amount'] ?? 0).toDouble();
-          }
-
-          // UI uchun ma'lumot qo'shamiz
-          student['total_paid'] = paidSum;
-          
-          totalRev += paidSum;
-          if (paidSum >= monthlyFee) {
-            paidCount++;
-          } else {
-            debtCount++;
-          }
-        } catch (e) {
-          print("To'lovni hisoblashda xato (Student ID: ${student['id']}): $e");
-          student['total_paid'] = 0.0;
-          debtCount++;
-        }
-      }
-
-      // Natijalarni Controllerga yuklash
-      teacherStudents.value = loadedStudents;
-      totalStudents.value = loadedStudents.length;
-      paidStudents.value = paidCount;
-      debtorStudents.value = debtCount;
-      totalRevenue.value = totalRev;
-      
-      // Foizni hisoblash
-      double totalExpected = loadedStudents.fold(0, (sum, s) => sum + (s['monthly_fee'] ?? 0));
-      if (totalExpected > 0) {
-        collectionPercentage.value = (totalRev / totalExpected) * 100;
-      } else {
-        collectionPercentage.value = 0;
-      }
-
+      teacherStudents.value = List<Map<String, dynamic>>.from(students);
+      totalStudents.value = students.length;
+      await _calculateStudentsPaymentStats();
     } catch (e) {
       print('Load students error: $e');
-      Get.snackbar('Xatolik', 'O\'quvchilar ro\'yxatini yuklashda muammo: $e');
     } finally {
       isLoadingStudents.value = false;
     }
   }
 
-  // To'lov statistikasini yuklangan ma'lumotlardan hisoblash (Tezroq ishlaydi)
+  Future<void> _calculateStudentsPaymentStats() async {
+    try {
+      double totalExpected = 0;
+      double totalPaidAmount = 0;
+      int paid = 0;
+      int debtors = 0;
 
+      for (var student in teacherStudents) {
+        final monthlyFee = (student['monthly_fee'] ?? 0).toDouble();
+        totalExpected += monthlyFee;
+
+        final payments = await _supabase
+            .from('payments')
+            .select('amount')
+            .eq('student_id', student['id'])
+            .eq('status', 'completed');
+
+        final totalPaidByStudent = payments.fold(
+          0.0,
+          (sum, p) => sum + (p['amount'] ?? 0),
+        );
+        totalPaidAmount += totalPaidByStudent;
+
+        if (totalPaidByStudent >= monthlyFee) {
+          paid++;
+        } else {
+          debtors++;
+        }
+      }
+
+      paidStudents.value = paid;
+      debtorStudents.value = debtors;
+      totalRevenue.value = totalPaidAmount;
+      if (totalExpected > 0) {
+        collectionPercentage.value = (totalPaidAmount / totalExpected) * 100;
+      }
+    } catch (e) {
+      print('Calculate payment stats error: $e');
+    }
+  }
 
   Future<void> loadDocuments() async {
     try {
@@ -574,26 +505,11 @@ class StaffDashboardController extends GetxController {
     }
   }
 
-    Future<void> exportSalaryHistory() async {
+  Future<void> exportSalaryHistory() async {
     try {
-      // CSV sarlavhalari
-      String csv = 'Davr,To\'langan Sana,Summa (Net),Gross,Izoh\n';
-      
+      String csv = 'Oy,Yil,Summa\n';
       for (var salary in salaryHistory) {
-        // Davrni yozish (Masalan: 3-2024)
-        String period = '${salary['period_month']}-${salary['period_year']}';
-        
-        // To'langan sanani formatlash
-        String paidDate = salary['paid_at'] != null 
-            ? salary['paid_at'].toString().substring(0, 10) 
-            : '-';
-            
-        // Summalar
-        final net = salary['net_amount'] ?? 0;
-        final gross = salary['gross_amount'] ?? 0;
-        final note = (salary['notes'] ?? '').toString().replaceAll(',', ' '); // CSV buzilmasligi uchun vergulni olib tashlaymiz
-
-        csv += '$period,$paidDate,$net,$gross,$note\n';
+        csv += '${salary['month']},${salary['year']},${salary['amount']}\n';
       }
 
       final bytes = utf8.encode(csv);
@@ -650,31 +566,18 @@ class StaffDashboardController extends GetxController {
       }
     }
   }
-// lib/presentation/controllers/staff_detail_controller.dart
 
-// ... (boshqa kodlar)
-
-// editStaff funksiyasini shunday qoldiring:
-  void editStaff() {
-    Get.toNamed(
-      '/add-staff', // <--- DIQQAT: '/edit-staff' EMAS, '/add-staff' bo'lishi shart
-      arguments: {
-        'staffId': staffId,
-        'isEdit': true
-      }
-    );
-  }
-// ... (boshqa kodlar)
-
+  void editStaff() =>
+      Get.toNamed('/edit-staff', arguments: {'staffId': staffId});
   void downloadProfile() =>
       Get.snackbar('Yuklanmoqda', 'Profil tayyorlanmoqda...');
   void printProfile() {} // Desktop uchun print dialog ochish
 
-     Future<void> deleteStaff() async {
+  Future<void> deleteStaff() async {
     final confirm = await Get.dialog<bool>(
       AlertDialog(
-        title: Text('Butunlay o\'chirish'),
-        content: Text('Diqqat! Bu xodim bazadan butunlay o\'chiriladi.\nBu amalni ortga qaytarib bo\'lmaydi. Tasdiqlaysizmi?'),
+        title: Text('O\'chirish'),
+        content: Text('Xodimni o\'chirishni tasdiqlaysizmi?'),
         actions: [
           TextButton(
             onPressed: () => Get.back(result: false),
@@ -683,7 +586,7 @@ class StaffDashboardController extends GetxController {
           ElevatedButton(
             onPressed: () => Get.back(result: true),
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            child: Text('Ha, o\'chirish'),
+            child: Text('O\'chirish'),
           ),
         ],
       ),
@@ -691,37 +594,26 @@ class StaffDashboardController extends GetxController {
 
     if (confirm == true) {
       try {
-        // --- ASOSIY O'ZGARISH SHU YERDA ---
-        
-        // Oldingi kod (XATO BERGAN):
-        // await _supabase.from('staff').update({'status': 'inactive'}).eq('id', staffId!);
-
-        // YANGI KOD (BUTUNLAY O'CHIRISH):
         await _supabase
             .from('staff')
-            .delete()   // <--- update() emas, delete() ishlatamiz
+            .update({'status': 'inactive'})
             .eq('id', staffId!);
-
-        // Agar muvaffaqiyatli o'chsa:
-        Get.back(); // Profil sahifasini yopish va ro'yxatga qaytish
-        
+        Get.back();
         Get.snackbar(
           'Muvaffaqiyatli',
-          'Xodim bazadan butunlay o\'chirib tashlandi',
+          'Xodim o\'chirildi',
           backgroundColor: Colors.green.shade100,
         );
       } catch (e) {
-        // Agar xodim boshqa jadvallarga bog'langan bo'lsa (Constraint Error)
-        print('Delete error: $e');
         Get.snackbar(
           'Xatolik',
-          'O\'chirish imkonsiz: Bu xodimga bog\'liq ma\'lumotlar mavjud (Darslar, to\'lovlar va h.k)',
+          'Xodim o\'chirilmadi: $e',
           backgroundColor: Colors.red.shade100,
-          duration: Duration(seconds: 4),
         );
       }
     }
   }
+
   Future<void> deleteDocument(String docId) async {
     final confirm = await Get.dialog<bool>(
       AlertDialog(

@@ -154,7 +154,7 @@ class AppRoutes {
     ),
     GetPage(
       name: salary,
-      page: () => CompleteSalaryScreen(),
+      page: () => CompleteSalaryDesktopScreen(),
       transition: Transition.rightToLeft,
     ),
 
