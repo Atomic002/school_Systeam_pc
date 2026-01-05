@@ -7,7 +7,7 @@ import '../models/user_model.dart';
 
 class AuthRepository {
   final SupabaseClient _supabase = Supabase.instance.client;
-  
+
   // SharedPreferences kalit
   static const String _userIdKey = 'saved_user_id';
 
@@ -43,23 +43,26 @@ class AuthRepository {
       print('📍 Branch ID: ${response['branch_id']}');
 
       // 2. Parolni tekshirish (YAXSHILANGAN!)
-      final storedPassword = response['password_hash'] ?? response['temp_password'];
-      
+      final storedPassword = response['password'] ?? response['temp_password'];
+
       print('🔐 Kiritilgan parol: $password');
       print('🔐 DB dagi parol: $storedPassword');
-      
+
       if (storedPassword == null) {
         print('❌ DB da parol topilmadi');
         return null;
       }
 
       // Parolni trim qilib taqqoslash (bo'sh joylarni olib tashlash)
-      final isPasswordValid = password.trim() == storedPassword.toString().trim();
-      
+      final isPasswordValid =
+          password.trim() == storedPassword.toString().trim();
+
       if (!isPasswordValid) {
         print('❌ Parol noto\'g\'ri');
         print('   Kiritilgan: "$password" (length: ${password.length})');
-        print('   Kutilgan: "$storedPassword" (length: ${storedPassword.toString().length})');
+        print(
+          '   Kutilgan: "$storedPassword" (length: ${storedPassword.toString().length})',
+        );
         return null;
       }
 
@@ -68,7 +71,7 @@ class AuthRepository {
       // 3. User aktiv emasligini tekshirish
       final userStatus = response['status'] ?? 'active';
       final isActive = response['is_active'] ?? (userStatus == 'active');
-      
+
       if (!isActive && userStatus != 'active') {
         print('❌ User aktiv emas (status: $userStatus)');
         return null;
@@ -78,13 +81,13 @@ class AuthRepository {
 
       // 4. UserModel yaratish (branch_name bilan)
       final Map<String, dynamic> userData = Map<String, dynamic>.from(response);
-      
+
       // Filial nomini qo'shish
       if (userData['branches'] != null) {
         userData['branch_name'] = userData['branches']['name'];
         print('🏢 Branch name: ${userData['branch_name']}');
       }
-      
+
       final user = UserModel.fromJson(userData);
 
       // 5. Agar "Meni eslab qol" belgilangan bo'lsa - ID ni saqlash
@@ -102,7 +105,6 @@ class AuthRepository {
       print('✅ Login muvaffaqiyatli: ${user.fullName}');
       print('🎭 Rol: ${user.role}');
       return user;
-
     } catch (e, stackTrace) {
       print('❌ Login xatolik: $e');
       print('📍 Stack trace: $stackTrace');
@@ -189,7 +191,6 @@ class AuthRepository {
       final user = UserModel.fromJson(userData);
       print('✅ User topildi: ${user.fullName} (${user.role})');
       return user;
-
     } catch (e) {
       print('❌ User olishda xatolik: $e');
       return null;
@@ -199,9 +200,10 @@ class AuthRepository {
   // ========== LAST LOGIN VAQTINI YANGILASH ==========
   Future<void> _updateLastLogin(String userId) async {
     try {
-      await _supabase.from('users').update({
-        'last_login_at': DateTime.now().toIso8601String(),
-      }).eq('id', userId);
+      await _supabase
+          .from('users')
+          .update({'last_login_at': DateTime.now().toIso8601String()})
+          .eq('id', userId);
       print('⏰ Last login yangilandi');
     } catch (e) {
       print('❌ Last login yangilashda xatolik: $e');
@@ -223,22 +225,25 @@ class AuthRepository {
       // Eski parolni tekshirish
       final response = await _supabase
           .from('users')
-          .select('password_hash')
+          .select('password')
           .eq('id', savedUserId)
           .single();
 
-      final storedPassword = response['password_hash'];
-      
+      final storedPassword = response['password'];
+
       if (storedPassword != oldPassword) {
         print('❌ Eski parol noto\'g\'ri');
         return false;
       }
 
       // Yangi parolni yangilash
-      await _supabase.from('users').update({
-        'password_hash': newPassword,
-        'updated_at': DateTime.now().toIso8601String(),
-      }).eq('id', savedUserId);
+      await _supabase
+          .from('users')
+          .update({
+            'password': newPassword,
+            'updated_at': DateTime.now().toIso8601String(),
+          })
+          .eq('id', savedUserId);
 
       print('✅ Parol yangilandi');
       return true;
@@ -251,18 +256,20 @@ class AuthRepository {
   // ========== PROFILNI YANGILASH ==========
   Future<bool> updateUserProfile(UserModel user) async {
     try {
-
-      await _supabase.from('users').update({
-        'first_name': user.firstName,
-        'last_name': user.lastName,
-        'middle_name': user.middleName,
-        'phone': user.phone,
-        'phone_secondary': user.phoneSecondary,
-        'region': user.region,
-        'district': user.district,
-        'address': user.address,
-        'updated_at': DateTime.now().toIso8601String(),
-      }).eq('id', user.id!);
+      await _supabase
+          .from('users')
+          .update({
+            'first_name': user.firstName,
+            'last_name': user.lastName,
+            'middle_name': user.middleName,
+            'phone': user.phone,
+            'phone_secondary': user.phoneSecondary,
+            'region': user.region,
+            'district': user.district,
+            'address': user.address,
+            'updated_at': DateTime.now().toIso8601String(),
+          })
+          .eq('id', user.id!);
 
       print('✅ Profil yangilandi');
       return true;
@@ -287,7 +294,7 @@ class AuthRepository {
       } else {
         print('✅ User ma\'lumotlari:');
         print('   Username: ${response['username']}');
-        print('   Password Hash: ${response['password_hash']}');
+        print('   Password Hash: ${response['password']}');
         print('   Temp Password: ${response['temp_password']}');
         print('   Role: ${response['role']}');
         print('   Status: ${response['status']}');

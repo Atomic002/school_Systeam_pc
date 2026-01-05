@@ -1,10 +1,10 @@
+// lib/presentation/controllers/payment_controller_v5.dart
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../data/models/student_model.dart';
-import '../../data/repositories/payment_repositry.dart';
 import '../widgets/payment_history_dialog.dart';
 import '../widgets/payment_receipt_dialog.dart';
 import 'auth_controller.dart';
@@ -185,10 +185,19 @@ class PaymentHistoryModel {
 }
 
 // ============================================================================
-// CONTROLLER
+// PAYMENT SPLIT MODEL
 // ============================================================================
-class NewPaymentControllerV4 extends GetxController {
-  final PaymentRepository _paymentRepo = PaymentRepository();
+class PaymentSplit {
+  String method;
+  double amount;
+
+  PaymentSplit({required this.method, this.amount = 0});
+}
+
+// ============================================================================
+// CONTROLLER (MUKAMMAL VERSIYA)
+// ============================================================================
+class NewPaymentControllerV5 extends GetxController {
   final _supabase = Supabase.instance.client;
   final formKey = GlobalKey<FormState>();
 
@@ -212,6 +221,7 @@ class NewPaymentControllerV4 extends GetxController {
   var studentDebts = <StudentDebtModel>[].obs;
   var selectedDebts = <String>[].obs;
   var isLoadingDebts = false.obs;
+  var totalAllDebts = 0.0.obs; // O'quvchining jami barcha qarzlari
 
   // Payment history
   var paymentHistory = <PaymentHistoryModel>[].obs;
@@ -222,6 +232,7 @@ class NewPaymentControllerV4 extends GetxController {
   var availableBranches = <Map<String, dynamic>>[].obs;
   var selectedBranchId = Rxn<String>();
   var canChangeBranch = false.obs;
+  var showBranchSelector = false.obs;
 
   // Statistics
   var currentMonthPaymentsCount = 0.obs;
@@ -231,8 +242,7 @@ class NewPaymentControllerV4 extends GetxController {
 
   // Payment data
   var paymentType = 'tuition'.obs;
-  var paymentMethod = 'cash'.obs;
-  var paymentDate = DateTime.now().obs; // --- O'ZGARTIRILDI: To'lov sanasi
+  var paymentDate = DateTime.now().obs;
 
   // Month selection
   var selectedMonth = DateTime.now().month.obs;
@@ -242,20 +252,22 @@ class NewPaymentControllerV4 extends GetxController {
   var hasDiscount = false.obs;
   var discountType = 'amount'.obs;
 
-  // Debt
+  // Debt & Calculation
   var isPartialPayment = false.obs;
+  var useMultiPayment = false.obs;
+  var paymentSplits = <PaymentSplit>[].obs;
 
-  // Calculated values
-  var finalAmount = 0.0.obs;
-  var debtAmount = 0.0.obs;
+  var finalAmount =
+      0.0.obs; // To'lanishi kerak bo'lgan summa (Asosiy - Chegirma)
+  var totalPaidAmount = 0.0.obs; // Kassaga kirayotgan real summa
+  var debtAmount = 0.0.obs; // Qarz summasi
+  var isOverPayment = false.obs; // Oshiqcha to'lov bormi?
   var totalSelectedDebts = 0.0.obs;
 
   // Staff
   var currentStaffName = ''.obs;
   var currentStaffId = ''.obs;
   var currentStaffRole = ''.obs;
-
-  late AuthController _authController;
 
   @override
   void onInit() {
@@ -264,65 +276,57 @@ class NewPaymentControllerV4 extends GetxController {
   }
 
   // ============================================================================
-  // INITIALIZATION (O'ZGARTIRILDI: User va Branch tekshiruvi)
-  // ============================================================================
-   // ============================================================================
-  // INITIALIZATION (TUZATILGAN: AuthController orqali tekshirish)
+  // INITIALIZATION
   // ============================================================================
   Future<void> _initializeController() async {
-    // 1. UI chizilishini kutish (setState xatosini oldini olish uchun)
     await Future.delayed(Duration.zero);
 
     try {
       isLoading.value = true;
 
-      // --- O'ZGARTIRILDI: Supabase o'rniga AuthController dan so'raymiz ---
-      
-      // AuthController ni topamiz (bu vaqtda u xotirada bo'lishi aniq)
+      // AuthController dan ma'lumot olish
       if (!Get.isRegistered<AuthController>()) {
-         // Agar tasodifan yo'q bo'lsa, xato bermaslik uchun Login ga otamiz
-         Get.offAllNamed('/login'); 
-         throw Exception('Avtorizatsiya topilmadi');
+        Get.offAllNamed('/login');
+        throw Exception('Avtorizatsiya topilmadi');
       }
 
       final authController = Get.find<AuthController>();
 
-      // Agar user tizimdan chiqqan bo'lsa
       if (!authController.isAuthenticated || authController.userId == null) {
-        Get.offAllNamed('/login'); // Login sahifasiga yo'naltirish
+        Get.offAllNamed('/login');
         throw Exception('Iltimos, tizimga kiring');
       }
 
       final String userId = authController.userId!;
-      // -------------------------------------------------------------------
 
-      // 2. User ma'lumotlarini olish (Supabase dan yangilash)
+      // User ma'lumotlarini olish
       final userData = await _supabase
           .from('users')
           .select('id, first_name, last_name, username, role, branch_id')
-          .eq('id', userId) // <-- Endi ID AuthController dan olinadi
+          .eq('id', userId)
           .single();
 
-      // 3. Controllerga saqlash
       currentStaffId.value = userId;
       currentStaffName.value =
           '${userData['first_name']} ${userData['last_name']}';
       currentStaffRole.value = _getRoleNameInUzbek(userData['role']);
 
-      // 4. Filialni biriktirish
+      // Branch tekshirish
       if (userData['branch_id'] != null) {
         selectedBranchId.value = userData['branch_id'];
         userBranchId.value = userData['branch_id'];
-        // Faqat owner o'zgartira oladi
-        canChangeBranch.value = (userData['role'] == 'owner');
+        canChangeBranch.value = false;
+        showBranchSelector.value = false;
+
+        await loadInitialStudents();
+        await loadCurrentMonthStatistics();
       } else {
-        throw Exception('Sizga filial biriktirilmagan');
+        // Branch yo'q - tanlash kerak
+        showBranchSelector.value = true;
+        await loadAvailableBranches();
       }
 
-      await loadInitialStudents();
-      await loadCurrentMonthStatistics();
-
-      print('✅ Controller initialized successfully via AuthController');
+      print('✅ Controller initialized successfully');
     } catch (e) {
       print('❌ Initialization error: $e');
       Get.snackbar(
@@ -335,6 +339,28 @@ class NewPaymentControllerV4 extends GetxController {
       isLoading.value = false;
     }
   }
+
+  Future<void> loadAvailableBranches() async {
+    try {
+      final branches = await _supabase
+          .from('branches')
+          .select('id, name, address')
+          .eq('is_active', true)
+          .order('name');
+
+      availableBranches.value = List<Map<String, dynamic>>.from(branches);
+    } catch (e) {
+      print('❌ Load branches error: $e');
+    }
+  }
+
+  Future<void> selectBranch(String branchId) async {
+    selectedBranchId.value = branchId;
+    showBranchSelector.value = false;
+    await loadInitialStudents();
+    await loadCurrentMonthStatistics();
+  }
+
   String _getRoleNameInUzbek(String role) {
     switch (role) {
       case 'owner':
@@ -342,7 +368,7 @@ class NewPaymentControllerV4 extends GetxController {
       case 'manager':
         return 'Menejer';
       case 'teacher':
-        return 'O\'qituvchi';
+        return 'Oqituvchi';
       case 'accountant':
         return 'Buxgalter';
       case 'receptionist':
@@ -353,8 +379,35 @@ class NewPaymentControllerV4 extends GetxController {
   }
 
   // ============================================================================
-  // LOAD STUDENTS (O'ZGARTIRILDI: Sinf bo'yicha filter)
+  // LOAD STUDENTS & STATUSES
   // ============================================================================
+  // Bu funksiya o'quvchilarning shu oy uchun statusini qaytaradi
+  Future<Map<String, String>> _getStudentPaymentStatuses() async {
+    if (selectedBranchId.value == null) return {};
+
+    final paymentsData = await _supabase
+        .from('payments')
+        .select('student_id, payment_status')
+        .eq('branch_id', selectedBranchId.value!)
+        .eq('period_month', selectedMonth.value)
+        .eq('period_year', selectedYear.value)
+        .neq('payment_status', 'cancelled'); // Faqat aktiv to'lovlar
+
+    Map<String, String> statusMap = {};
+    for (var p in paymentsData) {
+      // Agar o'quvchi bir necha marta to'lagan bo'lsa (qisman bo'lsa ham), statusni olamiz
+      // Lekin 'partial' dan 'paid' ga o'tgan bo'lsa, 'paid' ni saqlab qolish kerak
+      String current = statusMap[p['student_id']] ?? '';
+      String newStatus = p['payment_status'] ?? 'paid';
+
+      if (current != 'paid') {
+        // Agar hali paid bo'lmasa, yangisini olamiz
+        statusMap[p['student_id']] = newStatus;
+      }
+    }
+    return statusMap;
+  }
+
   Future<void> loadInitialStudents() async {
     if (selectedBranchId.value == null) return;
 
@@ -366,17 +419,7 @@ class NewPaymentControllerV4 extends GetxController {
           .select('''
             *,
             enrollments!inner(
-              id,
-              class_id,
-              classes!inner(
-                id,
-                name,
-                class_level_id,
-                main_teacher_id,
-                default_room_id,
-                class_levels(id, name),
-                rooms:rooms!classes_default_room_id_fkey(id, name)
-              )
+              id, class_id, classes!inner(id, name, class_level_id, main_teacher_id, default_room_id, class_levels(id, name), rooms:rooms!classes_default_room_id_fkey(id, name))
             )
           ''')
           .eq('branch_id', selectedBranchId.value!)
@@ -384,7 +427,6 @@ class NewPaymentControllerV4 extends GetxController {
           .order('first_name')
           .limit(500);
 
-      // Teacherlarni yuklash
       final teacherIds = <String>{};
       for (var json in studentsData) {
         if (json['enrollments'] != null &&
@@ -408,12 +450,15 @@ class NewPaymentControllerV4 extends GetxController {
         }
       }
 
-      // To'langanlikni tekshirish
-      final paidStudentIds = await _getPaidStudentIds();
+      // To'lov statuslarini olamiz
+      final statusMap = await _getStudentPaymentStatuses();
 
       final students = <StudentModel>[];
       for (var json in studentsData) {
-        _parseStudentData(json, teachersMap, paidStudentIds, students);
+        // Statusni mapdan olamiz, bo'lmasa 'unpaid'
+        json['payment_status'] = statusMap[json['id']] ?? 'unpaid';
+
+        _parseStudentData(json, teachersMap, students);
       }
 
       searchResults.value = students;
@@ -425,22 +470,9 @@ class NewPaymentControllerV4 extends GetxController {
     }
   }
 
-  Future<Set<String>> _getPaidStudentIds() async {
-    final paymentsData = await _supabase
-        .from('payments')
-        .select('student_id')
-        .eq('branch_id', selectedBranchId.value!)
-        .eq('period_month', selectedMonth.value)
-        .eq('period_year', selectedYear.value)
-        .eq('payment_status', 'paid');
-
-    return (paymentsData as List).map((p) => p['student_id'] as String).toSet();
-  }
-
   void _parseStudentData(
     Map<String, dynamic> json,
     Map<String, dynamic> teachersMap,
-    Set<String> paidIds,
     List<StudentModel> students,
   ) {
     try {
@@ -470,7 +502,6 @@ class NewPaymentControllerV4 extends GetxController {
         }
       }
       final student = StudentModel.fromJson(json);
-      json['has_paid_current_month'] = paidIds.contains(student.id);
       students.add(student);
     } catch (e) {
       print('⚠️ Parse error: $e');
@@ -478,7 +509,7 @@ class NewPaymentControllerV4 extends GetxController {
   }
 
   // ============================================================================
-  // SEARCH STUDENTS (O'ZGARTIRILDI: Sinf nomi bilan)
+  // SEARCH
   // ============================================================================
   Future<void> searchStudents() async {
     if (selectedBranchId.value == null) {
@@ -494,7 +525,6 @@ class NewPaymentControllerV4 extends GetxController {
 
     try {
       isSearching.value = true;
-      // Lokal filter qilish (Supabase or check qiyin)
       final allStudents = searchResults.toList();
       final filtered = allStudents.where((s) {
         final name = s.fullName.toLowerCase();
@@ -506,7 +536,6 @@ class NewPaymentControllerV4 extends GetxController {
             className.contains(searchText);
       }).toList();
 
-      // Agar localda kam bo'lsa, bazadan ham qidirish mumkin (lekin hozircha local yetadi)
       searchResults.value = filtered;
 
       if (filtered.isEmpty) {
@@ -529,7 +558,7 @@ class NewPaymentControllerV4 extends GetxController {
   }
 
   // ============================================================================
-  // LOAD DEBTS (O'ZGARTIRILDI: 0 so'mlik qarz yozilmaydi)
+  // LOAD DEBTS & HISTORY
   // ============================================================================
   Future<void> loadStudentDebts(String studentId) async {
     if (selectedBranchId.value == null) return;
@@ -537,23 +566,30 @@ class NewPaymentControllerV4 extends GetxController {
     try {
       isLoadingDebts.value = true;
 
+      // 1. Student ma'lumotlarini olish (enrollment date uchun)
       final studentData = await _supabase
           .from('students')
-          .select('enrollment_date, class_id')
+          .select('enrollment_date, class_id, monthly_fee')
           .eq('id', studentId)
-          .single();
+          .maybeSingle();
+
+      if (studentData == null) return;
 
       final enrollmentDate = studentData['enrollment_date'] != null
           ? DateTime.parse(studentData['enrollment_date'])
           : DateTime.now();
 
-      // Qarz generatsiyasi
-      await _createMissingDebts(
-        studentId,
-        enrollmentDate,
-        studentData['class_id'],
-      );
+      // 2. Yetishmayotgan oylar uchun qarz yaratish
+      if ((studentData['monthly_fee'] as num?) != null &&
+          (studentData['monthly_fee'] as num) > 0) {
+        await _createMissingDebts(
+          studentId,
+          enrollmentDate,
+          studentData['class_id'],
+        );
+      }
 
+      // 3. Qarzlarni yuklash
       final debtsData = await _supabase
           .from('student_debts')
           .select('''
@@ -563,16 +599,21 @@ class NewPaymentControllerV4 extends GetxController {
           ''')
           .eq('student_id', studentId)
           .eq('is_settled', false)
-          .gt('remaining_amount', 0) // <--- MUHIM: 0 lik qarzlar ko'rsatilmaydi
+          .gt('remaining_amount', 0)
           .order('period_year', ascending: false)
           .order('period_month', ascending: false);
 
       final debts = <StudentDebtModel>[];
+      double allDebtsSum = 0;
+
       for (var json in debtsData) {
-        debts.add(StudentDebtModel.fromJson(json));
+        final debt = StudentDebtModel.fromJson(json);
+        debts.add(debt);
+        allDebtsSum += debt.remainingAmount;
       }
 
       studentDebts.value = debts;
+      totalAllDebts.value = allDebtsSum;
     } catch (e) {
       print('❌ Load debts error: $e');
     } finally {
@@ -580,22 +621,23 @@ class NewPaymentControllerV4 extends GetxController {
     }
   }
 
-  // O'ZGARTIRILDI: Agar monthly_fee <= 0 bo'lsa, qarz yozmaydi
-  Future<void> _createMissingDebts(
+   Future<void> _createMissingDebts(
     String studentId,
     DateTime enrollmentDate,
     String? classId,
   ) async {
     try {
-      final student = await _supabase
+      // 1. O'quvchini olish (limit(1) bilan)
+      final studentResponse = await _supabase
           .from('students')
           .select('monthly_fee')
           .eq('id', studentId)
-          .single();
+          .limit(1); // Xato bermaydi, ro'yxat qaytaradi
 
+      if (studentResponse.isEmpty) return;
+
+      final student = studentResponse.first;
       final monthlyFee = (student['monthly_fee'] as num?)?.toDouble() ?? 0;
-
-      // MUHIM: 0 BO'LSA QAYTADI
       if (monthlyFee <= 0) return;
 
       final now = DateTime.now();
@@ -603,27 +645,29 @@ class NewPaymentControllerV4 extends GetxController {
 
       while (checkDate.isBefore(now) ||
           (checkDate.month == now.month && checkDate.year == now.year)) {
-        // To'lov bormi?
-        final existingPayment = await _supabase
+        
+        // 2. To'lovlarni tekshirish (limit(1) bilan)
+        final existingPayments = await _supabase
             .from('payments')
             .select('id')
             .eq('student_id', studentId)
             .eq('period_month', checkDate.month)
             .eq('period_year', checkDate.year)
-            .eq('payment_status', 'paid') // Faqat to'liq to'langanlar
-            .maybeSingle();
+            .eq('payment_status', 'paid')
+            .limit(1); // 2 ta to'lov bo'lsa ham xato bermaydi
 
-        if (existingPayment == null) {
-          // Qarz bormi?
-          final existingDebt = await _supabase
+        if (existingPayments.isEmpty) {
+          // 3. Qarzlarni tekshirish (limit(1) bilan)
+          final existingDebts = await _supabase
               .from('student_debts')
               .select('id')
               .eq('student_id', studentId)
               .eq('period_month', checkDate.month)
               .eq('period_year', checkDate.year)
-              .maybeSingle();
+              .limit(1); // Dublikat qarz bo'lsa ham xato bermaydi
 
-          if (existingDebt == null) {
+          // Agar ro'yxat bo'sh bo'lsa, demak qarz yo'q -> Yaratamiz
+          if (existingDebts.isEmpty) {
             final dueDate = DateTime(checkDate.year, checkDate.month, 10);
             await _supabase.from('student_debts').insert({
               'student_id': studentId,
@@ -634,6 +678,7 @@ class NewPaymentControllerV4 extends GetxController {
               'period_month': checkDate.month,
               'period_year': checkDate.year,
               'due_date': dueDate.toIso8601String(),
+              'is_settled': false,
             });
           }
         }
@@ -643,7 +688,6 @@ class NewPaymentControllerV4 extends GetxController {
       print('⚠️ Create missing debts error: $e');
     }
   }
-
   Future<void> loadPaymentHistory(String studentId) async {
     try {
       isLoadingHistory.value = true;
@@ -678,56 +722,178 @@ class NewPaymentControllerV4 extends GetxController {
     );
   }
 
+  // ============================================================================
+  // STATISTICS
+  // ============================================================================
   Future<void> loadCurrentMonthStatistics() async {
     if (selectedBranchId.value == null) return;
     try {
       final currentMonth = selectedMonth.value;
       final currentYear = selectedYear.value;
 
-      final paymentsResponse = await _supabase
-          .from('payments')
-          .select('id, final_amount, paid_amount, payment_status')
-          .eq('branch_id', selectedBranchId.value!)
-          .eq('period_month', currentMonth)
-          .eq('period_year', currentYear);
-
-      currentMonthPaymentsCount.value = (paymentsResponse as List).length;
-
-      double totalRevenue = 0;
-      for (var payment in paymentsResponse) {
-        if (payment['payment_status'] == 'paid') {
-          totalRevenue += (payment['final_amount'] as num).toDouble();
-        } else if (payment['payment_status'] == 'partial') {
-          totalRevenue += (payment['paid_amount'] as num?)?.toDouble() ?? 0;
-        }
-      }
-      currentMonthRevenue.value = totalRevenue;
-
-      final debtsResponse = await _supabase
-          .from('student_debts')
-          .select('id')
-          .eq('branch_id', selectedBranchId.value!)
-          .eq('is_settled', false)
-          .eq('period_month', currentMonth)
-          .eq('period_year', currentYear);
-
-      currentMonthDebtorsCount.value = (debtsResponse as List).length;
-
-      final totalStudents = await _supabase
+      final totalStudentsResponse = await _supabase
           .from('students')
           .select('id')
           .eq('branch_id', selectedBranchId.value!)
           .eq('status', 'active');
+      int totalActiveStudents = (totalStudentsResponse as List).length;
+
+      // Bekor qilinmagan to'lovlarni olamiz
+      final paidStudentsResponse = await _supabase
+          .from('payments')
+          .select('student_id, final_amount, paid_amount, payment_status')
+          .eq('branch_id', selectedBranchId.value!)
+          .eq('period_month', currentMonth)
+          .eq('period_year', currentYear)
+          .neq('payment_status', 'cancelled');
+
+      final uniquePaidStudentIds = <String>{};
+      double totalRevenue = 0;
+
+      for (var payment in paidStudentsResponse) {
+        uniquePaidStudentIds.add(payment['student_id'] as String);
+
+        if (payment['payment_status'] == 'partial') {
+          totalRevenue += (payment['paid_amount'] as num?)?.toDouble() ?? 0;
+        } else {
+          totalRevenue += (payment['final_amount'] as num?)?.toDouble() ?? 0;
+        }
+      }
+
+      currentMonthPaymentsCount.value = uniquePaidStudentIds.length;
+      currentMonthRevenue.value = totalRevenue;
 
       unpaidStudentsCount.value =
-          (totalStudents as List).length - currentMonthPaymentsCount.value;
+          totalActiveStudents - uniquePaidStudentIds.length;
+      if (unpaidStudentsCount.value < 0) unpaidStudentsCount.value = 0;
+
+      final debtsResponse = await _supabase
+          .from('student_debts')
+          .select('student_id')
+          .eq('branch_id', selectedBranchId.value!)
+          .eq('is_settled', false)
+          .gt('remaining_amount', 0);
+
+      final uniqueDebtors = (debtsResponse as List)
+          .map((e) => e['student_id'])
+          .toSet();
+      currentMonthDebtorsCount.value = uniqueDebtors.length;
     } catch (e) {
       print('❌ Statistics error: $e');
     }
   }
 
   // ============================================================================
-  // SELECTION & CALCULATION
+  // MULTI-PAYMENT & CALCULATION LOGIC
+  // ============================================================================
+  void toggleMultiPayment(bool value) {
+    useMultiPayment.value = value;
+    if (value) {
+      // Masalan, hammasini Naqdga yozib qo'yamiz, Click 0 bo'lib turadi
+      paymentSplits.value = [
+        PaymentSplit(method: 'cash', amount: finalAmount.value), // To'liq summa
+        PaymentSplit(method: 'click', amount: 0),
+      ];
+    } else {
+      paymentSplits.clear();
+    }
+    calculateFinalAmount();
+  }
+
+  void addPaymentSplit() {
+    paymentSplits.add(PaymentSplit(method: 'cash', amount: 0));
+    calculateFinalAmount();
+  }
+
+  void removePaymentSplit(int index) {
+    if (paymentSplits.length > 1) {
+      paymentSplits.removeAt(index);
+      calculateFinalAmount();
+    }
+  }
+
+  // Bu funksiya aynan shunday bo'lishi shart:
+  void updateSplitAmount(int index, String val) {
+    // Probelni olib tashlab parse qilamiz
+    double amount = double.tryParse(val.replaceAll(' ', '')) ?? 0;
+
+    // Splitni yangilaymiz
+    paymentSplits[index].amount = amount;
+
+    // UI yangilanishi uchun majburiy signal beramiz
+    paymentSplits.refresh();
+
+    // Umumiy summani qayta hisoblaymiz (Juda muhim!)
+    calculateFinalAmount();
+  }
+
+  // ============================================================================
+  // MAIN CALCULATION FUNCTION (MANTIQ MARKAZI)
+  // ============================================================================
+    void calculateFinalAmount() {
+    // 1. Asosiy narxni olish (probellarni tozalab)
+    double baseAmount =
+        double.tryParse(amountController.text.replaceAll(' ', '')) ?? 0;
+
+    // 2. Chegirmani hisoblash
+    double discount = 0;
+    if (hasDiscount.value) {
+      double val = double.tryParse(discountController.text.replaceAll(' ', '')) ?? 0;
+      if (discountType.value == 'percent') {
+        discount = baseAmount * (val / 100);
+      } else {
+        discount = val;
+      }
+    }
+    
+    // Chegirma summadan oshib ketmasligi kerak
+    if (discount > baseAmount) discount = baseAmount;
+    
+    // Yakuniy talab qilinadigan summa (Chegirmadan keyingi narx)
+    finalAmount.value = baseAmount - discount; 
+
+    // 3. To'lanayotgan summani (Kassaga kirim) hisoblash
+    if (useMultiPayment.value) {
+      // Multi to'lov
+      double splitsTotal = paymentSplits.fold(
+        0.0,
+        (sum, split) => sum + split.amount,
+      );
+      totalPaidAmount.value = splitsTotal;
+      isPartialPayment.value = splitsTotal < finalAmount.value;
+    } else {
+      // Oddiy to'lov
+      if (isPartialPayment.value) {
+        // Agar qisman to'lov yoqilgan bo'lsa, inputdan olamiz
+        double inputPaid = double.tryParse(paidAmountController.text.replaceAll(' ', '')) ?? 0;
+        
+        // Agar kiritilgan summa Yakuniy summadan ko'p bo'lsa, uni tenglashtiramiz (Xatolik oldini olish uchun)
+        if (inputPaid > finalAmount.value) {
+             // Bu yerda qiymatni o'zgartirmaymiz, faqat hisob-kitob uchun
+             // UI da validator xato ko'rsatadi
+        }
+        totalPaidAmount.value = inputPaid;
+      } else {
+        // To'liq to'lov
+        totalPaidAmount.value = finalAmount.value;
+      }
+    }
+
+    // 4. Qarz va Oshiqcha to'lovni hisoblash
+    if (totalPaidAmount.value > finalAmount.value) {
+      isOverPayment.value = true;
+      debtAmount.value = 0; // Qarz manfiy bo'lmasligi kerak
+    } else {
+      isOverPayment.value = false;
+      debtAmount.value = finalAmount.value - totalPaidAmount.value;
+      
+      // Kichik tiyin farqlarini yo'qotish uchun
+      if (debtAmount.value < 0) debtAmount.value = 0;
+    }
+  }
+
+  // ============================================================================
+  // SELECTION
   // ============================================================================
   void toggleDebtSelection(String debtId) {
     if (selectedDebts.contains(debtId)) {
@@ -745,7 +911,12 @@ class NewPaymentControllerV4 extends GetxController {
       total += debt.remainingAmount;
     }
     totalSelectedDebts.value = total;
-    amountController.text = total.toStringAsFixed(0);
+
+    if (selectedDebts.isNotEmpty) {
+      amountController.text = total.toStringAsFixed(0);
+      useMultiPayment.value = false; // Qarz tanlanganda multi o'chiriladi
+      paymentSplits.clear();
+    }
     calculateFinalAmount();
   }
 
@@ -789,73 +960,90 @@ class NewPaymentControllerV4 extends GetxController {
     paidAmountController.clear();
     notesController.clear();
     debtReasonController.clear();
-    if (!keepStudent) {
-      selectedDebts.clear();
-      
-    }
+    if (!keepStudent) selectedDebts.clear();
+
     hasDiscount.value = false;
     discountType.value = 'amount';
     isPartialPayment.value = false;
+    useMultiPayment.value = false;
+    paymentSplits.clear();
+
     finalAmount.value = 0;
     debtAmount.value = 0;
+    totalPaidAmount.value = 0;
+    isOverPayment.value = false;
     paymentDate.value = DateTime.now();
   }
 
-  void calculateFinalAmount() {
-    double amount =
-        double.tryParse(amountController.text.replaceAll(' ', '')) ?? 0;
-    double discount = 0;
+  // ============================================================================
+  // CONFIRMATION & SAVING
+  // ============================================================================
 
-    if (hasDiscount.value) {
-      double val = double.tryParse(discountController.text) ?? 0;
-      if (discountType.value == 'percent') {
-        discount = amount * (val / 100);
-      } else {
-        discount = val;
+  // Kassa borligini tekshirish va yo'q bo'lsa ochish (MUHIM!)
+    Future<void> _ensureCashRegisterExists(String method) async {
+    try {
+      final existing = await _supabase
+          .from('cash_register')
+          .select('id')
+          .eq('branch_id', selectedBranchId.value!)
+          .eq('payment_method', method)
+          .limit(1); // Dublikat kassa bo'lsa ham birinchisini oladi
+
+      if (existing.isEmpty) {
+        // Agar umuman yo'q bo'lsa, yaratadi
+        try {
+          await _supabase.from('cash_register').insert({
+            'branch_id': selectedBranchId.value,
+            'payment_method': method,
+            'current_balance': 0,
+          });
+        } catch (e) {
+          // Agar biz tekshirib yaratgunimizcha kassa paydo bo'lib qolsa,
+          // insert xato beradi, lekin buni yutib yuboramiz (ignore).
+        }
       }
-    }
-    if (discount > amount) discount = amount;
-    finalAmount.value = amount - discount;
-
-    if (isPartialPayment.value) {
-      double paid =
-          double.tryParse(paidAmountController.text.replaceAll(' ', '')) ?? 0;
-      debtAmount.value = (finalAmount.value - paid).clamp(0, double.infinity);
+    } catch (e) {
+      print('Kassa tekshirishda xato: $e');
     }
   }
-
-  // ============================================================================
-  // CONFIRMATION & SAVING (YANGI)
-  // ============================================================================
-  Future<void> confirmPayment() async {
+    Future<void> confirmPayment() async {
     if (!formKey.currentState!.validate()) return;
-    if (selectedStudent.value == null) {
-      Get.snackbar('Xato', 'O\'quvchi tanlanmagan');
+    if (selectedStudent.value == null) return;
+
+    if (isOverPayment.value) {
+      Get.snackbar('Xatolik', 'To\'lov summasi oshib ketdi!',
+          backgroundColor: Colors.red, colorText: Colors.white);
+      return;
+    }
+    if (totalPaidAmount.value <= 0) {
+      Get.snackbar('Diqqat', 'To\'lov summasi 0 bo\'lishi mumkin emas',
+          backgroundColor: Colors.orange, colorText: Colors.white);
       return;
     }
 
-    // 1. Qayta to'lov tekshiruvi (Agar oddiy to'lov bo'lsa)
+    // Qayta to'lov tekshiruvi
     if (selectedDebts.isEmpty) {
-      final exists = await _supabase
+      // TUZATILDI: maybeSingle() o'rniga limit(1) ishlatamiz
+      final existsList = await _supabase
           .from('payments')
           .select('id')
           .eq('student_id', selectedStudentId.value!)
           .eq('period_month', selectedMonth.value)
           .eq('period_year', selectedYear.value)
           .eq('payment_status', 'paid')
-          .maybeSingle();
+          .limit(1); // <--- XATONI OLDINI OLADI
 
-      if (exists != null) {
+      if (existsList.isNotEmpty) {
         Get.defaultDialog(
           title: 'Diqqat!',
           middleText:
-              'Bu oy (${selectedMonth.value}-${selectedYear.value}) uchun allaqachon to\'lov qilingan. Baribir davom etasizmi?',
+              'Bu oy uchun allaqachon to\'liq to\'lov qilingan. Baribir davom etasizmi?',
           textConfirm: 'Ha',
           textCancel: 'Yo\'q',
           confirmTextColor: Colors.white,
           onConfirm: () {
-            Get.back(); // Dialog yopish
-            _showConfirmationDialog(); // Tasdiqlash
+            Get.back();
+            _showConfirmationDialog();
           },
         );
         return;
@@ -871,22 +1059,51 @@ class NewPaymentControllerV4 extends GetxController {
       content: Column(
         children: [
           Text(
-            'Summa: ${formatCurrency(finalAmount.value)} so\'m',
+            'Kassaga kirim: ${formatCurrency(totalPaidAmount.value)} so\'m',
             style: TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.bold,
-              color: Colors.blue,
+              color: Colors.green[800],
             ),
           ),
           SizedBox(height: 10),
-          Text('O\'quvchi: ${selectedStudent.value!.fullName}'),
-          Text('Sana: ${DateFormat('dd.MM.yyyy').format(paymentDate.value)}'),
-          Text('Qabul qiluvchi: ${currentStaffName.value}'),
-          if (selectedDebts.isNotEmpty)
-            Text(
-              'Tanlangan qarzlar: ${selectedDebts.length} ta',
-              style: TextStyle(color: Colors.orange),
+          if (debtAmount.value > 0)
+            Container(
+              padding: EdgeInsets.all(8),
+              color: Colors.red[50],
+              child: Text(
+                'Qarzga qoladi: ${formatCurrency(debtAmount.value)} so\'m',
+                style: TextStyle(color: Colors.red),
+              ),
             ),
+          SizedBox(height: 10),
+          _buildConfirmRow('O\'quvchi:', selectedStudent.value!.fullName),
+          _buildConfirmRow(
+            'Sana:',
+            DateFormat('dd.MM.yyyy').format(paymentDate.value),
+          ),
+
+          if (selectedDebts.isNotEmpty)
+            _buildConfirmRow('Qarzlar:', '${selectedDebts.length} ta oy uchun'),
+
+          if (useMultiPayment.value) ...[
+            SizedBox(height: 10),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                "To'lov turlari:",
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+            ),
+            ...paymentSplits.map(
+              (split) => Padding(
+                padding: EdgeInsets.only(left: 10),
+                child: Text(
+                  '• ${_getMethodName(split.method)}: ${formatCurrency(split.amount)} so\'m',
+                ),
+              ),
+            ),
+          ],
         ],
       ),
       textConfirm: 'TASDIQLASH',
@@ -900,16 +1117,47 @@ class NewPaymentControllerV4 extends GetxController {
     );
   }
 
+  Widget _buildConfirmRow(String label, String value) {
+    return Padding(
+      padding: EdgeInsets.only(bottom: 8),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label, style: TextStyle(color: Colors.grey[600])),
+          Flexible(
+            child: Text(
+              value,
+              style: TextStyle(fontWeight: FontWeight.w600),
+              textAlign: TextAlign.end,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _getMethodName(String method) {
+    switch (method) {
+      case 'cash':
+        return 'Naqd';
+      case 'click':
+        return 'Click';
+      case 'terminal':
+        return 'Terminal';
+      case 'owner_fund':
+        return 'Ega kassasi';
+      default:
+        return method;
+    }
+  }
+
   Future<void> savePayment() async {
     try {
       isLoading.value = true;
 
-      // 1. Qarz to'lovi (Multi)
       if (selectedDebts.isNotEmpty) {
         await _processMultipleDebtsPayment();
-      }
-      // 2. Oddiy to'lov
-      else {
+      } else {
         await _processSinglePayment();
       }
 
@@ -917,6 +1165,8 @@ class NewPaymentControllerV4 extends GetxController {
       if (selectedStudentId.value != null) {
         await loadStudentDebts(selectedStudentId.value!);
         await loadPaymentHistory(selectedStudentId.value!);
+        // O'quvchilar ro'yxatini yangilash (rangi o'zgarishi uchun)
+        await loadInitialStudents();
       }
 
       clearSelection();
@@ -938,35 +1188,9 @@ class NewPaymentControllerV4 extends GetxController {
       isLoading.value = false;
     }
   }
- Future<void> refreshData() async {
-    await loadInitialStudents();
-    await loadCurrentMonthStatistics();
 
-    if (selectedStudentId.value != null) {
-      await loadStudentDebts(selectedStudentId.value!);
-      await loadPaymentHistory(selectedStudentId.value!);
-    }
-
-    Get.snackbar(
-      'Yangilandi',
-      'Ma\'lumotlar yangilandi',
-      backgroundColor: Colors.green,
-      colorText: Colors.white,
-      duration: Duration(seconds: 2),
-    );
-  }
   Future<void> _processMultipleDebtsPayment() async {
-    double inputAmount =
-        double.tryParse(amountController.text.replaceAll(' ', '')) ?? 0;
-    double discount = 0;
-    if (hasDiscount.value) {
-      // Chegirma hisoblash
-      // ... (agar butun summaga chegirma bo'lsa)
-    }
-    // Oddiylik uchun har bir qarz to'liq yopiladi deb faraz qilamiz yoki proporsional
-    // Bu yerda sizning oldingi logikangizni ishlataman:
-
-    double remainingPayment = inputAmount;
+    double remainingPayment = totalPaidAmount.value;
     final paymentIds = <String>[];
 
     for (var debtId in selectedDebts) {
@@ -981,7 +1205,6 @@ class NewPaymentControllerV4 extends GetxController {
       final newRemainingAmount = debt.debtAmount - newPaidAmount;
       final isFullyPaid = newRemainingAmount <= 0;
 
-      // Debt update
       await _supabase
           .from('student_debts')
           .update({
@@ -992,19 +1215,20 @@ class NewPaymentControllerV4 extends GetxController {
           })
           .eq('id', debtId);
 
-      // Payment insert
       String id = await _insertPaymentRecord(
         amount: amountToPay,
-        discount: 0, // Hozircha qarz to'lovida chegirma yo'q deb turamiz
+        discount: 0,
         finalAmt: amountToPay,
         debtId: debtId,
         month: debt.periodMonth,
         year: debt.periodYear,
         notes: 'Qarz to\'lovi: ${debt.periodText}',
+        status:
+            'paid', paidAmount: amountToPay, // Qarz to'layotganda har doim 'paid' deb ketsin, chunki qarzni qisman to'lasa ham baribir to'lov bo'ladi
       );
       paymentIds.add(id);
 
-      await _updateCashRegister(amountToPay);
+   
       remainingPayment -= amountToPay;
     }
 
@@ -1013,67 +1237,76 @@ class NewPaymentControllerV4 extends GetxController {
     }
   }
 
-  Future<void> _processSinglePayment() async {
-    double amount =
-        double.tryParse(amountController.text.replaceAll(' ', '')) ?? 0;
-    double discount = 0;
-    // Chegirma hisoblash
-    if (hasDiscount.value) {
-      double val = double.tryParse(discountController.text) ?? 0;
-      if (discountType.value == 'percent')
-        discount = amount * (val / 100);
-      else
-        discount = val;
-    }
-    double finalAmt = amount - discount;
-    double paidAmt = finalAmt;
+   Future<void> _processSinglePayment() async {
+    // Status aniqlash (Agar qarz 0 dan katta bo'lsa 'partial', bo'lmasa 'paid')
+    String status = debtAmount.value > 0 ? 'partial' : 'paid';
 
-    if (isPartialPayment.value) {
-      paidAmt =
-          double.tryParse(paidAmountController.text.replaceAll(' ', '')) ?? 0;
-    }
+    // Asosiy summa
+    double baseAmount = double.tryParse(amountController.text.replaceAll(' ', '')) ?? 0;
+    
+    // Aniq chegirma summasi
+    double discountVal = baseAmount - finalAmount.value;
+    if (discountVal < 0) discountVal = 0;
 
+    // MUHIM: Bu yerda Ma'lumotlar bazasiga to'g'ri ajratib yuborish kerak
     String id = await _insertPaymentRecord(
-      amount: amount,
-      discount: discount,
-      finalAmt: paidAmt, // Kassaga kirgan
+      amount: baseAmount,           // Asl narx (masalan 1 mln)
+      discount: discountVal,        // Chegirma (masalan 100 ming)
+      finalAmt: finalAmount.value,  // Kelishilgan narx (900 ming) - BU YER XATO EDI
+      paidAmount: totalPaidAmount.value, // Kassaga kirgan pul (500 ming) - YANGI PARAMETR
       debtId: null,
       month: selectedMonth.value,
       year: selectedYear.value,
       notes: notesController.text,
+      status: status,
     );
 
-    // Agar qisman bo'lsa, qarz yaratish
-    double debt = finalAmt - paidAmt;
-    if (debt > 0) {
+    // Qarz yozish (Faqat qarz mavjud bo'lsa)
+    if (debtAmount.value > 0) {
       await _supabase.from('student_debts').insert({
         'student_id': selectedStudentId.value,
         'branch_id': selectedBranchId.value,
         'class_id': selectedStudent.value!.classId,
-        'debt_amount': debt,
-        'remaining_amount': debt,
+        'debt_amount': debtAmount.value,
+        'remaining_amount': debtAmount.value,
+        'paid_amount': 0,
         'period_month': selectedMonth.value,
         'period_year': selectedYear.value,
         'is_settled': false,
         'due_date': DateTime.now().add(Duration(days: 10)).toIso8601String(),
+        'created_at': DateTime.now().toIso8601String(),
       });
     }
 
-    await _updateCashRegister(paidAmt);
     _showPaymentReceipt(id);
   }
 
-  Future<String> _insertPaymentRecord({
+   Future<String> _insertPaymentRecord({
     required double amount,
     required double discount,
-    required double finalAmt,
+    required double finalAmt,     // Kelishilgan summa (Discount chiqarilgan)
+    required double paidAmount,   // Real to'langan summa
     required String? debtId,
     required int? month,
     required int? year,
     required String? notes,
+    String status = 'paid',
   }) async {
     final receipt = 'P-${DateTime.now().millisecondsSinceEpoch}';
-    // To'lov sanasi paymentDate dan olinadi
+
+    String method = 'cash';
+    if (useMultiPayment.value) {
+      method = 'multi';
+    } else if (paymentSplits.isNotEmpty) {
+      method = paymentSplits.first.method;
+    }
+
+    await _ensureCashRegisterExists(method);
+    if (useMultiPayment.value) {
+      for (var split in paymentSplits) {
+        if (split.amount > 0) await _ensureCashRegisterExists(split.method);
+      }
+    }
 
     final res = await _supabase
         .from('payments')
@@ -1083,12 +1316,11 @@ class NewPaymentControllerV4 extends GetxController {
           'class_id': selectedStudent.value?.classId,
           'amount': amount,
           'discount_amount': discount,
-          'final_amount': finalAmt, // Chegirmadan keyingi summa
-          'paid_amount': finalAmt, // Kassaga tushgan
-          'payment_method': paymentMethod.value,
+          'final_amount': finalAmt,   // Kelishilgan narx
+          'paid_amount': paidAmount,  // Kassaga kirgan pul
+          'payment_method': method,
           'payment_type': paymentType.value,
-          'payment_status':
-              'paid', // Asosiy payment record "paid" bo'ladi, qarz alohida yoziladi
+          'payment_status': status,
           'period_month': month,
           'period_year': year,
           'receipt_number': receipt,
@@ -1100,30 +1332,53 @@ class NewPaymentControllerV4 extends GetxController {
         .select('id')
         .single();
 
+    if (useMultiPayment.value) {
+      final validSplits = paymentSplits
+          .where((split) => split.amount > 0)
+          .toList();
+      for (var split in validSplits) {
+        await _supabase.from('payment_splits').insert({
+          'payment_id': res['id'],
+          'method': split.method,
+          'amount': split.amount,
+        });
+        // Kassa balansini shu yerda yangilash tavsiya etiladi
+        await _updateCashRegister(split.amount, split.method);
+      }
+    } else {
+        // Oddiy to'lov bo'lsa kassa yangilash
+        await _updateCashRegister(paidAmount, method);
+    }
+    
     return res['id'];
   }
-
-  Future<void> _updateCashRegister(double amount) async {
-    if (amount <= 0) return;
-    final row = await _supabase
-        .from('cash_register')
-        .select()
-        .eq('branch_id', selectedBranchId.value!)
-        .eq('payment_method', paymentMethod.value)
-        .maybeSingle();
-
-    if (row != null) {
-      double current = (row['current_balance'] as num).toDouble();
-      await _supabase
+    Future<void> _updateCashRegister(double amount, String method) async {
+    if (amount == 0) return;
+    try {
+      // TUZATILDI: limit(1) ishlatamiz
+      final rows = await _supabase
           .from('cash_register')
-          .update({'current_balance': current + amount})
-          .eq('id', row['id']);
-    } else {
-      await _supabase.from('cash_register').insert({
-        'branch_id': selectedBranchId.value,
-        'payment_method': paymentMethod.value,
-        'current_balance': amount,
-      });
+          .select('id, current_balance')
+          .eq('branch_id', selectedBranchId.value!)
+          .eq('payment_method', method)
+          .limit(1); // <--- XATONI OLDINI OLADI
+
+      if (rows.isNotEmpty) {
+        final row = rows.first;
+        final current = (row['current_balance'] as num).toDouble();
+        
+        await _supabase
+            .from('cash_register')
+            .update({'current_balance': current + amount})
+            .eq('id', row['id']);
+      }
+    } catch (e) {
+      print('Kassa yangilashda xato: $e');
+    }
+  }
+  Future<void> _updateMultipleRegisters(double totalAmount) async {
+    for (var split in paymentSplits) {
+      await _updateCashRegister(split.amount, split.method);
     }
   }
 
@@ -1148,6 +1403,14 @@ class NewPaymentControllerV4 extends GetxController {
     payment['branch_address'] = branch['address'];
     payment['branch_phone'] = branch['phone'];
 
+    if (payment['payment_method'] == 'multi') {
+      final splits = await _supabase
+          .from('payment_splits')
+          .select()
+          .eq('payment_id', paymentId);
+      payment['payment_splits'] = splits;
+    }
+
     final studentData = {
       'full_name': selectedStudent.value!.fullName,
       'class_name': selectedStudent.value!.className,
@@ -1161,13 +1424,75 @@ class NewPaymentControllerV4 extends GetxController {
   }
 
   Future<void> voidPayment(String paymentId) async {
-    // Bekor qilish logikasi (Oldingi javobdagi kabi)
-    // ...
+    try {
+      isLoading.value = true;
+
+      final payment = await _supabase
+          .from('payments')
+          .select('*, payment_splits(*)')
+          .eq('id', paymentId)
+          .single();
+
+      await _supabase
+          .from('payments')
+          .update({
+            'payment_status': 'cancelled',
+            'updated_at': DateTime.now().toIso8601String(),
+          })
+          .eq('id', paymentId);
+
+      if (payment['payment_method'] == 'multi' &&
+          payment['payment_splits'] != null) {
+        for (var split in payment['payment_splits']) {
+          await _updateCashRegister(-split['amount'], split['method']);
+        }
+      } else {
+        await _updateCashRegister(
+          -(payment['paid_amount'] as num).toDouble(),
+          payment['payment_method'],
+        );
+      }
+
+      await loadPaymentHistory(selectedStudentId.value!);
+      await loadCurrentMonthStatistics();
+      await loadInitialStudents(); // Ro'yxatni yangilash
+
+      Get.back();
+      Get.snackbar(
+        'Muvaffaqiyatli',
+        'To\'lov bekor qilindi',
+        backgroundColor: Colors.orange,
+        colorText: Colors.white,
+      );
+    } catch (e) {
+      print('Void payment error: $e');
+      Get.snackbar(
+        'Xato',
+        'Bekor qilishda xatolik',
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+      );
+    } finally {
+      isLoading.value = false;
+    }
   }
 
-  // ============================================================================
-  // HELPERS
-  // ============================================================================
+  Future<void> refreshData() async {
+    await loadInitialStudents();
+    await loadCurrentMonthStatistics();
+    if (selectedStudentId.value != null) {
+      await loadStudentDebts(selectedStudentId.value!);
+      await loadPaymentHistory(selectedStudentId.value!);
+    }
+    Get.snackbar(
+      'Yangilandi',
+      'Ma\'lumotlar yangilandi',
+      backgroundColor: Colors.green,
+      colorText: Colors.white,
+      duration: Duration(seconds: 2),
+    );
+  }
+
   Future<void> selectMonth(BuildContext context) async {
     final picked = await showDatePicker(
       context: context,
@@ -1179,6 +1504,7 @@ class NewPaymentControllerV4 extends GetxController {
       selectedMonth.value = picked.month;
       selectedYear.value = picked.year;
       loadInitialStudents();
+      loadCurrentMonthStatistics();
     }
   }
 

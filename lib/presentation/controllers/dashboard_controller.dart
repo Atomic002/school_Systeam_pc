@@ -361,6 +361,7 @@ class DashboardController extends GetxController {
   }
 
   // --- 3. KASSA BALANSI (FIXED) ---
+   // --- 3. KASSA BALANSI (YANGILANDI VA ANIQ QILINDI) ---
   Future<void> _loadCashRegisterBalance() async {
     try {
       final response = await _supabaseService.client
@@ -368,47 +369,50 @@ class DashboardController extends GetxController {
           .select('payment_method, current_balance')
           .eq('branch_id', selectedBranchId.value);
 
-      double cash = 0.0;
-      double card = 0.0;
-      double transfer = 0.0;
-      double ownerFund = 0.0; // <--- YANGI
+      double cash = 0.0;      // Naqd
+      double terminal = 0.0;  // Plastik (Terminal)
+      double click = 0.0;     // O'tkazma (Click)
+      double ownerFund = 0.0; // Ega kassasi
 
       for (var register in response) {
-        final method = register['payment_method'].toString().toLowerCase();
+        // Bazadan kelgan metod nomini aniq stringga o'tkazamiz
+        final method = register['payment_method']?.toString() ?? '';
         final balance = ((register['current_balance'] ?? 0) as num).toDouble();
 
-        if (method == 'cash') {
-          cash += balance;
-        } 
-        else if (method.contains('card') || method.contains('terminal')) {
-          card += balance;
-        } 
-        else if (method.contains('click') || method.contains('bank') || method.contains('payme')) {
-          transfer += balance;
-        } 
-        else if (method == 'owner_fund') { // <--- Ega kassasini ushlab qolamiz
-          ownerFund += balance;
-        }
-        else {
-          // Noma'lum turlarni o'tkazmaga qo'shamiz
-          transfer += balance;
+        // Bazadagi ANIQ nomlar bo'yicha yig'amiz ('multi' ni hisoblamaymiz)
+        switch (method) {
+          case 'cash':
+            cash += balance;
+            break;
+          case 'terminal':
+            terminal += balance;
+            break;
+          case 'click':
+            click += balance;
+            break;
+          case 'owner_fund':
+            ownerFund += balance;
+            break;
+          default:
+            // Boshqa narsalar (masalan 'multi') balansga qo'shilmaydi
+            // Chunki 'multi' bu shunchaki tranzaksiya turi, pul real kassalarda turadi
+            break;
         }
       }
 
+      // Controller o'zgaruvchilarini yangilaymiz
       cashBalance.value = cash;
-      cardBalance.value = card;
-      transferBalance.value = transfer;
-      ownerFundBalance.value = ownerFund; // <--- YANGI
+      cardBalance.value = terminal; // UI da "Plastik karta"
+      transferBalance.value = click; // UI da "O'tkazma (Click)"
+      ownerFundBalance.value = ownerFund;
 
-      // Jami balansga Ega kassasini qo'shish yoki qo'shmaslik sizning ixtiyoringizda.
-      // Agar hammasini qo'shmoqchi bo'lsangiz:
-      totalBalance.value = cash + card + transfer + ownerFund;
+      // JAMI BALANS = Aniq shu 4 ta kassaning yig'indisi
+      totalBalance.value = cash + terminal + click + ownerFund;
       
     } catch (e) {
       print('Error loading cash register balance: $e');
     }
   }
-
   // --- 4. SINFLAR MA'LUMOTI (FIXED RELATIONSHIP) ---
   Future<void> _loadClassesDetails() async {
     try {

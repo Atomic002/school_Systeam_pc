@@ -336,7 +336,7 @@ class StaffRepository {
       return null;
     }
   }
-   Future<String?> createUser({
+      Future<String?> createUser({
     required String branchId,
     required String firstName,
     required String lastName,
@@ -370,23 +370,25 @@ class StaffRepository {
             'address': address,
             'role': role,
             'username': username,
-            'password_hash': password, // Haqiqiy loyihada buni hash qilish kerak!
+            
+            // --- TUZATILDI: password_hash EMAS, password BO'LISHI KERAK ---
+            'password': password, 
+            // -------------------------------------------------------------
+            
             'status': 'active',
           })
-          .select('id') // <--- MUHIM: ID ni so'rash
+          .select('id')
           .single();
 
       return response['id'] as String;
     } catch (e) {
       print('Create user error: $e');
-      // Xatoni aniqroq qaytarish uchun:
       if (e.toString().contains('users_username_key')) {
          throw Exception("Bu username allaqachon mavjud");
       }
       rethrow;
     }
   }
-
   // Staff ID orqali to'liq ma'lumotlarni olish
     // ==================== USER ID ORQALI STAFFNI OLISH ====================
   Future<List<StaffEnhanced>> getStaffByUserId(String userId) async {

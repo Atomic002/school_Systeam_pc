@@ -16,11 +16,13 @@ import 'package:flutter_application_1/presentation/screens/Visitors/visitors_scr
 import 'package:flutter_application_1/presentation/screens/add_staff/add_staf_screen.dart';
 import 'package:flutter_application_1/presentation/screens/auth/login_screen.dart';
 import 'package:flutter_application_1/presentation/screens/class/Room_deteil/add_room_screen.dart';
+import 'package:flutter_application_1/presentation/screens/class/Room_deteil/edit_room_screen.dart';
 import 'package:flutter_application_1/presentation/screens/class/Room_deteil/room_deteil_screen.dart';
 import 'package:flutter_application_1/presentation/screens/class/add_class_screen/room_and_class_screen.dart';
 import 'package:flutter_application_1/presentation/screens/class/class_screen/add_class_screen.dart';
 import 'package:flutter_application_1/presentation/screens/class/class_screen/class_level_screen.dart';
 import 'package:flutter_application_1/presentation/screens/class/class_screen/class_screen.dart';
+import 'package:flutter_application_1/presentation/screens/class/class_screen/edit_class_screen.dart';
 import 'package:flutter_application_1/presentation/screens/class/subjacts/subjacts_screen.dart';
 import 'package:flutter_application_1/presentation/screens/class/subjacts/teacher_subjckts_screens.dart';
 import 'package:flutter_application_1/presentation/screens/dashboard/dashboard_screen.dart';
@@ -67,6 +69,8 @@ class AppRoutes {
   static const String roomDetail = '/room-detail';
   static const String addRoom = '/add-room';
   static const String classDetail = '/class-detail';
+    static const String editClass = '/edit-class';
+
 
   // Xodimlar bo'limi
   static const String staff = '/staff';
@@ -144,12 +148,12 @@ class AppRoutes {
     ),
     GetPage(
       name: payments,
-      page: () => NewPaymentScreenV4(),
+      page: () => NewPaymentScreenV5(),
       transition: Transition.rightToLeft,
     ),
     GetPage(
       name: expenses,
-      page: () => ExpensesScreenV2(),
+      page: () => ExpensesScreenFinal(),
       transition: Transition.rightToLeft,
     ),
     GetPage(
@@ -215,12 +219,19 @@ class AppRoutes {
       transitionDuration: Duration(milliseconds: 300),
     ),
     GetPage(
+  name: '/edit-room',
+  page: () => EditRoomScreen(),
+),
+    GetPage(
       name: classDetail,
       page: () => ClassDetailScreen(),
       transition: Transition.rightToLeft,
       transitionDuration: Duration(milliseconds: 300),
     ),
-
+   GetPage(
+      name: editClass,
+      page: () => EditClassScreen(),
+    ),
     // ------ STAFF ------
     GetPage(
       name: addStaff,

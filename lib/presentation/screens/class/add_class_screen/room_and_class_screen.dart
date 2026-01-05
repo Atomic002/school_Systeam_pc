@@ -47,7 +47,7 @@ class RoomsAndClassesScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildHeader() {
+    Widget _buildHeader() {
     return Container(
       decoration: BoxDecoration(
         gradient: const LinearGradient(
@@ -99,6 +99,12 @@ class RoomsAndClassesScreen extends StatelessWidget {
                   ],
                 ),
               ),
+              
+              // --- YANGI QO'SHILGAN QISM (REFRESH TUGMASI) ---
+              _buildRefreshButton(),
+              const SizedBox(width: 12),
+              // ------------------------------------------------
+              
               Obx(() => _buildViewToggle()),
             ],
           ),
@@ -107,6 +113,22 @@ class RoomsAndClassesScreen extends StatelessWidget {
     );
   }
 
+    Widget _buildRefreshButton() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.2), // Dizaynga moslashish uchun shaffof fon
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: IconButton(
+        icon: const Icon(Icons.refresh, color: Colors.white),
+        tooltip: "Ma'lumotlarni yangilash",
+        onPressed: () {
+          // Controllerdagi ma'lumotlarni qayta yuklash funksiyasini chaqiramiz
+          controller.loadInitialData(); 
+        },
+      ),
+    );
+  }
   Widget _buildViewToggle() {
     return Container(
       padding: const EdgeInsets.all(4),

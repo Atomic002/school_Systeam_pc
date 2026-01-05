@@ -1,4 +1,4 @@
-// lib/presentation/widgets/payment_history_dialog_v4.dart
+// lib/presentation/widgets/payment_history_dialog_v5.dart
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
@@ -9,10 +9,9 @@ class PaymentHistoryDialog extends StatelessWidget {
   const PaymentHistoryDialog({Key? key, required this.controller})
     : super(key: key);
 
-  final Color primaryBlue = const Color(0xFF2196F3);
-  final Color darkBlue = const Color(0xFF1565C0);
-  final Color lightBlue = const Color(0xFFBBDEFB);
-  final Color paleBlue = const Color(0xFFE3F2FD);
+  final Color primaryBlue = const Color(0xFF0D47A1);
+  final Color accentBlue = const Color(0xFF2196F3);
+  final Color lightBlue = const Color(0xFFE3F2FD);
 
   @override
   Widget build(BuildContext context) {
@@ -41,11 +40,7 @@ class PaymentHistoryDialog extends StatelessWidget {
     return Container(
       padding: EdgeInsets.symmetric(horizontal: 24, vertical: 20),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [primaryBlue, darkBlue],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
+        gradient: LinearGradient(colors: [primaryBlue, accentBlue]),
         borderRadius: BorderRadius.only(
           topLeft: Radius.circular(20),
           topRight: Radius.circular(20),
@@ -126,7 +121,7 @@ class PaymentHistoryDialog extends StatelessWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              CircularProgressIndicator(color: primaryBlue),
+              CircularProgressIndicator(color: accentBlue),
               SizedBox(height: 16),
               Text('Yuklanmoqda...', style: TextStyle(color: Colors.grey)),
             ],
@@ -185,17 +180,37 @@ class PaymentHistoryDialog extends StatelessWidget {
       int partialCount = 0;
 
       for (var payment in history) {
-        if (payment.status == 'cancelled')
-          continue; // Bekor qilinganlarni hisoblamaymiz
+        // 1. Bekor qilingan to'lovlarni o'tkazib yuboramiz (Statistika uchun)
+        if (payment.status == 'cancelled') continue;
 
+        // 2. To'lov summasini hisoblash
         if (payment.status == 'paid') {
           totalPaid += payment.finalAmount;
           paidCount++;
         } else if (payment.status == 'partial') {
+          // Qisman to'lovda:
+          // paidAmount - bu to'langan qism
+          // remainingDebt - bu qarz qolgan qism
           totalPaid += payment.paidAmount ?? 0;
-          totalDebt += payment.remainingDebt ?? 0;
+
+          // MUHIM: Agar remainingDebt null bo'lsa, uni finalAmount - paidAmount qilib hisoblaymiz
+          double debt =
+              payment.remainingDebt ??
+              (payment.finalAmount - (payment.paidAmount ?? 0));
+          if (debt < 0) debt = 0;
+
+          totalDebt += debt;
           partialCount++;
         }
+      }
+
+      // 3. Agar controllerda umumiy qarz ma'lumoti bo'lsa, uni ham qo'shib qo'yamiz
+      // Chunki tarix faqat shu to'lovlar bo'yicha qarzni ko'rsatadi,
+      // lekin o'quvchining eski oylardan ham qarzi bo'lishi mumkin.
+      if (controller.studentDebts.isNotEmpty) {
+        // Agar tarixda ko'rinmayotgan bo'lsa, controllerdan to'g'ridan-to'g'ri olamiz
+        // Bu yerda biroz ehtiyot bo'lish kerak, chunki ikkilanib qolishi mumkin.
+        // Eng yaxshisi, yuqoridagi loopdagi mantiqni to'g'rilash.
       }
 
       return Container(
@@ -209,7 +224,6 @@ class PaymentHistoryDialog extends StatelessWidget {
                 label: 'To\'liq to\'lovlar',
                 value: '$paidCount ta',
                 color: Colors.green,
-                bgColor: Colors.green.withOpacity(0.1),
               ),
             ),
             SizedBox(width: 16),
@@ -218,8 +232,7 @@ class PaymentHistoryDialog extends StatelessWidget {
                 icon: Icons.attach_money_rounded,
                 label: 'Jami to\'langan',
                 value: _formatCurrency(totalPaid),
-                color: primaryBlue,
-                bgColor: primaryBlue.withOpacity(0.1),
+                color: accentBlue,
               ),
             ),
             SizedBox(width: 16),
@@ -229,17 +242,16 @@ class PaymentHistoryDialog extends StatelessWidget {
                 label: 'Qisman to\'lovlar',
                 value: '$partialCount ta',
                 color: Colors.orange,
-                bgColor: Colors.orange.withOpacity(0.1),
               ),
             ),
             SizedBox(width: 16),
+            // Qarz qismi
             Expanded(
               child: _buildSummaryCard(
                 icon: Icons.money_off_rounded,
-                label: 'Jami qarz',
+                label: 'Ushbu tarix bo\'yicha qarz',
                 value: _formatCurrency(totalDebt),
                 color: Colors.red,
-                bgColor: Colors.red.withOpacity(0.1),
               ),
             ),
           ],
@@ -253,7 +265,6 @@ class PaymentHistoryDialog extends StatelessWidget {
     required String label,
     required String value,
     required Color color,
-    required Color bgColor,
   }) {
     return Container(
       padding: EdgeInsets.symmetric(horizontal: 16, vertical: 20),
@@ -274,7 +285,7 @@ class PaymentHistoryDialog extends StatelessWidget {
           Container(
             padding: EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: bgColor,
+              color: color.withOpacity(0.1),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Icon(icon, color: color, size: 28),
@@ -360,7 +371,6 @@ class PaymentHistoryDialog extends StatelessWidget {
       ),
       child: Column(
         children: [
-          // Card Header
           Container(
             padding: EdgeInsets.all(16),
             decoration: BoxDecoration(
@@ -408,7 +418,6 @@ class PaymentHistoryDialog extends StatelessWidget {
                     ],
                   ),
                 ),
-                // Status Badge
                 Container(
                   padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
@@ -424,9 +433,8 @@ class PaymentHistoryDialog extends StatelessWidget {
                     ),
                   ),
                 ),
-                SizedBox(width: 8),
-                // ACTIONS MENU (Yangi qo'shilgan)
-                if (!isCancelled)
+                if (!isCancelled) ...[
+                  SizedBox(width: 8),
                   PopupMenuButton<String>(
                     icon: Icon(
                       Icons.more_vert_rounded,
@@ -437,9 +445,9 @@ class PaymentHistoryDialog extends StatelessWidget {
                     ),
                     onSelected: (value) {
                       if (value == 'print') {
-                        controller._showReceipt(payment.id); // Chek chiqarish
+                        controller._showPaymentReceipt(payment.id);
                       } else if (value == 'cancel') {
-                        _showCancelDialog(context, payment.id); // Bekor qilish
+                        _showCancelDialog(context, payment.id);
                       }
                     },
                     itemBuilder: (BuildContext context) => [
@@ -449,7 +457,7 @@ class PaymentHistoryDialog extends StatelessWidget {
                           children: [
                             Icon(
                               Icons.print_rounded,
-                              color: primaryBlue,
+                              color: accentBlue,
                               size: 20,
                             ),
                             SizedBox(width: 12),
@@ -476,11 +484,11 @@ class PaymentHistoryDialog extends StatelessWidget {
                       ),
                     ],
                   ),
+                ],
               ],
             ),
           ),
 
-          // Card Body
           Padding(
             padding: EdgeInsets.all(20),
             child: Column(
@@ -492,7 +500,7 @@ class PaymentHistoryDialog extends StatelessWidget {
                         icon: Icons.calendar_today_rounded,
                         label: 'Sana',
                         value: _formatDate(payment.paymentDate),
-                        color: primaryBlue,
+                        color: accentBlue,
                       ),
                     ),
                     SizedBox(width: 16),
@@ -520,7 +528,6 @@ class PaymentHistoryDialog extends StatelessWidget {
                 Divider(height: 1),
                 SizedBox(height: 20),
 
-                // Amount Details
                 _buildAmountRow('Asl summa', payment.amount),
 
                 if (payment.discountAmount > 0)
@@ -684,10 +691,8 @@ class PaymentHistoryDialog extends StatelessWidget {
                   Expanded(
                     child: ElevatedButton(
                       onPressed: () {
-                        Get.back(); // Dialogni yopish
-                        controller.voidPayment(
-                          paymentId,
-                        ); // Controllerdagi funksiyani chaqirish
+                        Get.back();
+                        controller.voidPayment(paymentId);
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.red,
@@ -822,6 +827,8 @@ class PaymentHistoryDialog extends StatelessWidget {
         return 'Terminal';
       case 'owner_fund':
         return 'Ega kassasi';
+      case 'multi':
+        return 'Ko\'p usulda';
       default:
         return '-';
     }

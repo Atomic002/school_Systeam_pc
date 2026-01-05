@@ -4,7 +4,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_application_1/config/constants.dart';
 import 'package:flutter_application_1/presentation/widgets/sidebar.dart';
-import 'package:get/get.dart';
 
 class ReportsScreen extends StatefulWidget {
   const ReportsScreen({Key? key}) : super(key: key);

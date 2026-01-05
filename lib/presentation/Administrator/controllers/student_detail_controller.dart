@@ -686,7 +686,7 @@ class StudentDetailControlleradmin extends GetxController {
 
     // NewPaymentScreenV4 ga o'tish va studentId ni yuborish
     Get.to(
-      () => NewPaymentScreenV4(),
+      () => NewPaymentScreenV5(),
       arguments: {'studentId': studentId},
     );
   }

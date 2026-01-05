@@ -1,9 +1,9 @@
 // lib/presentation/widgets/role_based_sidebar.dart
-// YAKUNIY - To'liq Director Sidebar bilan
+// YAKUNIY - Staff va Teacher olib tashlandi
 
 import 'package:flutter/material.dart';
 import 'package:flutter_application_1/presentation/widgets/sidebars/director_sidebar.dart';
-import 'package:flutter_application_1/presentation/widgets/sidebars/staff_sidebar.dart';
+// StaffSidebar importi olib tashlandi
 import 'package:get/get.dart';
 import '../../config/constants.dart';
 import '../../config/app_routes.dart';
@@ -18,17 +18,19 @@ class Sidebar extends StatelessWidget {
   Widget build(BuildContext context) {
     return Obx(() {
       final userRole = authController.userRole;
-      
-      switch (userRole?.toLowerCase()) {
+
+      // Kichik harflarga o'tkazib tekshiramiz
+      switch (userRole?.toLowerCase().trim()) {
         case 'owner':
           return _OwnerSidebar();
         case 'admin':
-          return _AdminSidebar();
-        case 'staff':
-        case 'teacher':
-          return StaffSidebar();
+          return _AdminSidebar(); // Qabulxona
+        case 'manager':
+          return _ManagerSidebar(); // Kassir
         case 'director':
           return DirectorSidebar();
+        // Staff va Teacher olib tashlandi.
+        // Ular kirsa _DefaultSidebar ga tushadi.
         default:
           return _DefaultSidebar();
       }
@@ -50,7 +52,7 @@ class _DefaultSidebar extends StatelessWidget {
           BoxShadow(
             color: Colors.black.withOpacity(0.05),
             blurRadius: 10,
-            offset: Offset(2, 0),
+            offset: const Offset(2, 0),
           ),
         ],
       ),
@@ -58,7 +60,7 @@ class _DefaultSidebar extends StatelessWidget {
         children: [
           Container(
             padding: EdgeInsets.all(AppConstants.paddingLarge),
-            child: Column(
+            child: const Column(
               children: [
                 Icon(Icons.person_outline, size: 50, color: Colors.grey),
                 SizedBox(height: 16),
@@ -69,13 +71,9 @@ class _DefaultSidebar extends StatelessWidget {
               ],
             ),
           ),
-          Divider(height: 1),
-          Expanded(
-            child: Center(
-              child: Text('Sidebar mavjud emas'),
-            ),
-          ),
-          Divider(height: 1),
+          const Divider(height: 1),
+          const Expanded(child: Center(child: Text('Sidebar mavjud emas'))),
+          const Divider(height: 1),
           _buildLogoutButton(),
         ],
       ),
@@ -106,7 +104,288 @@ class _DefaultSidebar extends StatelessWidget {
   }
 }
 
-// ========== OWNER SIDEBAR (EGA - To'liq dostup) ==========
+// ========== MANAGER SIDEBAR (KASSIR) ==========
+class _ManagerSidebar extends StatelessWidget {
+  final AuthController authController = Get.find<AuthController>();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 280,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(2, 0),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          _buildHeader(),
+          const Divider(height: 1),
+          Expanded(
+            child: ListView(
+              padding: EdgeInsets.symmetric(
+                vertical: AppConstants.paddingSmall,
+              ),
+              children: [
+                // Kassir uchun asosiy bo'lim - Moliya
+                _buildMenuSection('MOLIYA VA KASSA'),
+
+                _buildMenuItem(
+                  icon: Icons.account_balance_wallet_outlined,
+                  activeIcon: Icons.account_balance_wallet,
+                  title: 'Moliya paneli',
+                  route: AppRoutes.finance,
+                ),
+                _buildMenuItem(
+                  icon: Icons.point_of_sale_outlined,
+                  activeIcon: Icons.point_of_sale,
+                  title: 'Kassa operatsiyalari',
+                  route: AppRoutes.cashRegister,
+                ),
+                _buildMenuItem(
+                  icon: Icons.payment_outlined,
+                  activeIcon: Icons.payment,
+                  title: 'To\'lovlar tarixi',
+                  route: AppRoutes.payments,
+                ),
+                _buildMenuItem(
+                  icon: Icons.receipt_long_outlined,
+                  activeIcon: Icons.receipt_long,
+                  title: 'Xarajatlar',
+                  route: AppRoutes.expenses,
+                ),
+
+                _buildMenuSection('QARZDORLIKLAR'),
+                _buildMenuItem(
+                  icon: Icons.money_off_csred_outlined,
+                  activeIcon: Icons.money_off,
+                  title: 'O\'quvchilar qarzlari',
+                  route: AppRoutes.studentDebts,
+                ),
+
+                _buildMenuSection('ISH HAQI'),
+                _buildMenuItem(
+                  icon: Icons.attach_money_outlined,
+                  activeIcon: Icons.attach_money,
+                  title: 'Xodimlar maoshi',
+                  route: AppRoutes.salary,
+                ),
+                                _buildMenuSection('HODIMLAR'),
+
+                _buildMenuItem(
+                  icon: Icons.person_add_outlined,
+                  activeIcon: Icons.person_add,
+                  title: 'Yangi xodim',
+                  route: AppRoutes.addStaff,
+                ),
+                _buildMenuItem(
+                  icon: Icons.badge_outlined,
+                  activeIcon: Icons.badge,
+                  title: 'Xodimlar ro\'yxati',
+                  route: AppRoutes.staff,
+                ),
+                _buildMenuSection('O\'QUVCHILAR'),
+                _buildMenuItem(
+                  icon: Icons.school_outlined,
+                  activeIcon: Icons.school,
+                  title: 'O\'quvchilar',
+                  route: AppRoutes.students,
+                ),
+                _buildMenuItem(
+                  icon: Icons.person_add_outlined,
+                  activeIcon: Icons.person_add,
+                  title: 'Yangi o\'quvchi',
+                  route: AppRoutes.addStudent,
+                ),
+                _buildMenuItem(
+                  icon: Icons.people_outline,
+                  activeIcon: Icons.people,
+                  title: 'Tashrif buyuruvchilar',
+                  route: AppRoutes.visitors,
+                ),
+                _buildMenuSection('DAVOMAT'),
+                _buildMenuItem(
+                  icon: Icons.how_to_reg_outlined,
+                  activeIcon: Icons.how_to_reg,
+                  title: 'O\'quvchilar davomadi',
+                  route: AppRoutes.studentAttendance,
+                ),
+                _buildMenuItem(
+                  icon: Icons.verified_user_outlined,
+                  activeIcon: Icons.verified_user,
+                  title: 'Xodimlar davomadi',
+                  route: AppRoutes.staffAttendance,
+                ),
+              ],
+            ),
+          ),
+          const Divider(height: 1),
+          _buildLogoutButton(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHeader() {
+    return InkWell(
+      onTap: () => Get.toNamed(AppRoutes.profile),
+      child: Container(
+        padding: EdgeInsets.all(AppConstants.paddingLarge),
+        child: Obx(() {
+          final user = authController.currentUser.value;
+          if (user == null) return const SizedBox.shrink();
+
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const CircleAvatar(
+                radius: 30,
+                backgroundColor: Colors.orange,
+                child: Icon(Icons.point_of_sale, size: 30, color: Colors.white),
+              ),
+              SizedBox(height: AppConstants.paddingMedium),
+              Text(
+                user.shortName,
+                style: TextStyle(
+                  fontSize: AppConstants.fontSizeLarge,
+                  fontWeight: FontWeight.bold,
+                  color: AppConstants.textPrimaryColor,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Kassir',
+                style: TextStyle(
+                  fontSize: AppConstants.fontSizeMedium,
+                  color: AppConstants.textSecondaryColor,
+                ),
+              ),
+            ],
+          );
+        }),
+      ),
+    );
+  }
+
+  Widget _buildMenuSection(String title) {
+    return Padding(
+      padding: EdgeInsets.fromLTRB(
+        AppConstants.paddingLarge,
+        AppConstants.paddingLarge,
+        AppConstants.paddingLarge,
+        AppConstants.paddingSmall,
+      ),
+      child: Text(
+        title,
+        style: TextStyle(
+          fontSize: AppConstants.fontSizeSmall,
+          fontWeight: FontWeight.bold,
+          color: AppConstants.textLightColor,
+          letterSpacing: 1.2,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMenuItem({
+    required IconData icon,
+    required IconData activeIcon,
+    required String title,
+    required String route,
+  }) {
+    final isActive = Get.currentRoute == route;
+
+    return Container(
+      margin: EdgeInsets.symmetric(
+        horizontal: AppConstants.paddingMedium,
+        vertical: 2,
+      ),
+      decoration: BoxDecoration(
+        color: isActive ? Colors.orange.withOpacity(0.1) : Colors.transparent,
+        borderRadius: BorderRadius.circular(AppConstants.borderRadiusMedium),
+      ),
+      child: ListTile(
+        leading: Icon(
+          isActive ? activeIcon : icon,
+          color: isActive ? Colors.orange : AppConstants.textSecondaryColor,
+        ),
+        title: Text(
+          title,
+          style: TextStyle(
+            fontSize: AppConstants.fontSizeMedium,
+            fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
+            color: isActive ? Colors.orange : AppConstants.textPrimaryColor,
+          ),
+        ),
+        onTap: () {
+          if (!isActive) {
+            Get.toNamed(route);
+          }
+        },
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppConstants.borderRadiusMedium),
+        ),
+        contentPadding: EdgeInsets.symmetric(
+          horizontal: AppConstants.paddingMedium,
+          vertical: 4,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLogoutButton() {
+    return Container(
+      padding: EdgeInsets.all(AppConstants.paddingMedium),
+      child: ListTile(
+        leading: Icon(Icons.logout, color: AppConstants.errorColor),
+        title: Text(
+          'Chiqish',
+          style: TextStyle(
+            fontSize: AppConstants.fontSizeMedium,
+            color: AppConstants.errorColor,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        onTap: () {
+          Get.dialog(
+            AlertDialog(
+              title: const Text('Chiqish'),
+              content: const Text('Tizimdan chiqmoqchimisiz?'),
+              actions: [
+                TextButton(
+                  onPressed: () => Get.back(),
+                  child: const Text('Yo\'q'),
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    Get.back();
+                    authController.logout();
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppConstants.errorColor,
+                  ),
+                  child: const Text('Ha, chiqish'),
+                ),
+              ],
+            ),
+          );
+        },
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppConstants.borderRadiusMedium),
+        ),
+      ),
+    );
+  }
+}
+
+// ========== OWNER SIDEBAR (EGA) ==========
 class _OwnerSidebar extends StatelessWidget {
   final AuthController authController = Get.find<AuthController>();
 
@@ -120,17 +399,19 @@ class _OwnerSidebar extends StatelessWidget {
           BoxShadow(
             color: Colors.black.withOpacity(0.05),
             blurRadius: 10,
-            offset: Offset(2, 0),
+            offset: const Offset(2, 0),
           ),
         ],
       ),
       child: Column(
         children: [
           _buildHeader(),
-          Divider(height: 1),
+          const Divider(height: 1),
           Expanded(
             child: ListView(
-              padding: EdgeInsets.symmetric(vertical: AppConstants.paddingSmall),
+              padding: EdgeInsets.symmetric(
+                vertical: AppConstants.paddingSmall,
+              ),
               children: [
                 _buildMenuItem(
                   icon: Icons.dashboard_outlined,
@@ -291,7 +572,7 @@ class _OwnerSidebar extends StatelessWidget {
               ],
             ),
           ),
-          Divider(height: 1),
+          const Divider(height: 1),
           _buildLogoutButton(),
         ],
       ),
@@ -305,7 +586,7 @@ class _OwnerSidebar extends StatelessWidget {
         padding: EdgeInsets.all(AppConstants.paddingLarge),
         child: Obx(() {
           final user = authController.currentUser.value;
-          if (user == null) return SizedBox.shrink();
+          if (user == null) return const SizedBox.shrink();
 
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -333,7 +614,7 @@ class _OwnerSidebar extends StatelessWidget {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
-              SizedBox(height: 4),
+              const SizedBox(height: 4),
               Text(
                 user.roleInUzbek,
                 style: TextStyle(
@@ -436,12 +717,12 @@ class _OwnerSidebar extends StatelessWidget {
         onTap: () {
           Get.dialog(
             AlertDialog(
-              title: Text('Chiqish'),
-              content: Text('Tizimdan chiqmoqchimisiz?'),
+              title: const Text('Chiqish'),
+              content: const Text('Tizimdan chiqmoqchimisiz?'),
               actions: [
                 TextButton(
                   onPressed: () => Get.back(),
-                  child: Text('Yo\'q'),
+                  child: const Text('Yo\'q'),
                 ),
                 ElevatedButton(
                   onPressed: () {
@@ -451,7 +732,7 @@ class _OwnerSidebar extends StatelessWidget {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppConstants.errorColor,
                   ),
-                  child: Text('Ha, chiqish'),
+                  child: const Text('Ha, chiqish'),
                 ),
               ],
             ),
@@ -465,7 +746,7 @@ class _OwnerSidebar extends StatelessWidget {
   }
 }
 
-// ========== ADMIN SIDEBAR (RESEPTION - Qabulxona) ==========
+// ========== ADMIN SIDEBAR (RESEPTION) ==========
 class _AdminSidebar extends StatelessWidget {
   final AuthController authController = Get.find<AuthController>();
 
@@ -479,34 +760,36 @@ class _AdminSidebar extends StatelessWidget {
           BoxShadow(
             color: Colors.black.withOpacity(0.05),
             blurRadius: 10,
-            offset: Offset(2, 0),
+            offset: const Offset(2, 0),
           ),
         ],
       ),
       child: Column(
         children: [
           _buildHeader(),
-          Divider(height: 1),
+          const Divider(height: 1),
           Expanded(
             child: ListView(
-              padding: EdgeInsets.symmetric(vertical: AppConstants.paddingSmall),
+              padding: EdgeInsets.symmetric(
+                vertical: AppConstants.paddingSmall,
+              ),
               children: [
                 _buildMenuSection('QABULXONA'),
-                
+
                 _buildMenuItem(
                   icon: Icons.people_outline,
                   activeIcon: Icons.people,
                   title: 'Tashrif buyuruvchilar',
                   route: AppRoutes.visitors,
                 ),
-                
+
                 _buildMenuItem(
                   icon: Icons.school_outlined,
                   activeIcon: Icons.school,
                   title: 'O\'quvchilar',
                   route: AppRoutes.students,
                 ),
-                
+
                 _buildMenuItem(
                   icon: Icons.person_add_outlined,
                   activeIcon: Icons.person_add,
@@ -566,7 +849,7 @@ class _AdminSidebar extends StatelessWidget {
               ],
             ),
           ),
-          Divider(height: 1),
+          const Divider(height: 1),
           _buildLogoutButton(),
         ],
       ),
@@ -580,15 +863,19 @@ class _AdminSidebar extends StatelessWidget {
         padding: EdgeInsets.all(AppConstants.paddingLarge),
         child: Obx(() {
           final user = authController.currentUser.value;
-          if (user == null) return SizedBox.shrink();
+          if (user == null) return const SizedBox.shrink();
 
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              CircleAvatar(
+              const CircleAvatar(
                 radius: 30,
-                backgroundColor: Colors.blue,
-                child: Icon(Icons.admin_panel_settings, size: 30, color: Colors.white),
+                backgroundColor: Colors.teal,
+                child: Icon(
+                  Icons.admin_panel_settings,
+                  size: 30,
+                  color: Colors.white,
+                ),
               ),
               SizedBox(height: AppConstants.paddingMedium),
               Text(
@@ -601,7 +888,7 @@ class _AdminSidebar extends StatelessWidget {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
-              SizedBox(height: 4),
+              const SizedBox(height: 4),
               Text(
                 'Qabulxona',
                 style: TextStyle(
@@ -650,20 +937,20 @@ class _AdminSidebar extends StatelessWidget {
         vertical: 2,
       ),
       decoration: BoxDecoration(
-        color: isActive ? Colors.blue.withOpacity(0.1) : Colors.transparent,
+        color: isActive ? Colors.teal.withOpacity(0.1) : Colors.transparent,
         borderRadius: BorderRadius.circular(AppConstants.borderRadiusMedium),
       ),
       child: ListTile(
         leading: Icon(
           isActive ? activeIcon : icon,
-          color: isActive ? Colors.blue : AppConstants.textSecondaryColor,
+          color: isActive ? Colors.teal : AppConstants.textSecondaryColor,
         ),
         title: Text(
           title,
           style: TextStyle(
             fontSize: AppConstants.fontSizeMedium,
             fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
-            color: isActive ? Colors.blue : AppConstants.textPrimaryColor,
+            color: isActive ? Colors.teal : AppConstants.textPrimaryColor,
           ),
         ),
         onTap: () {
@@ -698,12 +985,12 @@ class _AdminSidebar extends StatelessWidget {
         onTap: () {
           Get.dialog(
             AlertDialog(
-              title: Text('Chiqish'),
-              content: Text('Tizimdan chiqmoqchimisiz?'),
+              title: const Text('Chiqish'),
+              content: const Text('Tizimdan chiqmoqchimisiz?'),
               actions: [
                 TextButton(
                   onPressed: () => Get.back(),
-                  child: Text('Yo\'q'),
+                  child: const Text('Yo\'q'),
                 ),
                 ElevatedButton(
                   onPressed: () {
@@ -713,7 +1000,7 @@ class _AdminSidebar extends StatelessWidget {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppConstants.errorColor,
                   ),
-                  child: Text('Ha, chiqish'),
+                  child: const Text('Ha, chiqish'),
                 ),
               ],
             ),
@@ -726,4 +1013,3 @@ class _AdminSidebar extends StatelessWidget {
     );
   }
 }
-

@@ -3,11 +3,12 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
-import 'package:flutter_application_1/data/repositories/visitior_repitory.dart';
 import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../data/repositories/staff_repository.dart';
+import '../../data/repositories/visitior_repitory.dart'; // Asl kodingizdagi nom
+import '../../data/repositories/class_repository.dart' hide ClassRepository; // Asl kodingizdagi nom
 import '../../config/app_routes.dart';
 import 'auth_controller.dart';
 
@@ -18,6 +19,17 @@ class AddStaffController extends GetxController {
   final AuthController _authController = Get.find<AuthController>();
 
   final formKey = GlobalKey<FormState>();
+
+  // ==================== YANGI QO'SHILGAN: ROLLAR RO'YXATI ====================
+  // Database qiymati -> UI da ko'rinadigan nom
+  final Map<String, String> userRoles = {
+    'teacher': "O'qituvchi",
+    'admin': "Qabulxona", // Aslida admin, lekin UI da Qabulxona
+    'manager': "Kassir", // Aslida manager, lekin UI da Kassir
+    'director': "Direktor",
+    'owner': "Ta'sischi (Rahbar)",
+  };
+  // =========================================================================
 
   // ==================== TEXT CONTROLLERS ====================
   final firstNameController = TextEditingController();
@@ -41,8 +53,10 @@ class AddStaffController extends GetxController {
   final usernameController = TextEditingController();
   final passwordController = TextEditingController();
   final confirmPasswordController = TextEditingController();
+
   final Rx<File?> profileImage = Rx<File?>(null);
   final ImagePicker _picker = ImagePicker();
+
   // ==================== REACTIVE VARIABLES ====================
   final RxString selectedGender = 'male'.obs;
   final Rx<String?> selectedBranchId = Rx<String?>(null);
@@ -53,16 +67,19 @@ class AddStaffController extends GetxController {
   final RxBool isLoading = false.obs;
   final RxBool isSaving = false.obs;
   final RxBool createUser = false.obs;
+
+  // Default rol - O'qituvchi
   final RxString selectedUserRole = 'teacher'.obs;
+
   final RxBool showPassword = false.obs;
   final RxBool showConfirmPassword = false.obs;
   final Rx<String?> selectedVisitorId = Rx<String?>(null);
   final RxBool isLoadingVisitors = false.obs;
 
-    // --- YANGI QO'SHILGAN QISM (TAHRIRLASH UCHUN) ---
+  // --- TAHRIRLASH UCHUN ---
   final RxBool isEditMode = false.obs;
   String? editingStaffId;
-  final _supabase = Supabase.instance.client; // Bazadan o'qish uchun
+  final _supabase = Supabase.instance.client;
 
   // Online ma'lumotlar
   final RxList<Map<String, dynamic>> branches = <Map<String, dynamic>>[].obs;
@@ -92,20 +109,17 @@ class AddStaffController extends GetxController {
     _loadInitialData();
     _setupListeners();
 
-    // --- YANGI QO'SHILGAN QISM ---
     if (Get.arguments != null && Get.arguments['isEdit'] == true) {
       isEditMode.value = true;
       editingStaffId = Get.arguments['staffId'];
-      createUser.value = false; // Tahrirlashda yangi user ochilmaydi
+      createUser.value = false;
 
-      // Dropdownlar (filial, fanlar) yuklanib bo'lishini 1 soniya kutamiz
       Future.delayed(const Duration(seconds: 1), () {
         if (editingStaffId != null) {
           _loadStaffForEditing(editingStaffId!);
         }
       });
     }
-    // -----------------------------
   }
 
   @override
@@ -138,20 +152,31 @@ class AddStaffController extends GetxController {
     confirmPasswordController.dispose();
   }
 
-  // ==================== LISTENERS ====================
+  // ==================== LISTENERS (O'ZGARTIRILGAN QISM) ====================
   void _setupListeners() {
     firstNameController.addListener(_generateUsername);
     lastNameController.addListener(_generateUsername);
 
     ever(isTeacher, (isTeacherValue) {
       if (createUser.value) {
-        selectedUserRole.value = isTeacherValue ? 'teacher' : 'staff';
+        // Agar o'qituvchi bo'lsa 'teacher', bo'lmasa 'admin' (Qabulxona)
+        // 'staff' olib tashlandi
+        selectedUserRole.value = isTeacherValue ? 'teacher' : 'admin';
+      }
+    });
+
+    // Agar User Roli dropdown orqali o'zgarsa, isTeacher ni moslash
+    ever(selectedUserRole, (String role) {
+      if (role == 'teacher') {
+        isTeacher.value = true;
+      } else {
+        isTeacher.value = false;
       }
     });
 
     ever(createUser, (shouldCreateUser) {
       if (shouldCreateUser) {
-        selectedUserRole.value = isTeacher.value ? 'teacher' : 'staff';
+        selectedUserRole.value = isTeacher.value ? 'teacher' : 'admin';
         _generateUsername();
         if (passwordController.text.isEmpty) {
           _generatePassword();
@@ -184,8 +209,8 @@ class AddStaffController extends GetxController {
     passwordController.text = password;
     confirmPasswordController.text = password;
   }
-    // --- YANGI FUNKSIYA: MA'LUMOTLARNI YUKLASH ---
-    // --- YANGI FUNKSIYA: MA'LUMOTLARNI YUKLASH ---
+
+  // ==================== MA'LUMOTLARNI YUKLASH ====================
   Future<void> _loadStaffForEditing(String id) async {
     try {
       isLoading.value = true;
@@ -193,7 +218,6 @@ class AddStaffController extends GetxController {
 
       final data = await _supabase.from('staff').select().eq('id', id).single();
 
-      // 1. Matn maydonlari
       firstNameController.text = data['first_name'] ?? '';
       lastNameController.text = data['last_name'] ?? '';
       middleNameController.text = data['middle_name'] ?? '';
@@ -209,14 +233,13 @@ class AddStaffController extends GetxController {
       experienceController.text = data['experience'] ?? '';
       notesController.text = data['notes'] ?? '';
 
-      // 2. Tanlovlar
       if (data['branch_id'] != null) {
         selectedBranchId.value = data['branch_id'];
-        _filterClassesAndRooms(); // Filial o'zgargani uchun filtrlash
+        _filterClassesAndRooms();
       }
-      
+
       selectedGender.value = data['gender'] ?? 'male';
-      
+
       if (data['birth_date'] != null) {
         birthDate.value = DateTime.parse(data['birth_date']);
       }
@@ -224,19 +247,18 @@ class AddStaffController extends GetxController {
         hireDate.value = DateTime.parse(data['hire_date']);
       }
 
-      // 3. Maosh
       selectedSalaryType.value = data['salary_type'] ?? 'monthly';
-      if (data['base_salary'] != null) baseSalaryController.text = data['base_salary'].toString();
-      if (data['hourly_rate'] != null) hourlyRateController.text = data['hourly_rate'].toString();
-      if (data['daily_rate'] != null) dailyRateController.text = data['daily_rate'].toString();
-      if (data['expected_hours_per_month'] != null) expectedHoursController.text = data['expected_hours_per_month'].toString();
+      if (data['base_salary'] != null)
+        baseSalaryController.text = data['base_salary'].toString();
+      if (data['hourly_rate'] != null)
+        hourlyRateController.text = data['hourly_rate'].toString();
+      if (data['daily_rate'] != null)
+        dailyRateController.text = data['daily_rate'].toString();
+      if (data['expected_hours_per_month'] != null)
+        expectedHoursController.text = data['expected_hours_per_month']
+            .toString();
 
-      // 4. O'qituvchilik
       isTeacher.value = data['is_teacher'] ?? false;
-      
-      // DIQQAT: O'qituvchi fanlari va sinflarini yuklash bu yerda murakkabroq.
-      // Hozircha asosiy ma'lumotlarni yukladik.
-      
     } catch (e) {
       print("Tahrirlash xatosi: $e");
       Get.snackbar('Xatolik', 'Ma\'lumotlarni yuklab bo\'lmadi');
@@ -244,7 +266,7 @@ class AddStaffController extends GetxController {
       isLoading.value = false;
     }
   }
-  // ==================== MA'LUMOTLARNI YUKLASH ====================
+
   Future<void> _loadInitialData() async {
     try {
       isLoading.value = true;
@@ -295,22 +317,20 @@ class AddStaffController extends GetxController {
 
   Future<void> _loadClasses() async {
     try {
-      // 1. Filial tanlanganligini tekshiramiz
       if (selectedBranchId.value == null) {
         classes.value = [];
         return;
       }
-
-      // 2. Funksiyani to'g'ri chaqiramiz: (branchId) beramiz
-      // Va kelgan ma'lumotni to'g'ri formatga o'tkazamiz (casting)
-      final result = await _classRepo.getClassesWithDetails(selectedBranchId.value!);
-      
+      final result = await _classRepo.getClassesWithDetails(
+        selectedBranchId.value!,
+      );
       classes.value = List<Map<String, dynamic>>.from(result);
     } catch (e) {
       print('Load classes error: $e');
       classes.value = [];
     }
   }
+
   Future<void> _loadRooms() async {
     try {
       final result = await _staffRepo.getRooms();
@@ -319,11 +339,12 @@ class AddStaffController extends GetxController {
       print('Load rooms error: $e');
     }
   }
-   Future<void> pickImage() async {
+
+  Future<void> pickImage() async {
     try {
       final XFile? image = await _picker.pickImage(
         source: ImageSource.gallery,
-        imageQuality: 70, // Rasmni hajmini kichraytirish
+        imageQuality: 70,
       );
       if (image != null) {
         profileImage.value = File(image.path);
@@ -337,9 +358,7 @@ class AddStaffController extends GetxController {
     try {
       isLoadingVisitors.value = true;
       final result = await _visitorRepo.getUnconvertedVisitors();
-      
-      // Agar null kelsa, bo'sh ro'yxat [] beramiz
-      visitors.value = result ?? []; 
+      visitors.value = result ?? [];
     } catch (e) {
       print('Load visitors error: $e');
       visitors.value = [];
@@ -637,7 +656,7 @@ class AddStaffController extends GetxController {
   }
 
   // ==================== XODIMNI SAQLASH ====================
-   Future<void> saveStaff() async {
+  Future<void> saveStaff() async {
     if (!_validateForm()) return;
 
     final currentUserId = _authController.currentUser.value?.id;
@@ -649,7 +668,9 @@ class AddStaffController extends GetxController {
       // Rasm yuklash (agar yangi tanlangan bo'lsa)
       String? uploadedPhotoUrl;
       if (profileImage.value != null) {
-        uploadedPhotoUrl = await _staffRepo.uploadProfileImage(profileImage.value!);
+        uploadedPhotoUrl = await _staffRepo.uploadProfileImage(
+          profileImage.value!,
+        );
       }
 
       final salaryData = _calculateSalary();
@@ -692,17 +713,22 @@ class AddStaffController extends GetxController {
           updateData['photo_url'] = uploadedPhotoUrl;
         }
 
-        await _supabase.from('staff').update(updateData).eq('id', editingStaffId!);
+        await _supabase
+            .from('staff')
+            .update(updateData)
+            .eq('id', editingStaffId!);
 
-        Get.snackbar('Muvaffaqiyat', 'Xodim ma\'lumotlari yangilandi', 
-            backgroundColor: Colors.green.shade100);
-            
+        Get.snackbar(
+          'Muvaffaqiyat',
+          'Xodim ma\'lumotlari yangilandi',
+          backgroundColor: Colors.green.shade100,
+        );
+
         // Profil sahifasiga qaytish va yangilash signalini berish
-        Get.back(result: true); 
-      } 
-      
+        Get.back(result: true);
+      }
       // ---------------------------------------------------------
-      // 2. QO'SHISH REJIMI (CREATE) - Eski kodingiz
+      // 2. QO'SHISH REJIMI (CREATE)
       // ---------------------------------------------------------
       else {
         String? userId;
@@ -742,23 +768,26 @@ class AddStaffController extends GetxController {
           defaultRoomId: defaultRoomId,
           photoUrl: uploadedPhotoUrl,
         );
-        
+
         if (staff != null && isTeacher.value) {
-           await _assignTeacherData(staff.id);
+          await _assignTeacherData(staff.id);
         }
-        
+
         _showSuccessMessage(userId);
         Get.offNamed(AppRoutes.staff);
       }
-
     } catch (e) {
       print('Save staff error: $e');
-      Get.snackbar('Xatolik', 'Xatolik yuz berdi: $e', backgroundColor: Colors.red.shade100);
+      Get.snackbar(
+        'Xatolik',
+        'Xatolik yuz berdi: $e',
+        backgroundColor: Colors.red.shade100,
+      );
     } finally {
       isSaving.value = false;
     }
   }
-  
+
   Map<String, dynamic> _calculateSalary() {
     double? baseSalary;
     double? hourlyRate;
@@ -797,11 +826,17 @@ class AddStaffController extends GetxController {
     };
   }
 
-     Future<String?> _createUser() async {
+  // ==================== USER YARATISH (O'ZGARTIRILGAN QISM) ====================
+  Future<String?> _createUser() async {
     try {
       print('🚀 User yaratish boshlandi...');
       print('Username: ${usernameController.text}');
       print('Role: ${selectedUserRole.value}');
+
+      // Validatsiya: Rol ro'yxatda bormi?
+      if (!userRoles.containsKey(selectedUserRole.value)) {
+        throw Exception("Noto'g'ri rol tanlandi");
+      }
 
       final userId = await _staffRepo.createUser(
         branchId: selectedBranchId.value!,
@@ -817,35 +852,42 @@ class AddStaffController extends GetxController {
         address: addressController.text.trim(),
         username: usernameController.text.trim(),
         password: passwordController.text,
-        role: selectedUserRole.value, 
+        role: selectedUserRole.value,
       );
 
       print('✅ User muvaffaqiyatli yaratildi: $userId');
       return userId;
     } catch (e) {
-      print('❌ USER YARATISHDA XATO: $e'); // Konsolga qarang!
-      
+      print('❌ USER YARATISHDA XATO: $e');
+
       final errorMsg = e.toString().toLowerCase();
 
       // 1. Username band bo'lsa
-      if (errorMsg.contains('users_username_key') || errorMsg.contains('duplicate key')) {
-        throw Exception("Bunday username ('${usernameController.text}') band! Iltimos, username oxiriga raqam qo'shing.");
-      }
-      
-      // 2. Telefon raqam uzun bo'lsa
-      if (errorMsg.contains('value too long') || errorMsg.contains('string data right truncation')) {
-        throw Exception("Telefon raqam yoki boshqa ma'lumot juda uzun (limit 20 ta). SQL dan limitni oshiring!");
+      if (errorMsg.contains('users_username_key') ||
+          errorMsg.contains('duplicate key')) {
+        throw Exception(
+          "Bunday username ('${usernameController.text}') band! Iltimos, username oxiriga raqam qo'shing.",
+        );
       }
 
-      // 3. Rol xato bo'lsa (garchi sizda to'g'ri bo'lsa ham)
+      // 2. Telefon raqam uzun bo'lsa
+      if (errorMsg.contains('value too long') ||
+          errorMsg.contains('string data right truncation')) {
+        throw Exception(
+          "Telefon raqam yoki boshqa ma'lumot juda uzun (limit 20 ta). SQL dan limitni oshiring!",
+        );
+      }
+
+      // 3. Rol xato bo'lsa (enum type mismatch)
       if (errorMsg.contains('invalid input value for enum')) {
         throw Exception("Rol noto'g'ri tanlandi: ${selectedUserRole.value}");
       }
-      
+
       // Boshqa xatolar
       throw Exception('Tizim xatosi: $errorMsg');
     }
   }
+
   Future<void> _assignTeacherData(String staffId) async {
     for (var subjectId in selectedSubjects) {
       await _staffRepo.assignSubjectToTeacher(

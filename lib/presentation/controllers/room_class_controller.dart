@@ -7,9 +7,8 @@ import 'package:get/get.dart';
 class RoomsClassesController extends GetxController {
   final SupabaseService _supabaseService = Get.find<SupabaseService>();
 
-  // Observable variables
   var isLoading = false.obs;
-  var currentView = 'rooms'.obs; // 'rooms' yoki 'classes'
+  var currentView = 'rooms'.obs;
   var searchQuery = ''.obs;
   var selectedBranchId = Rxn<String>();
 
@@ -26,23 +25,42 @@ class RoomsClassesController extends GetxController {
   var classes = <Map<String, dynamic>>[].obs;
   var branches = <Map<String, dynamic>>[].obs;
 
-  // Filtered lists
   List<Map<String, dynamic>> get filteredRooms {
-    if (searchQuery.value.isEmpty) return rooms;
-    return rooms.where((room) {
-      final name = room['name'].toString().toLowerCase();
-      final query = searchQuery.value.toLowerCase();
-      return name.contains(query);
-    }).toList();
+    var list = rooms.toList();
+    if (selectedBranchId.value != null) {
+      list = list
+          .where((r) => r['branch_id'] == selectedBranchId.value)
+          .toList();
+    }
+    if (searchQuery.value.isNotEmpty) {
+      list = list
+          .where(
+            (r) => r['name'].toString().toLowerCase().contains(
+              searchQuery.value.toLowerCase(),
+            ),
+          )
+          .toList();
+    }
+    return list;
   }
 
   List<Map<String, dynamic>> get filteredClasses {
-    if (searchQuery.value.isEmpty) return classes;
-    return classes.where((cls) {
-      final name = cls['name'].toString().toLowerCase();
-      final query = searchQuery.value.toLowerCase();
-      return name.contains(query);
-    }).toList();
+    var list = classes.toList();
+    if (selectedBranchId.value != null) {
+      list = list
+          .where((c) => c['branch_id'] == selectedBranchId.value)
+          .toList();
+    }
+    if (searchQuery.value.isNotEmpty) {
+      list = list
+          .where(
+            (c) => c['name'].toString().toLowerCase().contains(
+              searchQuery.value.toLowerCase(),
+            ),
+          )
+          .toList();
+    }
+    return list;
   }
 
   @override
@@ -54,19 +72,10 @@ class RoomsClassesController extends GetxController {
   Future<void> loadInitialData() async {
     isLoading.value = true;
     try {
-      await Future.wait([
-        loadBranches(),
-        loadRooms(),
-        loadClasses(),
-        loadStatistics(),
-      ]);
+      await loadBranches();
+      await Future.wait([loadRooms(), loadClasses(), loadStatistics()]);
     } catch (e) {
-      Get.snackbar(
-        'Xato',
-        'Ma\'lumotlarni yuklashda xatolik: $e',
-        backgroundColor: Colors.red,
-        colorText: Colors.white,
-      );
+      Get.snackbar('Xato', 'Ma\'lumotlarni yuklashda xatolik: $e');
     } finally {
       isLoading.value = false;
     }
@@ -76,10 +85,9 @@ class RoomsClassesController extends GetxController {
     try {
       final response = await _supabaseService.client
           .from('branches')
-          .select()
+          .select('id, name')
           .eq('is_active', true)
           .order('name');
-
       branches.value = List<Map<String, dynamic>>.from(response);
     } catch (e) {
       print('Error loading branches: $e');
@@ -91,21 +99,19 @@ class RoomsClassesController extends GetxController {
       final response = await _supabaseService.client
           .from('rooms')
           .select('''
-          *,
-          branch:branches(name),
-          classes:classes!classes_default_room_id_fkey(
-            id,
-            name,
-            enrollments(count)
-          )
-        ''')
+            *,
+            branch:branches(name),
+            classes:classes!classes_default_room_id_fkey(
+              id,
+              name,
+              enrollments(count)
+            )
+          ''')
           .eq('is_active', true)
           .order('name');
 
       rooms.value = List<Map<String, dynamic>>.from(response).map((room) {
-        // Biriktirilgan sinfni aniqlash
         String? assignedClass;
-
         final roomClasses = room['classes'] as List?;
         if (roomClasses != null && roomClasses.isNotEmpty) {
           assignedClass = roomClasses[0]['name'];
@@ -120,6 +126,7 @@ class RoomsClassesController extends GetxController {
           'equipment': room['equipment'],
           'branch_name': room['branch']?['name'],
           'branch_id': room['branch_id'],
+          'room_number': room['room_number'],
           'assigned_class': assignedClass,
         };
       }).toList();
@@ -130,7 +137,6 @@ class RoomsClassesController extends GetxController {
           .length;
     } catch (e) {
       print('Error loading rooms: $e');
-      Get.snackbar('Xato', 'Xonalarni yuklashda xatolik: $e');
     }
   }
 
@@ -139,23 +145,23 @@ class RoomsClassesController extends GetxController {
       final response = await _supabaseService.client
           .from('classes')
           .select('''
-          *,
-          branch:branches(name),
-          room:rooms!classes_default_room_id_fkey(name),
-          teacher:staff!classes_main_teacher_id_fkey(first_name, last_name),
-          class_level:class_levels(name),
-          enrollments(count)
-        ''')
+            *,
+            branch:branches(name),
+            room:rooms!classes_default_room_id_fkey(name),
+            teacher:staff!classes_main_teacher_id_fkey(first_name, last_name),
+            class_level:class_levels(name),
+            enrollments(count)
+          ''')
           .eq('is_active', true)
           .order('name');
 
       classes.value = List<Map<String, dynamic>>.from(response).map((cls) {
         final enrollments = cls['enrollments'] as List?;
-        final studentCount = enrollments?.isNotEmpty == true
-            ? enrollments![0]['count']
+        final studentCount = (enrollments != null && enrollments.isNotEmpty)
+            ? enrollments[0]['count']
             : 0;
 
-        String? teacherName;
+        String teacherName = 'Biriktirilmagan';
         if (cls['teacher'] != null) {
           teacherName =
               '${cls['teacher']['first_name']} ${cls['teacher']['last_name']}';
@@ -183,26 +189,23 @@ class RoomsClassesController extends GetxController {
       activeClasses.value = classes.length;
     } catch (e) {
       print('Error loading classes: $e');
-      Get.snackbar('Xato', 'Sinflarni yuklashda xatolik: $e');
     }
   }
 
   Future<void> loadStatistics() async {
     try {
-      // O'quvchilar soni
-      final studentsResponse = await _supabaseService.client
+      final studentsCount = await _supabaseService.client
           .from('students')
-          .select('id')
+          .count()
           .eq('status', 'active');
-      totalStudents.value = studentsResponse.length;
+      totalStudents.value = studentsCount;
 
-      // O'qituvchilar soni
-      final teachersResponse = await _supabaseService.client
+      final teachersCount = await _supabaseService.client
           .from('staff')
-          .select('id')
+          .count()
           .eq('is_teacher', true)
           .eq('status', 'active');
-      totalTeachers.value = teachersResponse.length;
+      totalTeachers.value = teachersCount;
     } catch (e) {
       print('Error loading statistics: $e');
     }
@@ -212,125 +215,41 @@ class RoomsClassesController extends GetxController {
     searchQuery.value = query;
   }
 
+  // --- QO'SHILGAN FUNKSIYA ---
   void showFilterDialog() {
-    Get.dialog(
-      AlertDialog(
-        title: const Text('Filtrlash'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text('Filial bo\'yicha filtrlash'),
-            const SizedBox(height: 16),
-            Obx(
-              () => DropdownButtonFormField<String?>(
-                value: selectedBranchId.value,
-                decoration: const InputDecoration(
-                  labelText: 'Filial',
-                  border: OutlineInputBorder(),
+    Get.defaultDialog(
+      title: "Filtrlash",
+      content: Column(
+        children: [
+          const Text("Filial bo'yicha saralash"),
+          const SizedBox(height: 10),
+          Obx(
+            () => DropdownButton<String>(
+              value: selectedBranchId.value,
+              hint: const Text("Barcha filiallar"),
+              isExpanded: true,
+              onChanged: (String? newValue) {
+                selectedBranchId.value = newValue;
+              },
+              items: [
+                const DropdownMenuItem<String>(
+                  value: null,
+                  child: Text("Barcha filiallar"),
                 ),
-                items: [
-                  const DropdownMenuItem<String?>(
-                    value: null,
-                    child: Text('Barcha filiallar'),
-                  ),
-                  ...branches.map((branch) {
-                    return DropdownMenuItem<String?>(
-                      value: branch['id'],
-                      child: Text(branch['name']),
-                    );
-                  }).toList(),
-                ],
-                onChanged: (value) {
-                  selectedBranchId.value = value;
-                },
-              ),
+                ...branches.map((branch) {
+                  return DropdownMenuItem<String>(
+                    value: branch['id'],
+                    child: Text(branch['name']),
+                  );
+                }).toList(),
+              ],
             ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              selectedBranchId.value = null;
-              Get.back();
-            },
-            child: const Text('Tozalash'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              applyFilter();
-              Get.back();
-            },
-            child: const Text('Qo\'llash'),
           ),
         ],
       ),
+      textConfirm: "OK",
+      confirmTextColor: Colors.white,
+      onConfirm: () => Get.back(),
     );
-  }
-
-  void applyFilter() {
-    if (selectedBranchId.value != null) {
-      if (currentView.value == 'rooms') {
-        rooms.value = rooms
-            .where((r) => r['branch_id'] == selectedBranchId.value)
-            .toList();
-      } else {
-        classes.value = classes
-            .where((c) => c['branch_id'] == selectedBranchId.value)
-            .toList();
-      }
-    } else {
-      loadRooms();
-      loadClasses();
-    }
-  }
-
-  Future<void> deleteRoom(String roomId) async {
-    try {
-      await _supabaseService.client
-          .from('rooms')
-          .update({'is_active': false})
-          .eq('id', roomId);
-
-      Get.snackbar(
-        'Muvaffaqiyatli',
-        'Xona o\'chirildi',
-        backgroundColor: Colors.green,
-        colorText: Colors.white,
-      );
-
-      loadRooms();
-    } catch (e) {
-      Get.snackbar(
-        'Xato',
-        'Xonani o\'chirishda xatolik: $e',
-        backgroundColor: Colors.red,
-        colorText: Colors.white,
-      );
-    }
-  }
-
-  Future<void> deleteClass(String classId) async {
-    try {
-      await _supabaseService.client
-          .from('classes')
-          .update({'is_active': false})
-          .eq('id', classId);
-
-      Get.snackbar(
-        'Muvaffaqiyatli',
-        'Sinf o\'chirildi',
-        backgroundColor: Colors.green,
-        colorText: Colors.white,
-      );
-
-      loadClasses();
-    } catch (e) {
-      Get.snackbar(
-        'Xato',
-        'Sinfni o\'chirishda xatolik: $e',
-        backgroundColor: Colors.red,
-        colorText: Colors.white,
-      );
-    }
   }
 }

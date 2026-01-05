@@ -1,6 +1,3 @@
-// lib/presentation/controllers/auth_controller.dart
-// TUZATILGAN - Navigatsiya muammolari hal qilindi
-
 import 'package:get/get.dart';
 import '../../data/models/user_model.dart';
 import '../../data/repositories/auth_repository.dart';
@@ -26,13 +23,13 @@ class AuthController extends GetxController {
     _checkAuthStatus();
   }
 
-  // ========== AVTOMATIK KIRISH TEKSHIRISH ==========
+  // ==================== 1. AVTOMATIK KIRISH TEKSHIRISH ====================
   Future<void> _checkAuthStatus() async {
     try {
       print('🔍 Saqlangan sessiyani tekshirish...');
 
       // Navigatsiya tayyor bo'lishini kutish
-      await Future.delayed(Duration(milliseconds: 100));
+      await Future.delayed(const Duration(milliseconds: 100));
 
       final savedUserId = await _authRepository.getSavedUserId();
 
@@ -47,8 +44,8 @@ class AuthController extends GetxController {
           print('👤 User roli: ${user.role}');
 
           // Navigatsiya uchun qo'shimcha kutish
-          await Future.delayed(Duration(milliseconds: 200));
-          
+          await Future.delayed(const Duration(milliseconds: 200));
+
           // ✅ Rolga qarab yo'naltirish
           _navigateByRole(user.role);
         } else {
@@ -68,7 +65,7 @@ class AuthController extends GetxController {
     }
   }
 
-  // ========== LOGIN ==========
+  // ==================== 2. LOGIN ====================
   Future<void> login({
     required String username,
     required String password,
@@ -101,7 +98,7 @@ class AuthController extends GetxController {
 
       if (user != null) {
         currentUser.value = user;
-        
+
         print('✅ Login muvaffaqiyatli');
         print('👤 User: ${user.fullName}');
         print('🎭 Rol: ${user.role}');
@@ -112,11 +109,11 @@ class AuthController extends GetxController {
           'Muvaffaqiyatli',
           'Xush kelibsiz, ${user.fullName}!',
           snackPosition: SnackPosition.TOP,
-          duration: Duration(seconds: 2),
+          duration: const Duration(seconds: 2),
         );
 
         // Navigatsiya uchun qisqa kutish
-        await Future.delayed(Duration(milliseconds: 300));
+        await Future.delayed(const Duration(milliseconds: 300));
 
         // ✅ Rolga qarab yo'naltirish
         _navigateByRole(user.role);
@@ -132,59 +129,61 @@ class AuthController extends GetxController {
     }
   }
 
-  // ========== ROLGA QARAB YO'NALTIRISH ==========
+  // ==================== 3. ROLGA QARAB YO'NALTIRISH (ASOSIY O'ZGARISH) ====================
   void _navigateByRole(String role) {
+    // Kichik harflarga o'tkazish va bo'sh joylarni tozalash
     final roleKey = role.toLowerCase().trim();
-    
+
     print('🚀 Navigatsiya boshlandi');
-    print('🎭 Rol: $roleKey');
-    
+    print('🎭 Rol (Key): $roleKey');
+
     try {
       switch (roleKey) {
+        // 1. TA'SISCHI va DIREKTOR -> Dashboard
         case 'owner':
-          // Ega - Dashboard
-          print('📊 Owner → Dashboard');
+        case 'director':
+          print('📊 Rahbariyat → Dashboard');
           Get.offAllNamed(AppRoutes.dashboard);
           break;
 
+        // 2. KASSIR (DB: manager) -> Moliya
+        case 'manager':
+          print('💰 Kassir → Finance');
+          Get.offAllNamed(AppRoutes.finance);
+          break;
+
+        // 3. QABULXONA (DB: admin) -> Tashriflar
         case 'admin':
-          // Qabulxona - Tashrif buyuruvchilar
-          print('👥 Admin → Visitors');
+          print('👥 Qabulxona → Visitors');
           Get.offAllNamed(AppRoutes.visitors);
           break;
 
-        case 'staff':
+        // 4. O'QITUVCHI -> Dars jadvali
         case 'teacher':
-          // Xodim/O'qituvchi - Mening jadvalim
-          print('📅 Staff/Teacher → My Schedule');
+          print('📅 O\'qituvchi → My Schedule');
           Get.offAllNamed(AppRoutes.mySchedule);
           break;
 
-        case 'director':
-          // Direktor - Hisobotlar
-          print('📈 Director → Reports');
-          Get.offAllNamed(AppRoutes.reports);
-          break;
-
+        // Noma'lum rol
         default:
-          // Noma'lum rol - Dashboard
-          print('❓ Unknown role ($roleKey) → Dashboard');
-          Get.offAllNamed(AppRoutes.dashboard);
+          print('❓ Noma\'lum rol ($roleKey) → Login');
+          Get.snackbar('Xatolik', 'Sizga ruxsat etilgan rol topilmadi');
+          Get.offAllNamed(AppRoutes.login);
       }
-      
+
       print('✅ Navigatsiya muvaffaqiyatli');
     } catch (e) {
       print('❌ Navigatsiya xatoligi: $e');
-      // Xatolik bo'lsa Dashboard ga yo'naltirish
-      Get.offAllNamed(AppRoutes.dashboard);
+      // Xatolik bo'lsa login sahifasiga yo'naltirish
+      Get.offAllNamed(AppRoutes.login);
     }
   }
 
-  // ========== LOGOUT ==========
+  // ==================== 4. LOGOUT ====================
   Future<void> logout() async {
     try {
       isLoading.value = true;
-      
+
       print('🚪 Logout jarayoni boshlandi');
 
       await _authRepository.logout();
@@ -198,7 +197,7 @@ class AuthController extends GetxController {
         'Tizimdan muvaffaqiyatli chiqdingiz',
         snackPosition: SnackPosition.TOP,
       );
-      
+
       print('✅ Logout muvaffaqiyatli');
     } catch (e) {
       Get.snackbar(
@@ -212,7 +211,7 @@ class AuthController extends GetxController {
     }
   }
 
-  // ========== PAROLNI YANGILASH ==========
+  // ==================== 5. PAROLNI YANGILASH ====================
   Future<bool> updatePassword({
     required String oldPassword,
     required String newPassword,
@@ -251,7 +250,7 @@ class AuthController extends GetxController {
     }
   }
 
-  // ========== PROFILNI YANGILASH ==========
+  // ==================== 6. PROFILNI YANGILASH ====================
   Future<bool> updateProfile(UserModel user) async {
     try {
       isLoading.value = true;
@@ -282,29 +281,46 @@ class AuthController extends GetxController {
     }
   }
 
-  // ========== ROL TEKSHIRISH METODLARI ==========
-  // Bitta rolni tekshirish
-  bool hasRole(String role) => 
+  // ==================== 7. ROL TEKSHIRISH (GETTERS) ====================
+
+  // Yordamchi metod: Rolni tekshirish
+  bool hasRole(String role) =>
       currentUser.value?.role.toLowerCase().trim() == role.toLowerCase().trim();
 
-  // Bir nechta rollarni tekshirish
+  // Yordamchi metod: Bir nechta rollardan birini tekshirish
   bool hasAnyRole(List<String> roles) {
     final userRole = currentUser.value?.role.toLowerCase().trim();
     return roles.any((role) => role.toLowerCase().trim() == userRole);
   }
 
-  // Aniq rollar uchun getter'lar
+  // --- Aniq rollar uchun ---
+
+  // Ta'sischi
   bool get isOwner => hasRole('owner');
-  bool get isAdmin => hasRole('admin');
-  bool get isStaff => hasAnyRole(['staff', 'teacher']);
-  bool get isTeacher => hasRole('teacher');
+
+  // Direktor
   bool get isDirector => hasRole('director');
 
-  // Bir nechta rollar uchun
-  bool get isManagerOrOwner => hasAnyRole(['owner', 'manager']);
-  bool get canManageFinance => hasAnyRole(['owner', 'director']);
-  bool get canViewReports => hasAnyRole(['owner', 'director', 'manager']);
-  
+  // Kassir (Database: manager)
+  bool get isCashier => hasRole('manager');
+
+  // Qabulxona (Database: admin)
+  bool get isReception => hasRole('admin');
+
+  // O'qituvchi
+  bool get isTeacher => hasRole('teacher');
+
+  // --- Ruxsatlar (Permissions) ---
+
+  // Moliyani boshqarish (Owner, Director, Kassir)
+  bool get canManageFinance => hasAnyRole(['owner', 'director', 'manager']);
+
+  // Hisobotlarni ko'rish (Owner, Director)
+  bool get canViewReports => hasAnyRole(['owner', 'director']);
+
+  // Xodimlarni boshqarish (Owner, Director, Qabulxona)
+  bool get canManageStaff => hasAnyRole(['owner', 'director', 'admin']);
+
   // Manual navigatsiya metodi (debug uchun)
   void navigateToHome() {
     if (currentUser.value != null) {

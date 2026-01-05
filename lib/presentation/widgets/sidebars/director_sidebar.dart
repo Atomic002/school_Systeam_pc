@@ -1,6 +1,3 @@
-// lib/presentation/widgets/director_sidebar.dart
-// DIREKTOR SIDEBAR - Staff modelidan foydalanadigan versiya
-
 import 'package:flutter/material.dart';
 import 'package:flutter_application_1/config/app_routes.dart';
 import 'package:flutter_application_1/config/constants.dart';
@@ -19,7 +16,7 @@ class DirectorSidebar extends StatefulWidget {
 class _DirectorSidebarState extends State<DirectorSidebar> {
   final AuthController authController = Get.find<AuthController>();
   final StaffRepository _staffRepository = StaffRepository();
-  
+
   StaffEnhanced? _staffInfo;
   bool _isLoading = true;
 
@@ -27,29 +24,40 @@ class _DirectorSidebarState extends State<DirectorSidebar> {
   void initState() {
     super.initState();
     _loadStaffInfo();
+
+    // --- MUHIM QISM: BIRINCHI KIRIShDA MOLIYAGA O'TKAZISH ---
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      // Agar hozirgi sahifa bosh sahifa (Dashboard) bo'lsa
+      if (Get.currentRoute == AppRoutes.dashboard || Get.currentRoute == '/') {
+        // Moliya sahifasiga yo'naltirish (Sahifa almashtirish emas, shunchaki ustiga ochish)
+        // offNamed ishlatmang, chunki bu Sidebar ichida turibdi
+        Get.toNamed(AppRoutes.finance);
+      }
+    });
+    // --------------------------------------------------------
   }
 
   Future<void> _loadStaffInfo() async {
     try {
       final user = authController.currentUser.value;
       if (user != null && user.id != null) {
-        // User ID orqali staff ma'lumotlarini olish
         final staffList = await _staffRepository.getStaffByUserId(user.id);
         if (staffList.isNotEmpty) {
-          setState(() {
-            _staffInfo = staffList.first;
-            _isLoading = false;
-          });
+          if (mounted) {
+            setState(() {
+              _staffInfo = staffList.first;
+              _isLoading = false;
+            });
+          }
         } else {
-          setState(() => _isLoading = false);
+          if (mounted) setState(() => _isLoading = false);
         }
       }
     } catch (e) {
       print('Staff ma\'lumotlarini olishda xato: $e');
-      setState(() => _isLoading = false);
+      if (mounted) setState(() => _isLoading = false);
     }
   }
-  
 
   @override
   Widget build(BuildContext context) {
@@ -71,35 +79,19 @@ class _DirectorSidebarState extends State<DirectorSidebar> {
           Divider(height: 1),
           Expanded(
             child: ListView(
-              padding: EdgeInsets.symmetric(vertical: AppConstants.paddingSmall),
+              padding: EdgeInsets.symmetric(
+                vertical: AppConstants.paddingSmall,
+              ),
               children: [
                 _buildMenuSection('BOSHQARUV'),
-                _buildMenuItem(
-                  icon: Icons.analytics_outlined,
-                  activeIcon: Icons.analytics,
-                  title: 'Hisobotlar',
-                  route: AppRoutes.reports,
-                ),
-                _buildMenuItem(
-                  icon: Icons.business_outlined,
-                  activeIcon: Icons.business,
-                  title: 'Filial samaradorligi',
-                  route: AppRoutes.branchPerformance,
-                ),
-                _buildMenuItem(
-                  icon: Icons.people_outlined,
-                  activeIcon: Icons.people,
-                  title: 'Xodimlar samaradorligi',
-                  route: AppRoutes.staffPerformance,
-                ),
 
-                _buildMenuSection('MOLIYA'),
                 _buildMenuItem(
                   icon: Icons.account_balance_wallet_outlined,
                   activeIcon: Icons.account_balance_wallet,
                   title: 'Moliya',
                   route: AppRoutes.finance,
                 ),
+
                 _buildMenuItem(
                   icon: Icons.payment_outlined,
                   activeIcon: Icons.payment,
@@ -112,12 +104,6 @@ class _DirectorSidebarState extends State<DirectorSidebar> {
                   title: 'Xarajatlar',
                   route: AppRoutes.expenses,
                 ),
-                _buildMenuItem(
-                  icon: Icons.attach_money_outlined,
-                  activeIcon: Icons.attach_money,
-                  title: 'Maoshlar',
-                  route: AppRoutes.salary,
-                ),
 
                 _buildMenuSection('O\'QUVCHILAR'),
                 _buildMenuItem(
@@ -125,6 +111,12 @@ class _DirectorSidebarState extends State<DirectorSidebar> {
                   activeIcon: Icons.school,
                   title: 'O\'quvchilar',
                   route: AppRoutes.students,
+                ),
+                _buildMenuItem(
+                  icon: Icons.person_add_outlined,
+                  activeIcon: Icons.person_add,
+                  title: 'Yangi o\'quvchi',
+                  route: AppRoutes.addStudent,
                 ),
                 _buildMenuItem(
                   icon: Icons.people_outline,
@@ -215,18 +207,16 @@ class _DirectorSidebarState extends State<DirectorSidebar> {
           final user = authController.currentUser.value;
           if (user == null) return SizedBox.shrink();
 
-          // Staff ma'lumotlaridan yoki User ma'lumotlaridan foydalanish
           String displayName = 'Direktor';
           String? branchInfo;
-          String? photoUrl; // <--- Rasm URL uchun o'zgaruvchi
+          String? photoUrl;
 
           if (_staffInfo != null) {
             displayName = _staffInfo!.fullName;
             branchInfo = _staffInfo!.branchName;
-            photoUrl = _staffInfo!.photoUrl; // <--- Model dan o'qib olamiz
+            photoUrl = _staffInfo!.photoUrl;
           }
 
-          // Avatar uchun harf (fallback)
           String avatarLetter = 'D';
           if (_staffInfo != null && _staffInfo!.firstName.isNotEmpty) {
             avatarLetter = _staffInfo!.firstName[0].toUpperCase();
@@ -235,11 +225,9 @@ class _DirectorSidebarState extends State<DirectorSidebar> {
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // --- AVATAR QISMI O'ZGARTIRILDI ---
               CircleAvatar(
                 radius: 30,
                 backgroundColor: Colors.deepOrange,
-                // Agar rasm bor bo'lsa, uni orqa fon qilib qo'yamiz
                 backgroundImage: (photoUrl != null && photoUrl.isNotEmpty)
                     ? NetworkImage(photoUrl)
                     : null,
@@ -253,8 +241,8 @@ class _DirectorSidebarState extends State<DirectorSidebar> {
                         ),
                       )
                     : (photoUrl != null && photoUrl.isNotEmpty)
-                        ? null // Rasm bor bo'lsa, harf yozmaymiz (null)
-                        : Text( // Rasm yo'q bo'lsa, harfni chiqaramiz
+                        ? null
+                        : Text(
                             avatarLetter,
                             style: TextStyle(
                               fontSize: 24,
@@ -263,11 +251,7 @@ class _DirectorSidebarState extends State<DirectorSidebar> {
                             ),
                           ),
               ),
-              // ----------------------------------
-              
               SizedBox(height: AppConstants.paddingMedium),
-              
-              // Ism
               Text(
                 displayName,
                 style: TextStyle(
@@ -279,8 +263,6 @@ class _DirectorSidebarState extends State<DirectorSidebar> {
                 overflow: TextOverflow.ellipsis,
               ),
               SizedBox(height: 4),
-              
-              // Lavozim
               Text(
                 _staffInfo?.position ?? 'Direktor',
                 style: TextStyle(
@@ -288,8 +270,6 @@ class _DirectorSidebarState extends State<DirectorSidebar> {
                   color: AppConstants.textSecondaryColor,
                 ),
               ),
-              
-              // Filial ma'lumoti
               if (branchInfo != null && branchInfo.isNotEmpty) ...[
                 SizedBox(height: 8),
                 Container(
@@ -359,7 +339,9 @@ class _DirectorSidebarState extends State<DirectorSidebar> {
         vertical: 2,
       ),
       decoration: BoxDecoration(
-        color: isActive ? Colors.deepOrange.withOpacity(0.1) : Colors.transparent,
+        color: isActive
+            ? Colors.deepOrange.withOpacity(0.1)
+            : Colors.transparent,
         borderRadius: BorderRadius.circular(AppConstants.borderRadiusMedium),
       ),
       child: ListTile(
@@ -410,10 +392,7 @@ class _DirectorSidebarState extends State<DirectorSidebar> {
               title: Text('Chiqish'),
               content: Text('Tizimdan chiqmoqchimisiz?'),
               actions: [
-                TextButton(
-                  onPressed: () => Get.back(),
-                  child: Text('Yo\'q'),
-                ),
+                TextButton(onPressed: () => Get.back(), child: Text('Yo\'q')),
                 ElevatedButton(
                   onPressed: () {
                     Get.back();

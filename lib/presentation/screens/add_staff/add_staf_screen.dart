@@ -948,52 +948,54 @@ _buildAvatarPicker(), // <--- 1. MANA SHU YERGA QO'SHILDI
                     color: Colors.black87,
                   ),
                 ),
+               // ... _buildUserCreation funksiyasining ichida ...
+
                 const SizedBox(height: 12),
                 Obx(
                   () => Wrap(
                     spacing: 12,
                     runSpacing: 12,
                     children: [
+                      // 1. O'QITUVCHI (Key: teacher)
                       _buildRoleChip(
-                        'Administrator',
-                        'administrator',
-                        Icons.admin_panel_settings,
-                        Colors.red,
+                        "O'qituvchi",
+                        'teacher',
+                        Icons.school,
+                        Colors.blue,
                       ),
+                      
+                      // 2. QABULXONA (Key: admin - Controllerda shunday belgiladik)
+                      _buildRoleChip(
+                        'Qabulxona',
+                        'admin', 
+                        Icons.desk,
+                        Colors.teal,
+                      ),
+
+                      // 3. KASSIR (Key: manager - Controllerda shunday belgiladik)
+                      _buildRoleChip(
+                        'Kassir',
+                        'manager', 
+                        Icons.point_of_sale,
+                        Colors.orange,
+                      ),
+
+                      // 4. DIREKTOR (Key: director)
                       _buildRoleChip(
                         'Direktor',
                         'director',
                         Icons.business_center,
                         Colors.purple,
                       ),
-                      _buildRoleChip(
-                        'O\'qituvchi',
-                        'teacher',
-                        Icons.school,
-                        Colors.blue,
-                      ),
-                      _buildRoleChip(
-                        'Xodim',
-                        'staff',
-                        Icons.person,
-                        Colors.green,
-                      ),
-                      _buildRoleChip(
-                        'Kassa',
-                        'cashier',
-                        Icons.point_of_sale,
-                        Colors.orange,
-                      ),
-                      _buildRoleChip(
-                        'Qabul',
-                        'reception',
-                        Icons.desk,
-                        Colors.teal,
-                      ),
+
+                      // 5. TA'SISCHI (Key: owner)
+                     
                     ],
                   ),
-                ),
+                ),  
                 const SizedBox(height: 24),
+
+// ... qolgan kod davom etadi ...
                 Row(
                   children: [
                     Expanded(

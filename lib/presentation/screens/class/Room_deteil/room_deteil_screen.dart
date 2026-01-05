@@ -323,15 +323,18 @@ class RoomDetailScreen extends StatelessWidget {
   }
 
   Widget _buildClassItem(Map<String, dynamic> cls) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: const Color(0xFF4CAF50).withOpacity(0.1),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: const Color(0xFF4CAF50).withOpacity(0.3)),
-      ),
-      child: Row(
-        children: [
+    return InkWell( // Container o'rniga InkWell
+      onTap: () => Get.toNamed('/class-detail', arguments: {'id': cls['id']}), // Navigation
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: const Color(0xFF4CAF50).withOpacity(0.1),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: const Color(0xFF4CAF50).withOpacity(0.3)),
+        ),
+        child: Row(
+          children: [
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
@@ -366,7 +369,7 @@ class RoomDetailScreen extends StatelessWidget {
           ),
         ],
       ),
-    );
+    ));
   }
 
   Widget _buildAssignedTeachers() {
@@ -395,8 +398,11 @@ class RoomDetailScreen extends StatelessWidget {
     });
   }
 
-  Widget _buildTeacherItem(Map<String, dynamic> teacher) {
-    return Container(
+   Widget _buildTeacherItem(Map<String, dynamic> teacher) {
+    return InkWell(
+      onTap: () => Get.toNamed('/staff-detail', arguments: {'id': teacher['id']}), // Navigation
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: const Color(0xFF2196F3).withOpacity(0.05),
@@ -432,13 +438,13 @@ class RoomDetailScreen extends StatelessWidget {
               ],
             ),
           ),
-          IconButton(
-            icon: const Icon(Icons.close, color: Colors.red, size: 20),
-            onPressed: () => controller.unassignTeacher(teacher['id']),
-          ),
+             IconButton(
+              icon: const Icon(Icons.close, color: Colors.red, size: 20),
+              onPressed: () => controller.unassignTeacher(teacher['id']),
+            ),
         ],
       ),
-    );
+    ));
   }
 
   Widget _buildAssignedStudents() {
@@ -480,8 +486,8 @@ class RoomDetailScreen extends StatelessWidget {
         style: TextStyle(fontSize: 12, color: Colors.grey[600]),
       ),
       trailing: Icon(Icons.chevron_right, color: Colors.grey[400]),
-      onTap: () {
-        // O'quvchi detayliga o'tish
+     onTap: () {
+        Get.toNamed('/student-detail', arguments: {'id': student['id']}); // Navigation qo'shildi
       },
     );
   }
