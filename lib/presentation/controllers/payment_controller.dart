@@ -200,6 +200,7 @@ class PaymentSplit {
 class NewPaymentControllerV5 extends GetxController {
   final _supabase = Supabase.instance.client;
   final formKey = GlobalKey<FormState>();
+    var studentStatuses = <String, String>{}.obs; 
 
   // Controllers
   final searchController = TextEditingController();
@@ -400,20 +401,22 @@ class NewPaymentControllerV5 extends GetxController {
       String current = statusMap[p['student_id']] ?? '';
       String newStatus = p['payment_status'] ?? 'paid';
 
-      if (current != 'paid') {
-        // Agar hali paid bo'lmasa, yangisini olamiz
-        statusMap[p['student_id']] = newStatus;
+       await loadCurrentMonthStatistics();
+      if (selectedStudentId.value != null) {
+        await loadStudentDebts(selectedStudentId.value!);
+        await loadPaymentHistory(selectedStudentId.value!);
+        // O'quvchilar ro'yxatini yangilash (rangi o'zgarishi uchun)
+        await loadInitialStudents(); // <--- BU QATOR BOR
       }
     }
     return statusMap;
   }
 
-  Future<void> loadInitialStudents() async {
+ Future<void> loadInitialStudents() async {
     if (selectedBranchId.value == null) return;
 
     try {
       isSearching.value = true;
-
       final studentsData = await _supabase
           .from('students')
           .select('''

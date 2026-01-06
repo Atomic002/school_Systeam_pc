@@ -531,29 +531,28 @@ class NewPaymentScreenV5 extends StatelessWidget {
                 );
               }
 
+           // ...
               return ListView.separated(
                 padding: EdgeInsets.all(16),
                 itemCount: controller.searchResults.length,
                 separatorBuilder: (_, __) => SizedBox(height: 12),
-                // ListView.separated ichidagi itemBuilder:
                 itemBuilder: (context, index) {
                   final student = controller.searchResults[index];
-                  final isSelected =
-                      controller.selectedStudentId.value == student.id;
+                  final isSelected = controller.selectedStudentId.value == student.id;
 
-                  // ESKI KOD: final hasPaid = ...;
-                  // YANGI KOD (Statusni olamiz):
-                  final status = student.toJson()['payment_status'] ?? 'unpaid';
+                  // O'ZGARTIRILDI: Statusni modeldan emas, Controllerdagi Mapdan olamiz
+                  // Agar mapda bu o'quvchi bo'lmasa, 'unpaid' deb olamiz
+                  final status = controller.studentStatuses[student.id] ?? 'unpaid';
 
-                  // buildStudentCard ga endi status (String) beramiz
                   return _buildStudentCard(
                     controller,
                     student,
                     isSelected,
-                    status,
+                    status, // To'g'ri statusni uzatamiz
                   );
                 },
               );
+// ...
             }),
           ),
         ],

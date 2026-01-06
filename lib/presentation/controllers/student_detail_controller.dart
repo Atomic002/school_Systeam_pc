@@ -690,7 +690,142 @@ class StudentDetailController extends GetxController {
       arguments: {'studentId': studentId},
     );
   }
+    // ==================== O'QUVCHINI TAHRIRLASH ====================
+  void editStudent() async {
+    if (studentId == null || studentData.value == null) return;
 
+    // AddStudentScreen ga student ma'lumotlari bilan o'tish
+    final result = await Get.toNamed(
+      '/add-student', // Yoki AppRoutes.addStudent
+      arguments: {
+        'isEdit': true,
+        'studentId': studentId,
+        'studentData': studentData.value, // Ixtiyoriy, agar qayta yuklashni xohlamasangiz
+      },
+    );
+
+    // Agar tahrirlashdan qaytganda 'result' true bo'lsa, ma'lumotlarni yangilaymiz
+    if (result == true) {
+      await loadAllData();
+      Get.snackbar(
+        'Muvaffaqiyatli',
+        'O\'quvchi ma\'lumotlari yangilandi',
+        backgroundColor: Colors.green.shade100,
+      );
+    }
+  }
+  // ==================== O'QUVCHINI FAOLSIZLANTIRISH ====================
+  Future<void> deactivateStudent() async {
+    if (studentId == null) return;
+
+    final confirm = await Get.dialog<bool>(
+      AlertDialog(
+        title: const Text('Tasdiqlash'),
+        content: const Text(
+          'Haqiqatan ham bu o\'quvchini faolsizlantirmoqchimisiz? U arxivga o\'tkaziladi.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Get.back(result: false),
+            child: const Text('Bekor qilish'),
+          ),
+          ElevatedButton(
+            onPressed: () => Get.back(result: true),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
+            child: const Text('Faolsizlantirish'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      try {
+        isLoading.value = true;
+        // Statusni 'inactive' yoki 'archived' ga o'zgartiramiz
+        await _supabase
+            .from('students')
+            .update({'status': 'inactive'}) // Yoki 'archived'
+            .eq('id', studentId!);
+
+        // Enrollment ni ham tugatish kerak bo'lishi mumkin
+        if (currentEnrollment.value != null) {
+           await _supabase
+            .from('enrollments')
+            .update({
+              'is_active': false,
+              'left_at': DateTime.now().toIso8601String(),
+              'leave_reason': 'Ma\'muriyat tomonidan faolsizlantirildi'
+            })
+            .eq('student_id', studentId!)
+            .eq('is_active', true);
+        }
+
+        Get.back(); // Sahifadan chiqib ketish
+        Get.snackbar(
+          'Muvaffaqiyatli',
+          'O\'quvchi faolsizlantirildi',
+          backgroundColor: Colors.orange.shade100,
+        );
+      } catch (e) {
+        print('❌ Deactivate error: $e');
+        Get.snackbar('Xatolik', 'Faolsizlantirishda xatolik yuz berdi');
+      } finally {
+        isLoading.value = false;
+      }
+    }
+  }
+
+  // ==================== O'QUVCHINI BUTUNLAY O'CHIRISH ====================
+  // ==================== O'QUVCHINI BUTUNLAY O'CHIRISH ====================
+  Future<void> deleteStudent() async {
+    if (studentId == null) return;
+
+    final confirm = await Get.dialog<bool>(
+      AlertDialog(
+        title: const Text('DIQQAT! O\'chirish'),
+        content: const Text(
+          'Haqiqatan ham bu o\'quvchini butunlay o\'chirmoqchimisiz?\n\nBARCHA MA\'LUMOTLAR (To\'lovlar, davomat va h.k.) O\'CHIB KETADI va qayta tiklab bo\'lmaydi!',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Get.back(result: false),
+            child: const Text('Bekor qilish'),
+          ),
+          ElevatedButton(
+            onPressed: () => Get.back(result: true),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('Ha, O\'chirish'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      try {
+        isLoading.value = true;
+        
+        // Supabase da Cascade delete yoqilgan bo'lsa, faqat studentni o'chirish yetarli
+        await _supabase
+            .from('students')
+            .delete()
+            .eq('id', studentId!);
+
+        Get.back(); // Sahifadan chiqib ketish
+        Get.snackbar(
+          'Muvaffaqiyatli',
+          'O\'quvchi butunlay o\'chirildi',
+          backgroundColor: Colors.red.shade100,
+        );
+      } catch (e) {
+        print('❌ Delete error: $e');
+        Get.snackbar('Xatolik', 'O\'chirishda xatolik yuz berdi: ${e.toString()}');
+      } finally {
+        isLoading.value = false;
+      }
+    }
+  }
+
+ 
   // ==================== PDF EXPORT ====================
   Future<void> exportToPDF() async {
     try {

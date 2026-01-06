@@ -7,12 +7,15 @@ import '../../controllers/add_student_controller.dart';
 import '../../widgets/sidebar.dart';
 
 class AddStudentScreen extends StatelessWidget {
+  
   AddStudentScreen({Key? key}) : super(key: key);
+  
 
   final AddStudentController controller = Get.put(AddStudentController());
 
   @override
   Widget build(BuildContext context) {
+    
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7FA),
       body: Row(
@@ -48,60 +51,65 @@ class AddStudentScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildHeader() {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(24.0),
-          child: Row(
-            children: [
-              IconButton(
-                icon: const Icon(Icons.arrow_back, color: Color(0xFF2196F3)),
-                onPressed: () => Get.back(),
-                tooltip: 'Orqaga',
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Yangi o\'quvchi qo\'shish',
-                      style: TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black87,
-                      ),
+ Widget _buildHeader() {
+  return Container(
+    decoration: BoxDecoration(
+      color: Colors.white,
+      boxShadow: [
+        BoxShadow(
+          color: Colors.black.withOpacity(0.05),
+          blurRadius: 10,
+          offset: const Offset(0, 2),
+        ),
+      ],
+    ),
+    child: SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.all(24.0),
+        child: Row(
+          children: [
+            IconButton(
+              icon: const Icon(Icons.arrow_back, color: Color(0xFF2196F3)),
+              onPressed: () => Get.back(),
+              tooltip: 'Orqaga',
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // YANGI: Edit yoki Create rejimini ko'rsatish
+                  Obx(() => Text(
+                    controller.isEditMode.value 
+                        ? 'O\'quvchini tahrirlash'
+                        : 'Yangi o\'quvchi qo\'shish',
+                    style: const TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black87,
                     ),
-                    const SizedBox(height: 4),
-                    Obx(() {
-                      if (controller.selectedBranchName.value.isNotEmpty) {
-                        return Row(
-                          children: [
-                            const Icon(
-                              Icons.location_on,
-                              size: 16,
+                  )),
+                  const SizedBox(height: 4),
+                  Obx(() {
+                    if (controller.selectedBranchName.value.isNotEmpty) {
+                      return Row(
+                        children: [
+                          const Icon(
+                            Icons.location_on,
+                            size: 16,
+                            color: Color(0xFF2196F3),
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            'Filial: ${controller.selectedBranchName.value}',
+                            style: const TextStyle(
+                              fontSize: 14,
                               color: Color(0xFF2196F3),
+                              fontWeight: FontWeight.w500,
                             ),
-                            const SizedBox(width: 4),
-                            Text(
-                              'Filial: ${controller.selectedBranchName.value}',
-                              style: const TextStyle(
-                                fontSize: 14,
-                                color: Color(0xFF2196F3),
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
+                          ),
+                          // Edit rejimida filial o'zgartirishni yopish
+                          if (!controller.isEditMode.value) ...[
                             const SizedBox(width: 8),
                             InkWell(
                               onTap: () => controller.changeBranch(),
@@ -115,23 +123,23 @@ class AddStudentScreen extends StatelessWidget {
                               ),
                             ),
                           ],
-                        );
-                      }
-                      return const Text(
-                        'Filialni tanlang',
-                        style: TextStyle(fontSize: 14, color: Colors.grey),
+                        ],
                       );
-                    }),
-                  ],
-                ),
+                    }
+                    return const Text(
+                      'Filialni tanlang',
+                      style: TextStyle(fontSize: 14, color: Colors.grey),
+                    );
+                  }),
+                ],
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
-    );
-  }
-
+    ),
+  );
+}
   Widget _buildBranchSelector() {
     return Center(
       child: Container(
@@ -298,65 +306,143 @@ class AddStudentScreen extends StatelessWidget {
   }
 
   Widget _buildVisitorSelection() {
-    return _buildCard(
-      title: 'Tashrif buyuruvchilardan tanlash',
-      icon: Icons.people_outline,
-      child: Obx(() {
-        if (controller.visitors.isEmpty) return const SizedBox.shrink();
+    return Obx(() {
+      // 1-HOLAT: Agar Visitor oynasidan "Convert" qilib kelgan bo'lsa (argument orqali)
+      // Biz unga boshqa visitor tanlashga ruxsat bermaymiz, faqat ma'lumot beramiz.
+      // Eslatma: Buni tekshirish uchun controllerda 'isConvertedFromVisitor' degan flag bo'lishi kerak yoki selectedVisitorId ni tekshirish yetarli bo'lishi mumkin.
+      
+      // Lekin hozirgi mantiqda selectedVisitorId to'ldirilgan bo'ladi.
+      // Agar biz buni "majburiy" rejim deb bilsak:
+      
+      /*
+      // Agar xohlasangiz, argument bilan kelganini alohida ajratib ko'rsatish mumkin:
+      if (controller.isFromConversion) { // Buni controllerga qo'shish kerak bo'ladi
+         return Container(
+            padding: EdgeInsets.all(16),
+            decoration: BoxDecoration(color: Colors.blue[50], borderRadius: BorderRadius.circular(12)),
+            child: Row(children: [
+               Icon(Icons.info, color: Colors.blue),
+               SizedBox(width: 12),
+               Text("Ushbu o'quvchi Tashrif buyuruvchilar ro'yxatidan olinmoqda"),
+            ]),
+         );
+      }
+      */
 
-        return Column(
+      // 2-HOLAT: Oddiy rejim (Siz so'ragan narsa)
+      return _buildCard(
+        title: 'Tashrif buyuruvchidan tanlash',
+        icon: Icons.person_search,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            DropdownButtonFormField<String?>(
-              decoration: const InputDecoration(
-                labelText: 'Tashrif buyuruvchini tanlang',
-                prefixIcon: Icon(Icons.person_search, color: Color(0xFF2196F3)),
-                border: OutlineInputBorder(),
-              ),
-              value: controller.selectedVisitorId.value,
-              items: [
-                const DropdownMenuItem<String?>(
-                  value: null,
-                  child: Text('Yangi o\'quvchi (visitor\'dan emas)'),
-                ),
-                ...controller.visitors.map((visitor) {
-                  return DropdownMenuItem<String?>(
-                    value: visitor.id,
-                    child: Text(
-                      '${visitor.firstName} ${visitor.lastName} - ${visitor.phone}',
-                    ),
-                  );
-                }),
-              ],
-              onChanged: (value) => controller.selectVisitor(value),
+            const Text(
+              'Agar o\'quvchi avval tashrif buyurgan bo\'lsa, uni tanlang',
+              style: TextStyle(color: Colors.grey, fontSize: 14),
             ),
-            if (controller.selectedVisitorId.value != null) ...[
-              const SizedBox(height: 12),
-              Container(
-                padding: const EdgeInsets.all(12),
+            const SizedBox(height: 16),
+            
+            // ... (Qolgan kod o'zgarishsiz: Filial tekshiruvi, Loading, Dropdown) ...
+            // Yuqoridagi javobdagi Obx ichidagi mantiqni shu yerga qo'ying.
+             Obx(() {
+            // Agar filial tanlanmagan bo'lsa
+            if (controller.selectedBranchId.value == null) {
+               return const Text('Avval filialni tanlang', style: TextStyle(color: Colors.orange));
+            }
+
+            if (controller.isLoadingVisitors.value) {
+              return const Center(
+                child: Padding(
+                  padding: EdgeInsets.all(16.0),
+                  child: CircularProgressIndicator(),
+                ),
+              );
+            }
+
+            if (controller.visitors.isEmpty) {
+              return Container(
+                padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF2196F3).withOpacity(0.1),
+                  color: Colors.grey.shade100,
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: const Row(
                   children: [
-                    Icon(Icons.check_circle, color: Color(0xFF2196F3)),
+                    Icon(Icons.info_outline, color: Colors.grey),
                     SizedBox(width: 12),
                     Expanded(
                       child: Text(
-                        'Visitor ma\'lumotlari avtomatik to\'ldirildi',
-                        style: TextStyle(color: Color(0xFF2196F3)),
+                        'Bu filialda hali konvertatsiya qilinmagan o\'quvchi-visitorlar yo\'q',
+                        style: TextStyle(color: Colors.grey),
                       ),
                     ),
                   ],
                 ),
-              ),
-            ],
-          ],
-        );
-      }),
-    );
-  }
+              );
+            }
 
+            return Column(
+              children: [
+                DropdownButtonFormField<String?>(
+                  value: controller.selectedVisitorId.value,
+                  decoration: const InputDecoration(
+                    labelText: 'Tashrif buyuruvchi',
+                    prefixIcon: Icon(Icons.people, color: Color(0xFF2196F3)),
+                    border: OutlineInputBorder(),
+                    hintText: 'Tanlang...',
+                  ),
+                  items: [
+                    const DropdownMenuItem<String?>(
+                      value: null,
+                      child: Text('Yangi o\'quvchi (Ro\'yxatda yo\'q)'),
+                    ),
+                    ...controller.visitors.map((visitor) {
+                      return DropdownMenuItem<String?>(
+                        value: visitor['id'],
+                        child: Text(
+                          '${visitor['first_name']} ${visitor['last_name']} - ${visitor['phone']}',
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      );
+                    }).toList(),
+                  ],
+                  onChanged: controller.onVisitorSelected,
+                ),
+                
+                // Tanlanganda tasdiqlash belgisi
+                Obx(() {
+                  if (controller.selectedVisitorId.value != null) {
+                    return Padding(
+                      padding: const EdgeInsets.only(top: 12),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.check_circle, color: Colors.green, size: 20),
+                          const SizedBox(width: 8),
+                          const Expanded(
+                            child: Text(
+                              'Ma\'lumotlar avtomatik to\'ldirildi',
+                              style: TextStyle(color: Colors.green),
+                            ),
+                          ),
+                          TextButton.icon(
+                            onPressed: controller.clearVisitorSelection,
+                            icon: const Icon(Icons.clear),
+                            label: const Text('Tozalash'),
+                          ),
+                        ],
+                      ),
+                    );
+                  }
+                  return const SizedBox.shrink();
+                }),
+              ],
+            );
+          }),
+          ],
+        ),
+      );
+    });
+  }
   // Keyingi qism...
   Widget _buildCard({
     required String title,

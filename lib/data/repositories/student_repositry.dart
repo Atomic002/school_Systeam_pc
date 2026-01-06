@@ -1,5 +1,3 @@
-// lib/data/repositories/student_repository.dart - TO'LIQ TUZATILGAN
-
 import 'package:flutter_application_1/data/models/student_model.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -33,8 +31,7 @@ class StudentRepository {
     required String medicalNotes,
     String? visitorId,
     required String createdBy,
-    
-    // ✅ SINF MA'LUMOTLARI
+    // SINF MA'LUMOTLARI
     String? classId,
     String? classLevelId,
     String? classLevelName,
@@ -48,14 +45,6 @@ class StudentRepository {
       print('💾 ========== STUDENT REPOSITORY - CREATE ==========');
       print('Branch ID: $branchId');
       print('Class ID: $classId');
-      print('Class Level ID: $classLevelId');
-      print('Class Level Name: $classLevelName');
-      print('Room ID: $roomId');
-      print('Room Name: $roomName');
-      print('Teacher ID: $mainTeacherId');
-      print('Teacher Name: $mainTeacherName');
-
-      // ✅ TO'LIQ MA'LUMOTLAR BILAN INSERT
       final data = {
         'branch_id': branchId,
         'first_name': firstName,
@@ -67,9 +56,13 @@ class StudentRepository {
         'address': address.isNotEmpty ? address : null,
         'region': region.isNotEmpty ? region : null,
         'district': district.isNotEmpty ? district : null,
-        'parent_first_name': parentFirstName.isNotEmpty ? parentFirstName : null,
+        'parent_first_name': parentFirstName.isNotEmpty
+            ? parentFirstName
+            : null,
         'parent_last_name': parentLastName.isNotEmpty ? parentLastName : null,
-        'parent_middle_name': parentMiddleName.isNotEmpty ? parentMiddleName : null,
+        'parent_middle_name': parentMiddleName.isNotEmpty
+            ? parentMiddleName
+            : null,
         'parent_phone': parentPhone.isNotEmpty ? parentPhone : null,
         'parent_phone_secondary': parentPhone2.isNotEmpty ? parentPhone2 : null,
         'parent_workplace': parentWorkplace.isNotEmpty ? parentWorkplace : null,
@@ -84,8 +77,8 @@ class StudentRepository {
         'created_by': createdBy,
         'status': 'active',
         'enrollment_date': DateTime.now().toIso8601String(),
-        
-        // ✅ SINF MA'LUMOTLARI - ASOSIY!
+
+        // SINF MA'LUMOTLARI
         'class_id': classId,
         'class_level_id': classLevelId,
         'class_level_name': classLevelName,
@@ -105,8 +98,6 @@ class StudentRepository {
           .single();
 
       print('✅ O\'quvchi muvaffaqiyatli yaratildi!');
-      print('📦 Response: $response');
-
       return StudentModel.fromJson(response);
     } catch (e) {
       print('❌ createStudent xatosi: $e');
@@ -114,21 +105,37 @@ class StudentRepository {
     }
   }
 
-  /// O'quvchini yangilash
+  /// ✅ O'quvchini yangilash - TO'LIQ TUZATILGAN
   Future<bool> updateStudent({
     required String studentId,
-    String? photoUrl,
+    // ASOSIY MA'LUMOTLAR
     String? firstName,
     String? lastName,
     String? middleName,
+    String? gender,
+    DateTime? birthDate,
     String? phone,
     String? address,
     String? region,
     String? district,
+    // OTA-ONA
+    String? parentFirstName,
+    String? parentLastName,
+    String? parentMiddleName,
     String? parentPhone,
     String? parentPhone2,
+    String? parentWorkplace,
+    String? parentRelation,
+    // MOLIYAVIY
+    double? monthlyFee,
+    double? discountPercent,
+    double? discountAmount,
+    String? discountReason,
+    // QO'SHIMCHA
     String? notes,
     String? medicalNotes,
+    String? photoUrl,
+    // SINF
     String? classId,
     String? classLevelId,
     String? classLevelName,
@@ -139,22 +146,69 @@ class StudentRepository {
     String? mainTeacherName,
   }) async {
     try {
+      print('🔄 ========== STUDENT REPOSITORY - UPDATE ==========');
+      print('Student ID: $studentId');
       final Map<String, dynamic> updates = {};
 
-      if (photoUrl != null) updates['photo_url'] = photoUrl;
+      // ASOSIY MA'LUMOTLAR
       if (firstName != null) updates['first_name'] = firstName;
       if (lastName != null) updates['last_name'] = lastName;
-      if (middleName != null) updates['middle_name'] = middleName;
-      if (phone != null) updates['phone'] = phone;
-      if (address != null) updates['address'] = address;
-      if (region != null) updates['region'] = region;
-      if (district != null) updates['district'] = district;
-      if (parentPhone != null) updates['parent_phone'] = parentPhone;
-      if (parentPhone2 != null) updates['parent_phone_secondary'] = parentPhone2;
-      if (notes != null) updates['notes'] = notes;
-      if (medicalNotes != null) updates['medical_notes'] = medicalNotes;
-      
-      // Sinf ma'lumotlari
+      if (middleName != null)
+        updates['middle_name'] = middleName.isNotEmpty ? middleName : null;
+      if (gender != null) updates['gender'] = gender;
+      if (birthDate != null)
+        updates['birth_date'] = birthDate.toIso8601String();
+      if (phone != null) updates['phone'] = phone.isNotEmpty ? phone : null;
+      if (address != null)
+        updates['address'] = address.isNotEmpty ? address : null;
+      if (region != null) updates['region'] = region.isNotEmpty ? region : null;
+      if (district != null)
+        updates['district'] = district.isNotEmpty ? district : null;
+
+      // OTA-ONA MA'LUMOTLARI
+      if (parentFirstName != null)
+        updates['parent_first_name'] = parentFirstName.isNotEmpty
+            ? parentFirstName
+            : null;
+      if (parentLastName != null)
+        updates['parent_last_name'] = parentLastName.isNotEmpty
+            ? parentLastName
+            : null;
+      if (parentMiddleName != null)
+        updates['parent_middle_name'] = parentMiddleName.isNotEmpty
+            ? parentMiddleName
+            : null;
+      if (parentPhone != null)
+        updates['parent_phone'] = parentPhone.isNotEmpty ? parentPhone : null;
+      if (parentPhone2 != null)
+        updates['parent_phone_secondary'] = parentPhone2.isNotEmpty
+            ? parentPhone2
+            : null;
+      if (parentWorkplace != null)
+        updates['parent_workplace'] = parentWorkplace.isNotEmpty
+            ? parentWorkplace
+            : null;
+      if (parentRelation != null) updates['parent_relation'] = parentRelation;
+
+      // MOLIYAVIY
+      if (monthlyFee != null) updates['monthly_fee'] = monthlyFee;
+      if (discountPercent != null)
+        updates['discount_percent'] = discountPercent;
+      if (discountAmount != null) updates['discount_amount'] = discountAmount;
+      if (discountReason != null)
+        updates['discount_reason'] = discountReason.isNotEmpty
+            ? discountReason
+            : null;
+
+      // QO'SHIMCHA
+      if (notes != null) updates['notes'] = notes.isNotEmpty ? notes : null;
+      if (medicalNotes != null)
+        updates['medical_notes'] = medicalNotes.isNotEmpty
+            ? medicalNotes
+            : null;
+      if (photoUrl != null) updates['photo_url'] = photoUrl;
+
+      // SINF MA'LUMOTLARI
       if (classId != null) updates['class_id'] = classId;
       if (classLevelId != null) updates['class_level_id'] = classLevelId;
       if (classLevelName != null) updates['class_level_name'] = classLevelName;
@@ -162,15 +216,23 @@ class StudentRepository {
       if (roomId != null) updates['room_id'] = roomId;
       if (roomName != null) updates['room_name'] = roomName;
       if (mainTeacherId != null) updates['main_teacher_id'] = mainTeacherId;
-      if (mainTeacherName != null) updates['main_teacher_name'] = mainTeacherName;
+      if (mainTeacherName != null)
+        updates['main_teacher_name'] = mainTeacherName;
 
-      if (updates.isEmpty) return false;
+      // Updated_at maydonini avtomatik qo'shish
+      updates['updated_at'] = DateTime.now().toIso8601String();
 
-      await _supabase
-          .from('students')
-          .update(updates)
-          .eq('id', studentId);
+      if (updates.isEmpty) {
+        print('⚠️ Yangilanadigan ma\'lumotlar yo\'q');
+        return false;
+      }
 
+      print('📤 Yangilanadigan maydonlar: ${updates.keys.join(', ')}');
+      print('📦 To\'liq ma\'lumotlar: $updates');
+
+      await _supabase.from('students').update(updates).eq('id', studentId);
+
+      print('✅ O\'quvchi muvaffaqiyatli yangilandi!');
       return true;
     } catch (e) {
       print('❌ updateStudent xatosi: $e');
@@ -186,8 +248,9 @@ class StudentRepository {
           .select('*')
           .eq('branch_id', branchId)
           .order('last_name');
-
-      return response.map<StudentModel>((json) => StudentModel.fromJson(json)).toList();
+      return response
+          .map<StudentModel>((json) => StudentModel.fromJson(json))
+          .toList();
     } catch (e) {
       print('❌ getAllStudents xatosi: $e');
       return [];
@@ -202,7 +265,6 @@ class StudentRepository {
           .select('*')
           .eq('id', studentId)
           .maybeSingle();
-
       if (response == null) return null;
 
       return StudentModel.fromJson(response);
@@ -217,9 +279,11 @@ class StudentRepository {
     try {
       await _supabase
           .from('students')
-          .update({'status': 'inactive'})
+          .update({
+            'status': 'inactive',
+            'updated_at': DateTime.now().toIso8601String(),
+          })
           .eq('id', studentId);
-
       return true;
     } catch (e) {
       print('❌ deleteStudent xatosi: $e');
@@ -230,16 +294,67 @@ class StudentRepository {
   /// Sinfdagi o'quvchilar sonini olish
   Future<int> getClassStudentCount(String classId) async {
     try {
-      final response = await _supabase
+      final count = await _supabase
           .from('students')
-          .select('id')
+          .count()
           .eq('class_id', classId)
           .eq('status', 'active');
-
-      return response.length;
+      return count;
     } catch (e) {
       print('❌ getClassStudentCount xatosi: $e');
       return 0;
+    }
+  }
+
+  /// Filialdagi o'quvchilar sonini olish
+  Future<int> getBranchStudentCount(String branchId) async {
+    try {
+      final count = await _supabase
+          .from('students')
+          .count()
+          .eq('branch_id', branchId)
+          .eq('status', 'active');
+      return count;
+    } catch (e) {
+      print('❌ getBranchStudentCount xatosi: $e');
+      return 0;
+    }
+  }
+
+  /// O'quvchini qidirish
+  Future<List<StudentModel>> searchStudents({
+    required String branchId,
+    String? searchQuery,
+    String? classId,
+    String? status,
+  }) async {
+    try {
+      var query = _supabase
+          .from('students')
+          .select('*')
+          .eq('branch_id', branchId);
+      if (searchQuery != null && searchQuery.isNotEmpty) {
+        query = query.or(
+          'first_name.ilike.%$searchQuery%,last_name.ilike.%$searchQuery%,phone.ilike.%$searchQuery%',
+        );
+      }
+
+      if (classId != null) {
+        query = query.eq('class_id', classId);
+      }
+
+      if (status != null) {
+        query = query.eq('status', status);
+      }
+
+      final response = await query.order('last_name');
+
+      return response
+          .map<StudentModel>((json) => StudentModel.fromJson(json))
+          .toList();
+    } catch (e) {
+      print('❌ searchStudents xatosi: $e');
+      return [];
     }
   }
 }

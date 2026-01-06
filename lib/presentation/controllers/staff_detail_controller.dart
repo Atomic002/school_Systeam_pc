@@ -670,11 +670,12 @@ class StaffDashboardController extends GetxController {
       Get.snackbar('Yuklanmoqda', 'Profil tayyorlanmoqda...');
   void printProfile() {} // Desktop uchun print dialog ochish
 
-     Future<void> deleteStaff() async {
+  Future<void> deleteStaff() async {
     final confirm = await Get.dialog<bool>(
       AlertDialog(
         title: Text('Butunlay o\'chirish'),
-        content: Text('Diqqat! Bu xodim bazadan butunlay o\'chiriladi.\nBu amalni ortga qaytarib bo\'lmaydi. Tasdiqlaysizmi?'),
+        content: Text(
+            'Diqqat! Bu xodim va uning tizimga kirish ma\'lumotlari butunlay o\'chiriladi.\nTasdiqlaysizmi?'),
         actions: [
           TextButton(
             onPressed: () => Get.back(result: false),
@@ -691,34 +692,36 @@ class StaffDashboardController extends GetxController {
 
     if (confirm == true) {
       try {
-        // --- ASOSIY O'ZGARISH SHU YERDA ---
+        isLoading.value = true;
         
-        // Oldingi kod (XATO BERGAN):
-        // await _supabase.from('staff').update({'status': 'inactive'}).eq('id', staffId!);
+        // 1. User ID borligini tekshiramiz
+        final userId = staff.value?['user_id'];
 
-        // YANGI KOD (BUTUNLAY O'CHIRISH):
-        await _supabase
-            .from('staff')
-            .delete()   // <--- update() emas, delete() ishlatamiz
-            .eq('id', staffId!);
+        if (userId != null) {
+          // AGAR USER BO'LSA: Biz Userni o'chiramiz. 
+          // Bazadagi "ON DELETE CASCADE" sababli Staff ham avtomatik o'chadi.
+          await _supabase.from('users').delete().eq('id', userId);
+        } else {
+          // AGAR USER BO'LMASA: Faqat Staffni o'chiramiz
+          await _supabase.from('staff').delete().eq('id', staffId!);
+        }
 
-        // Agar muvaffaqiyatli o'chsa:
-        Get.back(); // Profil sahifasini yopish va ro'yxatga qaytish
-        
+        Get.back(); // Sahifani yopish
         Get.snackbar(
           'Muvaffaqiyatli',
-          'Xodim bazadan butunlay o\'chirib tashlandi',
+          'Xodim va foydalanuvchi ma\'lumotlari o\'chirildi',
           backgroundColor: Colors.green.shade100,
         );
       } catch (e) {
-        // Agar xodim boshqa jadvallarga bog'langan bo'lsa (Constraint Error)
         print('Delete error: $e');
         Get.snackbar(
           'Xatolik',
-          'O\'chirish imkonsiz: Bu xodimga bog\'liq ma\'lumotlar mavjud (Darslar, to\'lovlar va h.k)',
+          'O\'chirish imkonsiz: $e',
           backgroundColor: Colors.red.shade100,
           duration: Duration(seconds: 4),
         );
+      } finally {
+        isLoading.value = false;
       }
     }
   }

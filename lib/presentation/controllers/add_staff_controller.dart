@@ -28,6 +28,7 @@ class AddStaffController extends GetxController {
     'manager': "Kassir", // Aslida manager, lekin UI da Kassir
     'director': "Direktor",
     'owner': "Ta'sischi (Rahbar)",
+    'staff': "Xodim",
   };
   // =========================================================================
 
@@ -656,16 +657,21 @@ class AddStaffController extends GetxController {
   }
 
   // ==================== XODIMNI SAQLASH ====================
+   // ==================== XODIMNI SAQLASH ====================
   Future<void> saveStaff() async {
+    // 1. Validatsiya
     if (!_validateForm()) return;
 
     final currentUserId = _authController.currentUser.value?.id;
-    if (currentUserId == null) return;
+    if (currentUserId == null) {
+      Get.snackbar('Xatolik', 'Tizimga qayta kiring');
+      return;
+    }
 
     try {
       isSaving.value = true;
 
-      // Rasm yuklash (agar yangi tanlangan bo'lsa)
+      // 2. Rasm yuklash (agar yangi rasm tanlangan bo'lsa)
       String? uploadedPhotoUrl;
       if (profileImage.value != null) {
         uploadedPhotoUrl = await _staffRepo.uploadProfileImage(
@@ -673,13 +679,27 @@ class AddStaffController extends GetxController {
         );
       }
 
+      // 3. Maosh ma'lumotlarini hisoblash
       final salaryData = _calculateSalary();
 
       // ---------------------------------------------------------
-      // 1. TAHRIRLASH REJIMI (UPDATE)
+      // A. TAHRIRLASH REJIMI (UPDATE)
       // ---------------------------------------------------------
       if (isEditMode.value && editingStaffId != null) {
-        // Update query
+        
+        String? newUserId;
+        
+        // --- MUHIM TUZATISH: Tahrirlash paytida User yaratish ---
+        if (createUser.value) {
+          // Yangi user yaratamiz (Login/Parol bilan)
+          newUserId = await _createUser(); 
+          if (newUserId == null) throw Exception('Foydalanuvchi yaratilmadi');
+          
+          // Muvaffaqiyatli xabar ko'rsatamiz (Login/Parolni eslab qolish uchun)
+          _showSuccessMessage(newUserId);
+        }
+
+        // Update uchun ma'lumotlarni yig'amiz
         final updateData = {
           'branch_id': selectedBranchId.value,
           'first_name': firstNameController.text.trim(),
@@ -708,15 +728,24 @@ class AddStaffController extends GetxController {
           'updated_at': DateTime.now().toIso8601String(),
         };
 
+        // Agar yangi User yaratilgan bo'lsa, uni staffga bog'laymiz
+        if (newUserId != null) {
+          updateData['user_id'] = newUserId;
+        }
+
         // Agar rasm yangilangan bo'lsa, uni ham qo'shamiz
         if (uploadedPhotoUrl != null) {
           updateData['photo_url'] = uploadedPhotoUrl;
         }
 
+        // Bazani yangilash
         await _supabase
             .from('staff')
             .update(updateData)
             .eq('id', editingStaffId!);
+
+        // Agar o'qituvchi bo'lsa, fanlarni qayta biriktirish mantig'ini
+        // shu yerga qo'shish mumkin (hozircha shart emas deb hisoblaymiz)
 
         Get.snackbar(
           'Muvaffaqiyat',
@@ -724,19 +753,22 @@ class AddStaffController extends GetxController {
           backgroundColor: Colors.green.shade100,
         );
 
-        // Profil sahifasiga qaytish va yangilash signalini berish
+        // Ortga qaytish va yangilanganligini bildirish
         Get.back(result: true);
       }
+      
       // ---------------------------------------------------------
-      // 2. QO'SHISH REJIMI (CREATE)
+      // B. YANGI QO'SHISH REJIMI (CREATE)
       // ---------------------------------------------------------
       else {
         String? userId;
+        // Agar foydalanuvchi yaratish kerak bo'lsa
         if (createUser.value) {
           userId = await _createUser();
           if (userId == null) throw Exception('User yaratilmadi');
         }
 
+        // Staff yaratish (Repository orqali)
         final staff = await _staffRepo.createStaff(
           userId: userId,
           branchId: selectedBranchId.value!,
@@ -769,19 +801,24 @@ class AddStaffController extends GetxController {
           photoUrl: uploadedPhotoUrl,
         );
 
+        // Agar o'qituvchi bo'lsa, fanlar va sinflarni biriktirish
         if (staff != null && isTeacher.value) {
           await _assignTeacherData(staff.id);
         }
 
+        // Muvaffaqiyat xabari
         _showSuccessMessage(userId);
+        
+        // Ro'yxat sahifasiga qaytish
         Get.offNamed(AppRoutes.staff);
       }
     } catch (e) {
       print('Save staff error: $e');
       Get.snackbar(
         'Xatolik',
-        'Xatolik yuz berdi: $e',
+        'Saqlashda xatolik yuz berdi: ${e.toString()}',
         backgroundColor: Colors.red.shade100,
+        duration: const Duration(seconds: 4),
       );
     } finally {
       isSaving.value = false;

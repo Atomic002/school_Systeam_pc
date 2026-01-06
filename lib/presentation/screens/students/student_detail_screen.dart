@@ -89,7 +89,7 @@ class StudentDetailScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildQuickActions() {
+   Widget _buildQuickActions() {
     return Row(
       children: [
         IconButton(
@@ -107,21 +107,61 @@ class StudentDetailScreen extends StatelessWidget {
           icon: Icon(Icons.payment, color: AppConstants.warningColor),
           tooltip: 'To\'lov',
         ),
-        PopupMenuButton(
+        
+        // POPUP MENU (YANGILANGAN)
+        PopupMenuButton<String>(
           icon: Icon(Icons.more_vert),
+          onSelected: (value) {
+            switch (value) {
+              case 'pdf':
+                controller.exportToPDF();
+                break;
+              case 'edit':
+                controller.editStudent(); // <--- Controllerdagi yangi funksiya
+                break;
+              case 'deactivate':
+                controller.deactivateStudent(); // <--- Controllerdagi yangi funksiya
+                break;
+              case 'delete':
+                controller.deleteStudent(); // <--- Controllerdagi yangi funksiya
+                break;
+            }
+          },
           itemBuilder: (context) => [
-            PopupMenuItem(
+            const PopupMenuItem(
+              value: 'pdf',
               child: ListTile(
                 leading: Icon(Icons.download),
-                title: Text('PDF'),
-                onTap: controller.exportToPDF,
+                title: Text('PDF yuklash'),
+                contentPadding: EdgeInsets.zero,
+                visualDensity: VisualDensity.compact,
               ),
             ),
-            PopupMenuItem(
+            const PopupMenuItem(
+              value: 'edit',
               child: ListTile(
-                leading: Icon(Icons.edit, color: AppConstants.primaryColor),
+                leading: Icon(Icons.edit, color: Colors.blue),
                 title: Text('Tahrirlash'),
-                onTap: controller.toggleEditMode,
+                contentPadding: EdgeInsets.zero,
+                visualDensity: VisualDensity.compact,
+              ),
+            ),
+            const PopupMenuItem(
+              value: 'deactivate',
+              child: ListTile(
+                leading: Icon(Icons.block, color: Colors.orange),
+                title: Text('Faolsizlantirish'),
+                contentPadding: EdgeInsets.zero,
+                visualDensity: VisualDensity.compact,
+              ),
+            ),
+            const PopupMenuItem(
+              value: 'delete',
+              child: ListTile(
+                leading: Icon(Icons.delete, color: Colors.red),
+                title: Text('O\'chirish'),
+                contentPadding: EdgeInsets.zero,
+                visualDensity: VisualDensity.compact,
               ),
             ),
           ],
@@ -129,7 +169,6 @@ class StudentDetailScreen extends StatelessWidget {
       ],
     );
   }
-
   Widget _buildProfileCard() {
     return Container(
       margin: EdgeInsets.all(24),

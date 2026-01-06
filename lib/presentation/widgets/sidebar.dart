@@ -175,7 +175,7 @@ class _ManagerSidebar extends StatelessWidget {
                   title: 'Xodimlar maoshi',
                   route: AppRoutes.salary,
                 ),
-                                _buildMenuSection('HODIMLAR'),
+                _buildMenuSection('HODIMLAR'),
 
                 _buildMenuItem(
                   icon: Icons.person_add_outlined,

@@ -4,7 +4,6 @@ import 'package:flutter_application_1/presentation/widgets/sidebar.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 
-
 class ClassDetailScreen extends StatelessWidget {
   ClassDetailScreen({Key? key}) : super(key: key);
 
@@ -126,14 +125,14 @@ class ClassDetailScreen extends StatelessWidget {
             color: Colors.green[600]!,
             onTap: controller.addStudent,
           ),
-           const SizedBox(width: 12),
-           _actionButton(
+          const SizedBox(width: 12),
+          _actionButton(
             icon: Icons.delete_outline,
             label: 'O\'chirish',
             color: Colors.red,
             onTap: controller.deleteClass,
           ),
-         
+
           const SizedBox(width: 12),
           Obx(
             () => ElevatedButton.icon(
@@ -475,8 +474,14 @@ class ClassDetailScreen extends StatelessWidget {
   Widget _buildStudentRow(int index, Map<String, dynamic> student) {
     bool hasDebt = student['debt'] > 0;
     return InkWell(
-      onTap: () =>
-          Get.toNamed('/student-detail', arguments: {'id': student['id']}),
+      // --- TUZATILGAN QISM ---
+      onTap: () => Get.toNamed(
+        '/student-detail',
+        arguments: {
+          'studentId': student['id'],
+        }, // Controller shu nomni kutyapti
+      ),
+      // -----------------------
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
         child: Row(
@@ -636,105 +641,107 @@ class ClassDetailScreen extends StatelessWidget {
   }
 
   // O'qituvchilar ro'yxati
- // O'qituvchilar kartasida removeTeacher() chaqirilganida to'g'ri id uzatish
-// _buildTeachersCard() funksiyasidagi o'zgartirish:
+  // O'qituvchilar kartasida removeTeacher() chaqirilganida to'g'ri id uzatish
+  // _buildTeachersCard() funksiyasidagi o'zgartirish:
 
-Widget _buildTeachersCard() {
-  return Container(
-    padding: const EdgeInsets.all(20),
-    decoration: BoxDecoration(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(20),
-    ),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            const Text(
-              'Fan O\'qituvchilari',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF2B3674),
+  Widget _buildTeachersCard() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'Fan O\'qituvchilari',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF2B3674),
+                ),
               ),
-            ),
-            IconButton(
-              onPressed: controller.addTeacher,
-              icon: const Icon(Icons.add_circle_outline, color: Colors.blue),
-            ),
-          ],
-        ),
-        const SizedBox(height: 10),
-        Obx(() {
-          if (controller.teachers.isEmpty) {
-            return const Text(
-              'Biriktirilgan o\'qituvchi yo\'q',
-              style: TextStyle(color: Colors.grey),
-            );
-          }
-          return ListView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: controller.teachers.length,
-            itemBuilder: (context, index) {
-              final t = controller.teachers[index];
-              final staff = t['staff'];
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: Row(
-                  children: [
-                    CircleAvatar(
-                      backgroundColor: Colors.blue.shade50,
-                      radius: 16,
-                      child: Text(
-                        staff['first_name'][0],
-                        style: TextStyle(
-                          color: Colors.blue.shade800,
-                          fontSize: 12,
+              IconButton(
+                onPressed: controller.addTeacher,
+                icon: const Icon(Icons.add_circle_outline, color: Colors.blue),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Obx(() {
+            if (controller.teachers.isEmpty) {
+              return const Text(
+                'Biriktirilgan o\'qituvchi yo\'q',
+                style: TextStyle(color: Colors.grey),
+              );
+            }
+            return ListView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: controller.teachers.length,
+              itemBuilder: (context, index) {
+                final t = controller.teachers[index];
+                final staff = t['staff'];
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: Row(
+                    children: [
+                      CircleAvatar(
+                        backgroundColor: Colors.blue.shade50,
+                        radius: 16,
+                        child: Text(
+                          staff['first_name'][0],
+                          style: TextStyle(
+                            color: Colors.blue.shade800,
+                            fontSize: 12,
+                          ),
                         ),
                       ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            '${staff['first_name']} ${staff['last_name']}',
-                            style: const TextStyle(
-                              fontWeight: FontWeight.w600,
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              '${staff['first_name']} ${staff['last_name']}',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w600,
+                              ),
                             ),
-                          ),
-                          Text(
-                            t['subject']?['name'] ?? 'Fan yo\'q',
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: Colors.grey[600],
+                            Text(
+                              t['subject']?['name'] ?? 'Fan yo\'q',
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: Colors.grey[600],
+                              ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
-                    ),
-                    IconButton(
-                      icon: const Icon(
-                        Icons.delete_outline,
-                        size: 18,
-                        color: Colors.red,
+                      IconButton(
+                        icon: const Icon(
+                          Icons.delete_outline,
+                          size: 18,
+                          color: Colors.red,
+                        ),
+                        onPressed: () => controller.removeTeacher(
+                          t['id'],
+                        ), // Bu yerda t['id'] uzatiladi
                       ),
-                      onPressed: () => controller.removeTeacher(t['id']), // Bu yerda t['id'] uzatiladi
-                    ),
-                  ],
-                ),
-              );
-            },
-          );
-        }),
-      ],
-    ),
-  );
-}
+                    ],
+                  ),
+                );
+              },
+            );
+          }),
+        ],
+      ),
+    );
+  }
 
   // So'nggi to'lovlar
   Widget _buildRecentPaymentsCard() {

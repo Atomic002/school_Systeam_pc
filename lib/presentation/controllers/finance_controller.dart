@@ -18,6 +18,10 @@ class AdvancedFinanceController extends GetxController {
   // Filiallar
   var branches = <Map<String, dynamic>>[].obs;
   var selectedBranchId = 'all'.obs;
+    var totalSalaryPayable = 0.0.obs;   // Jami hisoblangan (Net)
+  var totalSalaryPaid = 0.0.obs;      // Jami to'langan
+  var totalSalaryRemaining = 0.0.obs; // Jami qoldiq (Qarz)
+  var staffSalaryList = <Map<String, dynamic>>[].obs;
 
   // Davr
   var selectedPeriod = 'month'.obs;
@@ -72,7 +76,6 @@ class AdvancedFinanceController extends GetxController {
 
   // Xodimlar maoshi
   var totalSalaryExpense = 0.0.obs;
-  var staffSalaryList = <Map<String, dynamic>>[].obs;
 
   // O'quvchilar qarzlari
   var totalStudentDebt = 0.0.obs;
@@ -87,7 +90,6 @@ class AdvancedFinanceController extends GetxController {
   var transportExpenses = 0.0.obs;
   var otherExpenses = 0.0.obs;
   var schoolStartYear = 2020.obs; // Default qiymat
-  
 
   @override
   void onInit() {
@@ -109,17 +111,22 @@ class AdvancedFinanceController extends GetxController {
       isLoading.value = false;
     }
   }
-   Future<void> loadSchoolStartYear() async {
+
+  Future<void> loadSchoolStartYear() async {
     try {
-    final result = await supabase.rpc('get_school_start_year', 
-      params: {'p_branch_id': selectedBranchId.value != 'all' ? selectedBranchId.value : null}
-    );
-    
-    if (result != null) {
-      schoolStartYear.value = result as int;
-    }
-  
-      
+      final result = await supabase.rpc(
+        'get_school_start_year',
+        params: {
+          'p_branch_id': selectedBranchId.value != 'all'
+              ? selectedBranchId.value
+              : null,
+        },
+      );
+
+      if (result != null) {
+        schoolStartYear.value = result as int;
+      }
+
       if (result != null) {
         schoolStartYear.value = result as int;
         print('✅ Maktab ochilgan yil: ${schoolStartYear.value}');
@@ -137,7 +144,8 @@ class AdvancedFinanceController extends GetxController {
           .maybeSingle();
 
       if (settingsData != null && settingsData['setting_value'] != null) {
-        schoolStartYear.value = int.tryParse(settingsData['setting_value']) ?? 2020;
+        schoolStartYear.value =
+            int.tryParse(settingsData['setting_value']) ?? 2020;
         print('✅ Maktab ochilgan yil (settings): ${schoolStartYear.value}');
         return;
       }
@@ -150,7 +158,8 @@ class AdvancedFinanceController extends GetxController {
           .limit(1)
           .maybeSingle();
 
-      if (academicYearsData != null && academicYearsData['start_date'] != null) {
+      if (academicYearsData != null &&
+          academicYearsData['start_date'] != null) {
         final startDate = DateTime.parse(academicYearsData['start_date']);
         schoolStartYear.value = startDate.year;
         print('✅ Maktab ochilgan yil (academic): ${schoolStartYear.value}');
@@ -160,7 +169,6 @@ class AdvancedFinanceController extends GetxController {
       // Default qiymat
       schoolStartYear.value = DateTime.now().year - 5;
       print('⚠️ Default yil ishlatilmoqda: ${schoolStartYear.value}');
-
     } catch (e) {
       print('❌ Load school start year error: $e');
       schoolStartYear.value = DateTime.now().year - 5; // Fallback
@@ -174,9 +182,9 @@ class AdvancedFinanceController extends GetxController {
       final yearsData = await supabase.rpc(
         'get_available_years',
         params: {
-          'p_branch_id': selectedBranchId.value != 'all' 
-              ? selectedBranchId.value 
-              : null
+          'p_branch_id': selectedBranchId.value != 'all'
+              ? selectedBranchId.value
+              : null,
         },
       );
 
@@ -191,14 +199,15 @@ class AdvancedFinanceController extends GetxController {
       // Variant 2: O'zimiz generate qilish
       final currentYear = DateTime.now().year;
       final startYear = schoolStartYear.value;
-      
+
       availableYears.value = List.generate(
         currentYear - startYear + 1,
         (index) => startYear + index,
       ).reversed.toList();
 
-      print('✅ Yillar ro\'yxati: ${availableYears.length} ta ($startYear - $currentYear)');
-
+      print(
+        '✅ Yillar ro\'yxati: ${availableYears.length} ta ($startYear - $currentYear)',
+      );
     } catch (e) {
       print('❌ Generate years error: $e');
       // Fallback
@@ -215,7 +224,6 @@ class AdvancedFinanceController extends GetxController {
     refreshData();
   }
 
-
   Future<void> loadBranches() async {
     try {
       final response = await supabase
@@ -231,8 +239,6 @@ class AdvancedFinanceController extends GetxController {
     }
   }
 
- 
-
   Future<void> refreshData() async {
     isLoading.value = true;
     try {
@@ -247,7 +253,7 @@ class AdvancedFinanceController extends GetxController {
         loadAllPayments(),
         loadAllExpenses(),
       ]);
-      
+
       _calculateAdditionalMetrics();
       print('✅ Barcha ma\'lumotlar yangilandi');
     } catch (e) {
@@ -262,7 +268,7 @@ class AdvancedFinanceController extends GetxController {
   Future<void> loadAllPayments() async {
     try {
       final dateRange = _getDateRange();
-      
+
       var query = supabase
           .from('payments')
           .select('''
@@ -275,9 +281,7 @@ class AdvancedFinanceController extends GetxController {
           .eq('payment_status', 'paid')
           .order('payment_date', ascending: false);
 
-      if (selectedBranchId.value != 'all') {
-        
-      }
+      if (selectedBranchId.value != 'all') {}
 
       final data = await query;
       allPayments.value = List<Map<String, dynamic>>.from(data);
@@ -292,7 +296,7 @@ class AdvancedFinanceController extends GetxController {
   Future<void> loadAllExpenses() async {
     try {
       final dateRange = _getDateRange();
-      
+
       var query = supabase
           .from('expenses')
           .select('*')
@@ -300,8 +304,7 @@ class AdvancedFinanceController extends GetxController {
           .lte('expense_date', dateRange['end']!)
           .order('expense_date', ascending: false);
 
-      if (selectedBranchId.value != 'all') {
-      }
+      if (selectedBranchId.value != 'all') {}
 
       final data = await query;
       allExpenses.value = List<Map<String, dynamic>>.from(data);
@@ -316,7 +319,7 @@ class AdvancedFinanceController extends GetxController {
   Future<void> loadGeneralStats() async {
     try {
       final dateRange = _getDateRange();
-      
+
       // TUSHUMLAR
       var revenueQuery = supabase
           .from('payments')
@@ -331,7 +334,7 @@ class AdvancedFinanceController extends GetxController {
 
       final revenueData = await revenueQuery;
       totalRevenue.value = _calculateSum(revenueData, 'final_amount');
-      
+
       // XARAJATLAR
       var expensesQuery = supabase
           .from('expenses')
@@ -355,10 +358,12 @@ class AdvancedFinanceController extends GetxController {
       await _calculateGrowthRates();
 
       if (expectedMonthlyRevenue.value > 0) {
-        collectionRate.value = 
-            (collectedMonthlyRevenue.value / expectedMonthlyRevenue.value * 100);
+        collectionRate.value =
+            (collectedMonthlyRevenue.value /
+            expectedMonthlyRevenue.value *
+            100);
       }
-      
+
       print('✅ Umumiy statistika yuklandi');
     } catch (e) {
       print('❌ Load general stats error: $e');
@@ -379,7 +384,7 @@ class AdvancedFinanceController extends GetxController {
       }
 
       final students = await studentsQuery;
-      
+
       double totalDebts = 0.0;
       int debtorsCount = 0;
 
@@ -390,9 +395,10 @@ class AdvancedFinanceController extends GetxController {
         final now = DateTime.now();
 
         // Ro'yxatdan o'tganidan bugungi kungacha necha oy o'tganini hisoblash
-        int monthsPassed = (now.year - enrollmentDate.year) * 12 + 
-                          (now.month - enrollmentDate.month);
-        
+        int monthsPassed =
+            (now.year - enrollmentDate.year) * 12 +
+            (now.month - enrollmentDate.month);
+
         if (now.day < enrollmentDate.day) {
           monthsPassed--;
         }
@@ -413,7 +419,7 @@ class AdvancedFinanceController extends GetxController {
 
         // Qarz
         double debt = expectedTotal - totalPaid;
-        
+
         if (debt > 0) {
           totalDebts += debt;
           debtorsCount++;
@@ -443,14 +449,17 @@ class AdvancedFinanceController extends GetxController {
           .eq('payment_status', 'paid');
 
       if (selectedBranchId.value != 'all') {
-        prevRevenueQuery = prevRevenueQuery.eq('branch_id', selectedBranchId.value);
+        prevRevenueQuery = prevRevenueQuery.eq(
+          'branch_id',
+          selectedBranchId.value,
+        );
       }
 
       final prevRevenueData = await prevRevenueQuery;
       double prevRevenue = _calculateSum(prevRevenueData, 'final_amount');
 
       if (prevRevenue > 0) {
-        revenueGrowth.value = 
+        revenueGrowth.value =
             ((totalRevenue.value - prevRevenue) / prevRevenue * 100);
       }
 
@@ -462,20 +471,23 @@ class AdvancedFinanceController extends GetxController {
           .lte('expense_date', previousRange['end']!);
 
       if (selectedBranchId.value != 'all') {
-        prevExpenseQuery = prevExpenseQuery.eq('branch_id', selectedBranchId.value);
+        prevExpenseQuery = prevExpenseQuery.eq(
+          'branch_id',
+          selectedBranchId.value,
+        );
       }
 
       final prevExpenseData = await prevExpenseQuery;
       double prevExpense = _calculateSum(prevExpenseData, 'amount');
 
       if (prevExpense > 0) {
-        expenseGrowth.value = 
+        expenseGrowth.value =
             ((totalExpenses.value - prevExpense) / prevExpense * 100);
       }
 
       final prevProfit = prevRevenue - prevExpense;
       if (prevProfit > 0) {
-        profitGrowth.value = 
+        profitGrowth.value =
             ((netProfit.value - prevProfit) / prevProfit * 100);
       }
     } catch (e) {
@@ -509,7 +521,7 @@ class AdvancedFinanceController extends GetxController {
 
       final studentsData = await studentsQuery;
       totalStudentsCount.value = studentsData.length;
-      
+
       // Kutilayotgan daromad (chegirma bilan)
       double expected = 0.0;
       for (var student in studentsData) {
@@ -533,23 +545,26 @@ class AdvancedFinanceController extends GetxController {
       }
 
       final paymentsData = await paymentsQuery;
-      
+
       Map<String, double> studentPayments = {};
       Map<String, double> studentDiscounts = {};
-      
+
       for (var payment in paymentsData) {
         final studentId = payment['student_id']?.toString() ?? '';
         final amount = _toDouble(payment['final_amount']);
         final discount = _toDouble(payment['discount_amount']);
-        
+
         if (studentId.isNotEmpty) {
-          studentPayments[studentId] = (studentPayments[studentId] ?? 0.0) + amount;
-          studentDiscounts[studentId] = (studentDiscounts[studentId] ?? 0.0) + discount;
+          studentPayments[studentId] =
+              (studentPayments[studentId] ?? 0.0) + amount;
+          studentDiscounts[studentId] =
+              (studentDiscounts[studentId] ?? 0.0) + discount;
         }
       }
 
       collectedMonthlyRevenue.value = studentPayments.values.fold(
-        0.0, (sum, amount) => sum + amount,
+        0.0,
+        (sum, amount) => sum + amount,
       );
 
       // Statistika
@@ -570,12 +585,16 @@ class AdvancedFinanceController extends GetxController {
         }
       }
 
-      unpaidStudentsCount.value = 
-          totalStudentsCount.value - paidStudentsCount.value - partialPaidStudentsCount.value;
+      unpaidStudentsCount.value =
+          totalStudentsCount.value -
+          paidStudentsCount.value -
+          partialPaidStudentsCount.value;
 
       if (expectedMonthlyRevenue.value > 0) {
-        monthlyCollectionRate.value = 
-            (collectedMonthlyRevenue.value / expectedMonthlyRevenue.value * 100);
+        monthlyCollectionRate.value =
+            (collectedMonthlyRevenue.value /
+            expectedMonthlyRevenue.value *
+            100);
       }
 
       print('✅ Oylik yig\'ish yuklandi');
@@ -608,7 +627,7 @@ class AdvancedFinanceController extends GetxController {
 
       for (var classItem in classesData) {
         final classId = classItem['id']?.toString() ?? '';
-        
+
         // O'quvchilar soni va kutilayotgan daromad
         final studentsResponse = await supabase
             .from('students')
@@ -618,7 +637,7 @@ class AdvancedFinanceController extends GetxController {
 
         int studentsCount = studentsResponse.length;
         double expectedRevenue = 0.0;
-        
+
         for (var student in studentsResponse) {
           final fee = _toDouble(student['monthly_fee']);
           final discount = _toDouble(student['discount_percent']);
@@ -668,7 +687,8 @@ class AdvancedFinanceController extends GetxController {
           'expected_revenue': expectedRevenue,
           'collected_revenue': collectedRevenue,
           'teacher_name': teacherName,
-          'teacher_id': classItem['main_teacher_id']?.toString(), // ✅ qo‘shimcha
+          'teacher_id': classItem['main_teacher_id']
+              ?.toString(), // ✅ qo‘shimcha
         });
       }
 
@@ -678,21 +698,20 @@ class AdvancedFinanceController extends GetxController {
       print('❌ Load classes error: $e');
     }
   }
+
   void showTeacherProfile(String staffId) {
-  Get.toNamed(
-    '/staff-detail', // yoki sizda qanday route bo‘lsa, o‘sha
-    arguments: {'staffId': staffId},
-  );
-}
-
-
+    Get.toNamed(
+      '/staff-detail', // yoki sizda qanday route bo‘lsa, o‘sha
+      arguments: {'staffId': staffId},
+    );
+  }
 
   // ==================== SINF O'QUVCHILARINI YUKLASH ====================
   Future<void> loadClassStudents(String classId) async {
-  try {
-    final students = await supabase
-        .from('students')
-        .select('''
+    try {
+      final students = await supabase
+          .from('students')
+          .select('''
           id, 
           first_name, 
           last_name, 
@@ -701,91 +720,96 @@ class AdvancedFinanceController extends GetxController {
           enrollment_date,
           phone
         ''')
-        .eq('class_id', classId)
-        .eq('status', 'active')
-        .order('last_name');
+          .eq('class_id', classId)
+          .eq('status', 'active')
+          .order('last_name');
 
-    final startDate = DateTime(
-      selectedMonth.value.year,
-      selectedMonth.value.month,
-      1,
-    );
-    final endDate = DateTime(
-      selectedMonth.value.year,
-      selectedMonth.value.month + 1,
-      0,
-    );
+      final startDate = DateTime(
+        selectedMonth.value.year,
+        selectedMonth.value.month,
+        1,
+      );
+      final endDate = DateTime(
+        selectedMonth.value.year,
+        selectedMonth.value.month + 1,
+        0,
+      );
 
-    List<Map<String, dynamic>> processedStudents = [];
+      List<Map<String, dynamic>> processedStudents = [];
 
-    for (var student in students) {
-      final studentId = student['id']?.toString() ?? '';
-      final monthlyFee = _toDouble(student['monthly_fee']);
-      final discountPercent = _toDouble(student['discount_percent']);
-      final expectedFee = monthlyFee - (monthlyFee * discountPercent / 100);
+      for (var student in students) {
+        final studentId = student['id']?.toString() ?? '';
+        final monthlyFee = _toDouble(student['monthly_fee']);
+        final discountPercent = _toDouble(student['discount_percent']);
+        final expectedFee = monthlyFee - (monthlyFee * discountPercent / 100);
 
-      final monthlyPayments = await supabase
-          .from('payments')
-          .select('final_amount, discount_amount, discount_percent')
-          .eq('student_id', studentId)
-          .gte('payment_date', startDate.toIso8601String())
-          .lte('payment_date', endDate.toIso8601String())
-          .eq('payment_status', 'paid');
+        final monthlyPayments = await supabase
+            .from('payments')
+            .select('final_amount, discount_amount, discount_percent')
+            .eq('student_id', studentId)
+            .gte('payment_date', startDate.toIso8601String())
+            .lte('payment_date', endDate.toIso8601String())
+            .eq('payment_status', 'paid');
 
-      double paidAmount = _calculateSum(monthlyPayments, 'final_amount');
-      double discountAmount = _calculateSum(monthlyPayments, 'discount_amount');
+        double paidAmount = _calculateSum(monthlyPayments, 'final_amount');
+        double discountAmount = _calculateSum(
+          monthlyPayments,
+          'discount_amount',
+        );
 
-      final allPayments = await supabase
-          .from('payments')
-          .select('id')
-          .eq('student_id', studentId)
-          .eq('payment_status', 'paid');
+        final allPayments = await supabase
+            .from('payments')
+            .select('id')
+            .eq('student_id', studentId)
+            .eq('payment_status', 'paid');
 
-      int paymentsCount = allPayments.length;
+        int paymentsCount = allPayments.length;
 
-      final enrollmentDate = DateTime.parse(student['enrollment_date']);
-      final now = DateTime.now();
-      int monthsPassed =
-          (now.year - enrollmentDate.year) * 12 + (now.month - enrollmentDate.month);
-      if (now.day < enrollmentDate.day) monthsPassed--;
-      if (monthsPassed < 0) monthsPassed = 0;
+        final enrollmentDate = DateTime.parse(student['enrollment_date']);
+        final now = DateTime.now();
+        int monthsPassed =
+            (now.year - enrollmentDate.year) * 12 +
+            (now.month - enrollmentDate.month);
+        if (now.day < enrollmentDate.day) monthsPassed--;
+        if (monthsPassed < 0) monthsPassed = 0;
 
-      double totalExpected = expectedFee * monthsPassed;
+        double totalExpected = expectedFee * monthsPassed;
 
-      final allPaymentsData = await supabase
-          .from('payments')
-          .select('final_amount')
-          .eq('student_id', studentId)
-          .eq('payment_status', 'paid');
+        final allPaymentsData = await supabase
+            .from('payments')
+            .select('final_amount')
+            .eq('student_id', studentId)
+            .eq('payment_status', 'paid');
 
-      double totalPaid = _calculateSum(allPaymentsData, 'final_amount');
-      double totalDebt = totalExpected - totalPaid;
-      if (totalDebt < 0) totalDebt = 0;
+        double totalPaid = _calculateSum(allPaymentsData, 'final_amount');
+        double totalDebt = totalExpected - totalPaid;
+        if (totalDebt < 0) totalDebt = 0;
 
-      processedStudents.add({
-        'id': studentId,
-        'first_name': student['first_name'] ?? '',
-        'last_name': student['last_name'] ?? '',
-        'monthly_fee': monthlyFee,
-        'discount_percent': discountPercent,
-        'expected_fee': expectedFee,
-        'paid_amount': paidAmount,
-        'discount_amount': discountAmount,
-        'payments_count': paymentsCount,
-        'enrollment_date': student['enrollment_date'],
-        'phone': student['phone'],
-        'total_debt': totalDebt,
-        'months_passed': monthsPassed,
-      });
+        processedStudents.add({
+          'id': studentId,
+          'first_name': student['first_name'] ?? '',
+          'last_name': student['last_name'] ?? '',
+          'monthly_fee': monthlyFee,
+          'discount_percent': discountPercent,
+          'expected_fee': expectedFee,
+          'paid_amount': paidAmount,
+          'discount_amount': discountAmount,
+          'payments_count': paymentsCount,
+          'enrollment_date': student['enrollment_date'],
+          'phone': student['phone'],
+          'total_debt': totalDebt,
+          'months_passed': monthsPassed,
+        });
+      }
+
+      classStudents[classId] = processedStudents; // ✅ faqat bitta yozish
+      // istasangiz: classStudents.refresh();
+      print('✅ Sinf o\'quvchilari yuklandi: ${processedStudents.length} ta');
+    } catch (e) {
+      print('❌ Load class students error: $e');
     }
-
-    classStudents[classId] = processedStudents; // ✅ faqat bitta yozish
-    // istasangiz: classStudents.refresh();
-    print('✅ Sinf o\'quvchilari yuklandi: ${processedStudents.length} ta');
-  } catch (e) {
-    print('❌ Load class students error: $e');
   }
-}
+
   // ==================== O'QUVCHI TO'LOVLAR TARIXI ====================
   Future<void> loadStudentPaymentHistory(String studentId) async {
     try {
@@ -808,8 +832,8 @@ class AdvancedFinanceController extends GetxController {
   }
 
   List<Map<String, dynamic>> getClassStudents(String classId) {
-  return classStudents[classId] ?? const [];
-}
+    return classStudents[classId] ?? const [];
+  }
 
   // ==================== YILLIK DAROMAD ====================
   Future<void> loadYearlyRevenue() async {
@@ -843,7 +867,9 @@ class AdvancedFinanceController extends GetxController {
                 final dateStr = item['payment_date']?.toString() ?? '';
                 if (dateStr.isEmpty) return false;
                 final date = DateTime.parse(dateStr);
-                return date.isAfter(monthStart.subtract(const Duration(seconds: 1))) &&
+                return date.isAfter(
+                      monthStart.subtract(const Duration(seconds: 1)),
+                    ) &&
                     date.isBefore(monthEnd.add(const Duration(seconds: 1)));
               } catch (e) {
                 return false;
@@ -900,9 +926,12 @@ class AdvancedFinanceController extends GetxController {
           .fold<double>(0.0, (sum, p) => sum + _toDouble(p['final_amount']));
 
       additionalRevenue.value = paymentsData
-          .where((p) => p['payment_type'] != 'monthly' && p['payment_type'] != 'one_time')
+          .where(
+            (p) =>
+                p['payment_type'] != 'monthly' &&
+                p['payment_type'] != 'one_time',
+          )
           .fold<double>(0.0, (sum, p) => sum + _toDouble(p['final_amount']));
-
     } catch (e) {
       print('⚠️ Load revenue breakdown error: $e');
     }
@@ -927,7 +956,7 @@ class AdvancedFinanceController extends GetxController {
       for (var staff in staffData) {
         double paidAmount = 0.0;
         String? lastPaymentDate;
-        
+
         try {
           final salaryData = await supabase
               .from('salary_operations')
@@ -971,7 +1000,9 @@ class AdvancedFinanceController extends GetxController {
     try {
       var studentsQuery = supabase
           .from('students')
-          .select('id, first_name, last_name, phone, monthly_fee, discount_percent, enrollment_date')
+          .select(
+            'id, first_name, last_name, phone, monthly_fee, discount_percent, enrollment_date',
+          )
           .eq('status', 'active');
 
       if (selectedBranchId.value != 'all') {
@@ -979,7 +1010,7 @@ class AdvancedFinanceController extends GetxController {
       }
 
       final students = await studentsQuery;
-      
+
       List<Map<String, dynamic>> debtorsList = [];
       double totalDebts = 0.0;
 
@@ -987,13 +1018,15 @@ class AdvancedFinanceController extends GetxController {
         final studentId = student['id'].toString();
         final monthlyFee = _toDouble(student['monthly_fee']);
         final discountPercent = _toDouble(student['discount_percent']);
-        final expectedMonthlyFee = monthlyFee - (monthlyFee * discountPercent / 100);
+        final expectedMonthlyFee =
+            monthlyFee - (monthlyFee * discountPercent / 100);
         final enrollmentDate = DateTime.parse(student['enrollment_date']);
         final now = DateTime.now();
 
         // Necha oy o'tganini hisoblash
-        int monthsPassed = (now.year - enrollmentDate.year) * 12 + 
-                          (now.month - enrollmentDate.month);
+        int monthsPassed =
+            (now.year - enrollmentDate.year) * 12 +
+            (now.month - enrollmentDate.month);
         if (now.day < enrollmentDate.day) monthsPassed--;
         if (monthsPassed < 0) monthsPassed = 0;
 
@@ -1011,10 +1044,10 @@ class AdvancedFinanceController extends GetxController {
 
         // Qarz
         double debt = totalExpected - totalPaid;
-        
+
         if (debt > 0) {
           totalDebts += debt;
-          
+
           debtorsList.add({
             'student_id': studentId,
             'first_name': student['first_name'] ?? '',
@@ -1031,15 +1064,19 @@ class AdvancedFinanceController extends GetxController {
       }
 
       // Eng katta qarzdorlar
-      debtorsList.sort((a, b) => 
-          (b['debt_amount'] as double).compareTo(a['debt_amount'] as double));
+      debtorsList.sort(
+        (a, b) =>
+            (b['debt_amount'] as double).compareTo(a['debt_amount'] as double),
+      );
 
       totalStudentDebt.value = totalDebts;
       debtorStudentsCount.value = debtorsList.length;
       topDebtors.value = debtorsList.take(5).toList();
       allDebtorStudents.value = debtorsList;
 
-      print('✅ Qarzdorlar yuklandi: ${debtorsList.length} ta, jami: $totalDebts');
+      print(
+        '✅ Qarzdorlar yuklandi: ${debtorsList.length} ta, jami: $totalDebts',
+      );
     } catch (e) {
       print('❌ Load student debts error: $e');
     }
@@ -1079,13 +1116,15 @@ class AdvancedFinanceController extends GetxController {
           .fold<double>(0.0, (sum, e) => sum + _toDouble(e['amount']));
 
       otherExpenses.value = expensesData
-          .where((e) => 
-              e['category'] != 'salary' && 
-              e['category'] != 'utilities' &&
-              e['category'] != 'food' &&
-              e['category'] != 'transport')
+          .where(
+            (e) =>
+                e['category'] != 'salary' &&
+                e['category'] != 'utilities' &&
+                e['category'] != 'food' &&
+                e['category'] != 'transport',
+          )
           .fold<double>(0.0, (sum, e) => sum + _toDouble(e['amount']));
-          
+
       print('✅ Xarajatlar yuklandi');
     } catch (e) {
       print('❌ Load expenses error: $e');
@@ -1098,7 +1137,6 @@ class AdvancedFinanceController extends GetxController {
 
   // ==================== FILTRLAR ====================
 
-
   void changePeriod(String period) {
     selectedPeriod.value = period;
     refreshData();
@@ -1109,31 +1147,31 @@ class AdvancedFinanceController extends GetxController {
     refreshData();
   }
 
- void previousMonth() {
-  selectedMonth.value = DateTime(
-    selectedMonth.value.year,
-    selectedMonth.value.month - 1,
-    1,
-  );
-  loadMonthlyCollection();
-  loadClasses();
-}
+  void previousMonth() {
+    selectedMonth.value = DateTime(
+      selectedMonth.value.year,
+      selectedMonth.value.month - 1,
+      1,
+    );
+    loadMonthlyCollection();
+    loadClasses();
+  }
 
-void nextMonth() {
-  final candidate = DateTime(
-    selectedMonth.value.year,
-    selectedMonth.value.month + 1,
-    1,
-  );
-  final now = DateTime.now();
+  void nextMonth() {
+    final candidate = DateTime(
+      selectedMonth.value.year,
+      selectedMonth.value.month + 1,
+      1,
+    );
+    final now = DateTime.now();
 
-  // kelajak oyga chiqmaslik
-  if (candidate.isAfter(DateTime(now.year, now.month, 1))) return;
+    // kelajak oyga chiqmaslik
+    if (candidate.isAfter(DateTime(now.year, now.month, 1))) return;
 
-  selectedMonth.value = candidate;
-  loadMonthlyCollection();
-  loadClasses();
-}
+    selectedMonth.value = candidate;
+    loadMonthlyCollection();
+    loadClasses();
+  }
 
   // ==================== SANA ORALIQLARI ====================
   Map<String, String> _getDateRange() {
@@ -1157,10 +1195,7 @@ void nextMonth() {
         start = DateTime(2020, 1, 1);
     }
 
-    return {
-      'start': start.toIso8601String(),
-      'end': end.toIso8601String(),
-    };
+    return {'start': start.toIso8601String(), 'end': end.toIso8601String()};
   }
 
   Map<String, String> _getPreviousDateRange() {
@@ -1180,13 +1215,13 @@ void nextMonth() {
 
   // ==================== HARAKATLAR ====================
   void toggleClassExpansion(String classId) {
-  if (expandedClassId.value == classId) {
-    expandedClassId.value = '';
-  } else {
-    expandedClassId.value = classId;
-    loadClassStudents(classId); // ✅ bu yerda yuklaymiz
+    if (expandedClassId.value == classId) {
+      expandedClassId.value = '';
+    } else {
+      expandedClassId.value = classId;
+      loadClassStudents(classId); // ✅ bu yerda yuklaymiz
+    }
   }
-}
 
   void toggleStudentExpansion(String studentId) {
     if (expandedStudentId.value == studentId) {
@@ -1227,59 +1262,63 @@ void nextMonth() {
               ),
               const SizedBox(height: 20),
               Expanded(
-                child: Obx(() => ListView.builder(
-                  itemCount: allPayments.length,
-                  itemBuilder: (context, index) {
-                    final payment = allPayments[index];
-                    final student = payment['students'];
-                    final studentName = student != null
-                        ? '${student['first_name']} ${student['last_name']}'
-                        : 'Noma\'lum';
-                    final amount = _toDouble(payment['final_amount']);
-                    final discount = _toDouble(payment['discount_amount']);
-                    final discountPercent = _toDouble(payment['discount_percent']);
-                    final date = payment['payment_date'];
+                child: Obx(
+                  () => ListView.builder(
+                    itemCount: allPayments.length,
+                    itemBuilder: (context, index) {
+                      final payment = allPayments[index];
+                      final student = payment['students'];
+                      final studentName = student != null
+                          ? '${student['first_name']} ${student['last_name']}'
+                          : 'Noma\'lum';
+                      final amount = _toDouble(payment['final_amount']);
+                      final discount = _toDouble(payment['discount_amount']);
+                      final discountPercent = _toDouble(
+                        payment['discount_percent'],
+                      );
+                      final date = payment['payment_date'];
 
-                    return Card(
-                      margin: const EdgeInsets.only(bottom: 12),
-                      child: ListTile(
-                        leading: CircleAvatar(
-                          backgroundColor: Colors.green.shade100,
-                          child: Text('${index + 1}'),
-                        ),
-                        title: Text(
-                          studentName,
-                          style: const TextStyle(fontWeight: FontWeight.w600),
-                        ),
-                        subtitle: Text(
-                          'Sana: ${_formatDate(date)}${discount > 0 ? ' • Chegirma: $discountPercent%' : ''}',
-                        ),
-                        trailing: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          crossAxisAlignment: CrossAxisAlignment.end,
-                          children: [
-                            Text(
-                              '${_formatCurrency(amount)} so\'m',
-                              style: const TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.green,
-                              ),
-                            ),
-                            if (discount > 0)
+                      return Card(
+                        margin: const EdgeInsets.only(bottom: 12),
+                        child: ListTile(
+                          leading: CircleAvatar(
+                            backgroundColor: Colors.green.shade100,
+                            child: Text('${index + 1}'),
+                          ),
+                          title: Text(
+                            studentName,
+                            style: const TextStyle(fontWeight: FontWeight.w600),
+                          ),
+                          subtitle: Text(
+                            'Sana: ${_formatDate(date)}${discount > 0 ? ' • Chegirma: $discountPercent%' : ''}',
+                          ),
+                          trailing: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
                               Text(
-                                'Chegirma: ${_formatCurrency(discount)}',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: Colors.grey[600],
+                                '${_formatCurrency(amount)} so\'m',
+                                style: const TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.green,
                                 ),
                               ),
-                          ],
+                              if (discount > 0)
+                                Text(
+                                  'Chegirma: ${_formatCurrency(discount)}',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.grey[600],
+                                  ),
+                                ),
+                            ],
+                          ),
                         ),
-                      ),
-                    );
-                  },
-                )),
+                      );
+                    },
+                  ),
+                ),
               ),
             ],
           ),
@@ -1314,42 +1353,44 @@ void nextMonth() {
               ),
               const SizedBox(height: 20),
               Expanded(
-                child: Obx(() => ListView.builder(
-                  itemCount: allExpenses.length,
-                  itemBuilder: (context, index) {
-                    final expense = allExpenses[index];
-                    final title = expense['title'] ?? '';
-                    final category = expense['category'] ?? '';
-                    final amount = _toDouble(expense['amount']);
-                    final date = expense['expense_date'];
-                    final notes = expense['notes'] ?? '';
+                child: Obx(
+                  () => ListView.builder(
+                    itemCount: allExpenses.length,
+                    itemBuilder: (context, index) {
+                      final expense = allExpenses[index];
+                      final title = expense['title'] ?? '';
+                      final category = expense['category'] ?? '';
+                      final amount = _toDouble(expense['amount']);
+                      final date = expense['expense_date'];
+                      final notes = expense['notes'] ?? '';
 
-                    return Card(
-                      margin: const EdgeInsets.only(bottom: 12),
-                      child: ListTile(
-                        leading: CircleAvatar(
-                          backgroundColor: Colors.red.shade100,
-                          child: Text('${index + 1}'),
-                        ),
-                        title: Text(
-                          title,
-                          style: const TextStyle(fontWeight: FontWeight.w600),
-                        ),
-                        subtitle: Text(
-                          'Kategoriya: $category • Sana: ${_formatDate(date)}${notes.isNotEmpty ? '\n$notes' : ''}',
-                        ),
-                        trailing: Text(
-                          '${_formatCurrency(amount)} so\'m',
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.red,
+                      return Card(
+                        margin: const EdgeInsets.only(bottom: 12),
+                        child: ListTile(
+                          leading: CircleAvatar(
+                            backgroundColor: Colors.red.shade100,
+                            child: Text('${index + 1}'),
+                          ),
+                          title: Text(
+                            title,
+                            style: const TextStyle(fontWeight: FontWeight.w600),
+                          ),
+                          subtitle: Text(
+                            'Kategoriya: $category • Sana: ${_formatDate(date)}${notes.isNotEmpty ? '\n$notes' : ''}',
+                          ),
+                          trailing: Text(
+                            '${_formatCurrency(amount)} so\'m',
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.red,
+                            ),
                           ),
                         ),
-                      ),
-                    );
-                  },
-                )),
+                      );
+                    },
+                  ),
+                ),
               ),
             ],
           ),
@@ -1357,27 +1398,28 @@ void nextMonth() {
       ),
     );
   }
+
   Future<void> pickMonth(BuildContext context) async {
-  final now = DateTime.now();
+    final now = DateTime.now();
 
-  // TODO: maktab boshlangan sanaga moslab o‘zgartiring
-  final firstDate = DateTime(2020, 9, 1);
+    // TODO: maktab boshlangan sanaga moslab o‘zgartiring
+    final firstDate = DateTime(2020, 9, 1);
 
-  final picked = await showDatePicker(
-    context: context,
-    initialDate: selectedMonth.value,
-    firstDate: firstDate,
-    lastDate: DateTime(now.year, now.month, 31),
-    helpText: 'Oyni tanlang',
-  );
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: selectedMonth.value,
+      firstDate: firstDate,
+      lastDate: DateTime(now.year, now.month, 31),
+      helpText: 'Oyni tanlang',
+    );
 
-  if (picked != null) {
-    selectedMonth.value = DateTime(picked.year, picked.month, 1);
-    // Faqat shu oyning maʼlumotlarini qayta yuklaymiz
-    loadMonthlyCollection();
-    loadClasses();
+    if (picked != null) {
+      selectedMonth.value = DateTime(picked.year, picked.month, 1);
+      // Faqat shu oyning maʼlumotlarini qayta yuklaymiz
+      loadMonthlyCollection();
+      loadClasses();
+    }
   }
-}
 
   void showAllDebtors() {
     Get.dialog(
@@ -1390,7 +1432,11 @@ void nextMonth() {
             children: [
               Row(
                 children: [
-                  const Icon(Icons.warning_amber, color: Colors.orange, size: 32),
+                  const Icon(
+                    Icons.warning_amber,
+                    color: Colors.orange,
+                    size: 32,
+                  ),
                   const SizedBox(width: 12),
                   const Text(
                     'Barcha Qarzdorlar',
@@ -1414,67 +1460,81 @@ void nextMonth() {
               ),
               const SizedBox(height: 20),
               Expanded(
-                child: Obx(() => ListView.builder(
-                  itemCount: allDebtorStudents.length,
-                  itemBuilder: (context, index) {
-                    final debtor = allDebtorStudents[index];
-                    final name = '${debtor['first_name']} ${debtor['last_name']}';
-                    final debt = _toDouble(debtor['debt_amount']);
-                    final months = debtor['months_count'];
-                    final totalExpected = _toDouble(debtor['total_expected']);
-                    final totalPaid = _toDouble(debtor['total_paid']);
+                child: Obx(
+                  () => ListView.builder(
+                    itemCount: allDebtorStudents.length,
+                    itemBuilder: (context, index) {
+                      final debtor = allDebtorStudents[index];
+                      final name =
+                          '${debtor['first_name']} ${debtor['last_name']}';
+                      final debt = _toDouble(debtor['debt_amount']);
+                      final months = debtor['months_count'];
+                      final totalExpected = _toDouble(debtor['total_expected']);
+                      final totalPaid = _toDouble(debtor['total_paid']);
 
-                    return Card(
-                      margin: const EdgeInsets.only(bottom: 12),
-                      child: ExpansionTile(
-                        leading: CircleAvatar(
-                          backgroundColor: Colors.orange.shade100,
-                          child: Text(
-                            '${index + 1}',
-                            style: const TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                        ),
-                        title: Text(
-                          name,
-                          style: const TextStyle(fontWeight: FontWeight.w600),
-                        ),
-                        subtitle: Text('$months oy qarzdor'),
-                        trailing: Text(
-                          '${_formatCurrency(debt)} so\'m',
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.red,
-                          ),
-                        ),
-                        children: [
-                          Padding(
-                            padding: const EdgeInsets.all(16),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                _buildInfoRow('Kutilgan', '${_formatCurrency(totalExpected)} so\'m'),
-                                _buildInfoRow('To\'langan', '${_formatCurrency(totalPaid)} so\'m'),
-                                _buildInfoRow('Qarz', '${_formatCurrency(debt)} so\'m'),
-                                if (debtor['phone'] != null)
-                                  _buildInfoRow('Telefon', debtor['phone']),
-                                const SizedBox(height: 12),
-                                ElevatedButton.icon(
-                                  onPressed: () {
-                                    Get.back();
-                                    showStudentDetails(debtor['student_id']);
-                                  },
-                                  icon: const Icon(Icons.visibility),
-                                  label: const Text('Batafsil ko\'rish'),
-                                ),
-                              ],
+                      return Card(
+                        margin: const EdgeInsets.only(bottom: 12),
+                        child: ExpansionTile(
+                          leading: CircleAvatar(
+                            backgroundColor: Colors.orange.shade100,
+                            child: Text(
+                              '${index + 1}',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                           ),
-                        ],
-                      ),
-                    );
-                  },
-                )),
+                          title: Text(
+                            name,
+                            style: const TextStyle(fontWeight: FontWeight.w600),
+                          ),
+                          subtitle: Text('$months oy qarzdor'),
+                          trailing: Text(
+                            '${_formatCurrency(debt)} so\'m',
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.red,
+                            ),
+                          ),
+                          children: [
+                            Padding(
+                              padding: const EdgeInsets.all(16),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  _buildInfoRow(
+                                    'Kutilgan',
+                                    '${_formatCurrency(totalExpected)} so\'m',
+                                  ),
+                                  _buildInfoRow(
+                                    'To\'langan',
+                                    '${_formatCurrency(totalPaid)} so\'m',
+                                  ),
+                                  _buildInfoRow(
+                                    'Qarz',
+                                    '${_formatCurrency(debt)} so\'m',
+                                  ),
+                                  if (debtor['phone'] != null)
+                                    _buildInfoRow('Telefon', debtor['phone']),
+                                  const SizedBox(height: 12),
+                                  ElevatedButton.icon(
+                                    onPressed: () {
+                                      Get.back();
+                                      showStudentDetails(debtor['student_id']);
+                                    },
+                                    icon: const Icon(Icons.visibility),
+                                    label: const Text('Batafsil ko\'rish'),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                ),
               ),
             ],
           ),
@@ -1483,118 +1543,117 @@ void nextMonth() {
     );
   }
 
- Future<void> exportReport() async {
-  if (isExporting.value) return;
-  isExporting.value = true;
+  Future<void> exportReport() async {
+    if (isExporting.value) return;
+    isExporting.value = true;
 
-  try {
-    final pdf = pw.Document();
-    final now = DateTime.now();
-    final dateStr = DateFormat('dd.MM.yyyy HH:mm').format(now);
+    try {
+      final pdf = pw.Document();
+      final now = DateTime.now();
+      final dateStr = DateFormat('dd.MM.yyyy HH:mm').format(now);
 
-    pw.TableRow _row(String label, String value) {
-      return pw.TableRow(
-        children: [
-          pw.Padding(
-            padding: const pw.EdgeInsets.symmetric(vertical: 4),
-            child: pw.Text(label),
-          ),
-          pw.Padding(
-            padding: const pw.EdgeInsets.symmetric(vertical: 4),
-            child:
-                pw.Text(value, textAlign: pw.TextAlign.right),
-          ),
-        ],
-      );
-    }
-
-    pdf.addPage(
-      pw.MultiPage(
-        margin: const pw.EdgeInsets.all(24),
-        build: (context) => [
-          pw.Text(
-            'Moliya Hisoboti',
-            style: pw.TextStyle(
-              fontSize: 22,
-              fontWeight: pw.FontWeight.bold,
+      pw.TableRow _row(String label, String value) {
+        return pw.TableRow(
+          children: [
+            pw.Padding(
+              padding: const pw.EdgeInsets.symmetric(vertical: 4),
+              child: pw.Text(label),
             ),
-          ),
-          pw.SizedBox(height: 8),
-          pw.Text('Sana: $dateStr'),
-          pw.SizedBox(height: 24),
+            pw.Padding(
+              padding: const pw.EdgeInsets.symmetric(vertical: 4),
+              child: pw.Text(value, textAlign: pw.TextAlign.right),
+            ),
+          ],
+        );
+      }
 
-          pw.Text('Umumiy statistika',
-              style: pw.TextStyle(
-                  fontSize: 16, fontWeight: pw.FontWeight.bold)),
-          pw.SizedBox(height: 8),
-          pw.Table(
-            columnWidths: {
-              0: const pw.FlexColumnWidth(2),
-              1: const pw.FlexColumnWidth(1),
-            },
-            children: [
-              _row('Jami tushum',
-                  '${_formatCurrency(totalRevenue.value)} so\'m'),
-              _row('Jami xarajat',
-                  '${_formatCurrency(totalExpenses.value)} so\'m'),
-              _row('Sof foyda',
-                  '${_formatCurrency(netProfit.value)} so\'m'),
-              _row('Jami qarz',
-                  '${_formatCurrency(totalStudentDebt.value)} so\'m'),
-            ],
-          ),
+      pdf.addPage(
+        pw.MultiPage(
+          margin: const pw.EdgeInsets.all(24),
+          build: (context) => [
+            pw.Text(
+              'Moliya Hisoboti',
+              style: pw.TextStyle(fontSize: 22, fontWeight: pw.FontWeight.bold),
+            ),
+            pw.SizedBox(height: 8),
+            pw.Text('Sana: $dateStr'),
+            pw.SizedBox(height: 24),
 
-          pw.SizedBox(height: 16),
-          pw.Text('Eng katta qarzdorlar',
-              style: pw.TextStyle(
-                  fontSize: 16, fontWeight: pw.FontWeight.bold)),
-          pw.SizedBox(height: 8),
-          if (topDebtors.isNotEmpty)
-            pw.Table.fromTextArray(
-              headers: ['#', 'O\'quvchi', 'Qarz', 'Oy'],
-              data: [
-                for (int i = 0; i < topDebtors.length; i++)
-                  [
-                    (i + 1).toString(),
-                    '${topDebtors[i]['first_name']} ${topDebtors[i]['last_name']}',
-                    '${_formatCurrency(_toDouble(topDebtors[i]['debt_amount']))} so\'m',
-                    topDebtors[i]['months_count'].toString(),
-                  ]
+            pw.Text(
+              'Umumiy statistika',
+              style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold),
+            ),
+            pw.SizedBox(height: 8),
+            pw.Table(
+              columnWidths: {
+                0: const pw.FlexColumnWidth(2),
+                1: const pw.FlexColumnWidth(1),
+              },
+              children: [
+                _row(
+                  'Jami tushum',
+                  '${_formatCurrency(totalRevenue.value)} so\'m',
+                ),
+                _row(
+                  'Jami xarajat',
+                  '${_formatCurrency(totalExpenses.value)} so\'m',
+                ),
+                _row('Sof foyda', '${_formatCurrency(netProfit.value)} so\'m'),
+                _row(
+                  'Jami qarz',
+                  '${_formatCurrency(totalStudentDebt.value)} so\'m',
+                ),
               ],
-            )
-          else
-            pw.Text('Qarzdorlar yo\'q'),
-        ],
-      ),
-    );
+            ),
 
-    final bytes = await pdf.save();
+            pw.SizedBox(height: 16),
+            pw.Text(
+              'Eng katta qarzdorlar',
+              style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold),
+            ),
+            pw.SizedBox(height: 8),
+            if (topDebtors.isNotEmpty)
+              pw.Table.fromTextArray(
+                headers: ['#', 'O\'quvchi', 'Qarz', 'Oy'],
+                data: [
+                  for (int i = 0; i < topDebtors.length; i++)
+                    [
+                      (i + 1).toString(),
+                      '${topDebtors[i]['first_name']} ${topDebtors[i]['last_name']}',
+                      '${_formatCurrency(_toDouble(topDebtors[i]['debt_amount']))} so\'m',
+                      topDebtors[i]['months_count'].toString(),
+                    ],
+                ],
+              )
+            else
+              pw.Text('Qarzdorlar yo\'q'),
+          ],
+        ),
+      );
 
-    await Printing.sharePdf(
-      bytes: bytes,
-      filename:
-          'finance_${DateFormat('yyyyMMdd_HHmm').format(now)}.pdf',
-    );
+      final bytes = await pdf.save();
 
-    Get.snackbar(
-      'Muvaffaqiyatli',
-      'Hisobot PDF formatida tayyor bo\'ldi',
-      snackPosition: SnackPosition.BOTTOM,
-    );
-  } catch (e) {
-    print('❌ Export PDF error: $e');
-    _showError('PDF yaratishda xato: $e');
-  } finally {
-    isExporting.value = false;
+      await Printing.sharePdf(
+        bytes: bytes,
+        filename: 'finance_${DateFormat('yyyyMMdd_HHmm').format(now)}.pdf',
+      );
+
+      Get.snackbar(
+        'Muvaffaqiyatli',
+        'Hisobot PDF formatida tayyor bo\'ldi',
+        snackPosition: SnackPosition.BOTTOM,
+      );
+    } catch (e) {
+      print('❌ Export PDF error: $e');
+      _showError('PDF yaratishda xato: $e');
+    } finally {
+      isExporting.value = false;
+    }
   }
-}
 
   // ==================== YORDAMCHI FUNKSIYALAR ====================
   double _calculateSum(List<dynamic> data, String field) {
-    return data.fold<double>(
-      0.0,
-      (sum, item) => sum + _toDouble(item[field]),
-    );
+    return data.fold<double>(0.0, (sum, item) => sum + _toDouble(item[field]));
   }
 
   double _toDouble(dynamic value) {
@@ -1625,19 +1684,10 @@ void nextMonth() {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 14,
-              color: Colors.grey[600],
-            ),
-          ),
+          Text(label, style: TextStyle(fontSize: 14, color: Colors.grey[600])),
           Text(
             value,
-            style: const TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-            ),
+            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
           ),
         ],
       ),
@@ -1659,115 +1709,142 @@ void nextMonth() {
     super.onClose();
   }
   // Xodim maoshini mukammal hisoblash
-Future<Map<String, dynamic>> calculateStaffSalary(
-  String staffId,
-  int year,
-  int month,
-) async {
-  try {
-    // 1. Xodim ma'lumotlari
-    final staff = await supabase
-        .from('staff')
-        .select('*, salary_type, base_salary, hourly_rate, expected_hours_per_month')
-        .eq('id', staffId)
-        .single();
 
-    final salaryType = staff['salary_type']; // 'fixed', 'hourly', 'daily'
-    
-    // 2. Davomat asosida ishlangan soatlar
-    final workedData = await supabase
-        .rpc('calculate_staff_worked_hours', params: {
-          'p_staff_id': staffId,
-          'p_year': year,
-          'p_month': month,
-        })
-        .single();
+  Future<Map<String, dynamic>> calculateStaffSalary(
+    String staffId,
+    int year,
+    int month,
+  ) async {
+    try {
+      // 1. Xodim ma'lumotlari
+      final staff = await supabase
+          .from('staff')
+          .select(
+            '*, salary_type, base_salary, hourly_rate, expected_hours_per_month',
+          )
+          .eq('id', staffId)
+          .single();
 
-    double baseAmount = 0.0;
-    double overtimeAmount = 0.0;
+      final salaryType = staff['salary_type'];
 
-    if (salaryType == 'hourly') {
-      // SOATLIK XODIM
-      final hourlyRate = _toDouble(staff['hourly_rate']);
-      final workedHours = _toDouble(workedData['worked_hours']);
-      final overtimeHours = _toDouble(workedData['overtime_hours']);
-      
-      baseAmount = workedHours * hourlyRate;
-      overtimeAmount = overtimeHours * (hourlyRate * 1.5); // Ortiqcha ish 1.5x
-      
-    } else if (salaryType == 'fixed') {
-      // DOIMIY OYLIK
-      baseAmount = _toDouble(staff['base_salary']);
-      
-    } else if (salaryType == 'daily') {
-      // KUNLIK
-      final dailyRate = _toDouble(staff['daily_rate']);
-      final workedDays = workedData['worked_days'] as int;
-      baseAmount = dailyRate * workedDays;
-    }
+      // 2. Davomat asosida hisoblash
+      // Eslatma: Agar sizda 'calculate_staff_worked_hours' RPC funksiyasi bo'lmasa,
+      // bu qism xato berishi mumkin. Unday holda oddiyroq hisoblash usuliga o'tish kerak.
+      Map<String, dynamic> workedData = {
+        'worked_hours': 0,
+        'worked_days': 0,
+        'overtime_hours': 0,
+        'total_sessions': 0,
+      };
 
-    // 3. Bonuslar va jarimalar
-    final adjustments = await supabase
-        .from('salary_adjustments')
-        .select('adjustment_type, amount, reason')
-        .eq('staff_id', staffId)
-        .gte('applied_date', '$year-${month.toString().padLeft(2, '0')}-01')
-        .lte('applied_date', '$year-${month.toString().padLeft(2, '0')}-31');
+      try {
+        final rpcResult = await supabase
+            .rpc(
+              'calculate_staff_worked_hours',
+              params: {'p_staff_id': staffId, 'p_year': year, 'p_month': month},
+            )
+            .maybeSingle(); // maybeSingle xatolikni oldini oladi
 
-    double bonusAmount = 0.0;
-    double penaltyAmount = 0.0;
-    double advanceDeduction = 0.0;
-    double loanDeduction = 0.0;
-
-    for (var adj in adjustments) {
-      final amount = _toDouble(adj['amount']);
-      switch (adj['adjustment_type']) {
-        case 'bonus':
-          bonusAmount += amount;
-          break;
-        case 'penalty':
-          penaltyAmount += amount;
-          break;
-        case 'advance':
-          advanceDeduction += amount;
-          break;
-        case 'loan':
-          loanDeduction += amount;
-          break;
+        if (rpcResult != null) workedData = rpcResult;
+      } catch (_) {
+        // RPC yo'q bo'lsa yoki xato bersa, default qiymatlar qoladi
+        // Yoki oddiyroq query yozish mumkin
       }
+
+      double baseAmount = 0.0;
+      double overtimeAmount = 0.0;
+
+      if (salaryType == 'hourly') {
+        final hourlyRate = _toDouble(staff['hourly_rate']);
+        final workedHours = _toDouble(workedData['worked_hours']);
+        final overtimeHours = _toDouble(workedData['overtime_hours']);
+        baseAmount = workedHours * hourlyRate;
+        overtimeAmount = overtimeHours * (hourlyRate * 1.5);
+      } else if (salaryType == 'fixed') {
+        baseAmount = _toDouble(staff['base_salary']);
+      } else if (salaryType == 'daily') {
+        final dailyRate = _toDouble(staff['daily_rate']);
+        final workedDays = workedData['worked_days'] as int;
+        baseAmount = dailyRate * workedDays;
+      }
+
+      // 3. Bonuslar va jarimalar
+      final adjustments = await supabase
+          .from('salary_adjustments')
+          .select('adjustment_type, amount')
+          .eq('staff_id', staffId)
+          .gte('applied_date', '$year-${month.toString().padLeft(2, '0')}-01')
+          .lte('applied_date', '$year-${month.toString().padLeft(2, '0')}-31');
+
+      double bonusAmount = 0.0;
+      double penaltyAmount = 0.0;
+      double advanceDeduction = 0.0;
+      double loanDeduction = 0.0;
+
+      for (var adj in adjustments) {
+        final amount = _toDouble(adj['amount']);
+        switch (adj['adjustment_type']) {
+          case 'bonus':
+            bonusAmount += amount;
+            break;
+          case 'penalty':
+            penaltyAmount += amount;
+            break;
+          case 'advance':
+            advanceDeduction += amount;
+            break;
+          case 'loan':
+            loanDeduction += amount;
+            break;
+        }
+      }
+
+      // 4. Gross va Net hisoblash
+      final grossAmount = baseAmount + overtimeAmount + bonusAmount;
+      // Net amount manfiy bo'lmasligi kerak
+      double netAmount =
+          grossAmount - penaltyAmount - advanceDeduction - loanDeduction;
+      if (netAmount < 0) netAmount = 0;
+
+      // 5. HAQIQATDA TO'LANGAN SUMMANI TEKSHIRISH (TUZATILGAN QISM)
+      final paidOperations = await supabase
+          .from('salary_operations')
+          .select('net_amount')
+          .eq('staff_id', staffId)
+          .eq('period_year', year)
+          .eq('period_month', month)
+          .eq('is_paid', true);
+
+      double actuallyPaid = 0.0;
+      for (var op in paidOperations) {
+        actuallyPaid += _toDouble(op['net_amount']);
+      }
+
+      // QOLDIQ
+      double remainingBalance = netAmount - actuallyPaid;
+      if (remainingBalance < 0) remainingBalance = 0;
+
+      return {
+        'staff_id': staffId,
+        'period_month': month,
+        'period_year': year,
+        'salary_type': salaryType,
+        'base_amount': baseAmount,
+        'gross_amount': grossAmount,
+        'net_amount': netAmount,
+        'actually_paid': actuallyPaid,
+        'remaining_balance': remainingBalance,
+        'bonus_amount': bonusAmount,
+        'penalty_amount': penaltyAmount,
+      };
+    } catch (e) {
+      print('❌ Calculate staff salary error ($staffId): $e');
+      return {};
     }
-
-    // 4. Gross va Net hisoblash
-    final grossAmount = baseAmount + overtimeAmount + bonusAmount;
-    final netAmount = grossAmount - penaltyAmount - advanceDeduction - loanDeduction;
-
-    return {
-      'staff_id': staffId,
-      'period_month': month,
-      'period_year': year,
-      'salary_type': salaryType,
-      'base_amount': baseAmount,
-      'worked_hours': workedData['worked_hours'],
-      'worked_days': workedData['worked_days'],
-      'overtime_hours': workedData['overtime_hours'],
-      'overtime_amount': overtimeAmount,
-      'bonus_amount': bonusAmount,
-      'penalty_amount': penaltyAmount,
-      'advance_deduction': advanceDeduction,
-      'loan_deduction': loanDeduction,
-      'gross_amount': grossAmount,
-      'net_amount': netAmount,
-      'total_sessions': workedData['total_sessions'],
-    };
-    
-  } catch (e) {
-    print('❌ Calculate staff salary error: $e');
-    return {};
   }
-}
 
-// Barcha xodimlar maoshini yuklash (oy bo'yicha)
-Future<void> loadStaffSalariesDetailed() async {
+  // Barcha xodimlar maoshini yuklash (oy bo'yicha)
+  Future<void> loadStaffSalariesDetailed() async {
   try {
     var staffQuery = supabase
         .from('staff')
@@ -1781,53 +1858,68 @@ Future<void> loadStaffSalariesDetailed() async {
     final staffList = await staffQuery;
     List<Map<String, dynamic>> processedStaff = [];
 
+    // Hisoblagichlarni 0 ga tushiramiz
+    double sumNet = 0.0;
+    double sumPaid = 0.0;
+    double sumRemaining = 0.0;
+
     for (var staff in staffList) {
       final staffId = staff['id'].toString();
       
-      // Har bir oy uchun maosh hisobini olish
       final salaryData = await calculateStaffSalary(
         staffId,
         selectedYear.value,
         selectedMonth.value.month,
       );
 
-      processedStaff.add({
-        ...staff,
-        ...salaryData,
-      });
+      if (salaryData.isNotEmpty) {
+        double net = _toDouble(salaryData['net_amount']);
+        double paid = _toDouble(salaryData['actually_paid']);
+        double remaining = _toDouble(salaryData['remaining_balance']);
+
+        // Yig'indilarni hisoblash
+        sumNet += net;
+        sumPaid += paid;
+        sumRemaining += remaining;
+
+        processedStaff.add({
+          ...staff,
+          ...salaryData,
+        });
+      }
     }
 
     staffSalaryList.value = processedStaff;
-    totalSalaryExpense.value = processedStaff.fold(
-      0.0,
-      (sum, s) => sum + _toDouble(s['net_amount']),
-    );
+    
+    // Observables (ekrandagi raqamlar) ni yangilash
+    totalSalaryPayable.value = sumNet;
+    totalSalaryPaid.value = sumPaid;
+    totalSalaryRemaining.value = sumRemaining;
+    
+    // totalSalaryExpense ni ham yangilab qo'yamiz (eski kod buzilmasligi uchun)
+    totalSalaryExpense.value = sumPaid; 
 
-    print('✅ Xodimlar maoshi batafsil yuklandi');
+    print('✅ Maoshlar: Jami=$sumNet, To\'landi=$sumPaid, Qarz=$sumRemaining');
   } catch (e) {
     print('❌ Load detailed salaries error: $e');
   }
 }
 
-// O'quvchi to'lovini to'g'ri hisoblash (kanikulasiz)
-Future<double> calculateStudentExpectedFee(
-  String studentId,
-  int year,
-  int month,
-) async {
-  try {
-    final result = await supabase.rpc(
-      'calculate_student_monthly_fee',
-      params: {
-        'p_student_id': studentId,
-        'p_year': year,
-        'p_month': month,
-      },
-    );
-    return _toDouble(result);
-  } catch (e) {
-    print('❌ Calculate student fee error: $e');
-    return 0.0;
+  // O'quvchi to'lovini to'g'ri hisoblash (kanikulasiz)
+  Future<double> calculateStudentExpectedFee(
+    String studentId,
+    int year,
+    int month,
+  ) async {
+    try {
+      final result = await supabase.rpc(
+        'calculate_student_monthly_fee',
+        params: {'p_student_id': studentId, 'p_year': year, 'p_month': month},
+      );
+      return _toDouble(result);
+    } catch (e) {
+      print('❌ Calculate student fee error: $e');
+      return 0.0;
+    }
   }
-}
 }

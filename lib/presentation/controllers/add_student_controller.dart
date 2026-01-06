@@ -25,7 +25,6 @@ class AddStudentController extends GetxController {
   final formKey = GlobalKey<FormState>();
 
   // --- ACCESS CONTROL ---
-  // Foydalanuvchi filialni o'zgartira oladimi?
   final RxBool canChangeBranch = true.obs;
 
   // O'QUVCHI MA'LUMOTLARI
@@ -69,9 +68,10 @@ class AddStudentController extends GetxController {
   final RxString selectedBranchName = ''.obs;
   final RxBool showBranchSelector = true.obs;
 
-  // VISITOR
-  final RxList<dynamic> visitors = <dynamic>[].obs;
+  // VISITOR (YANGILANGAN)
+  final RxList<Map<String, dynamic>> visitors = <Map<String, dynamic>>[].obs;
   final Rx<String?> selectedVisitorId = Rx<String?>(null);
+  final RxBool isLoadingVisitors = false.obs;
 
   // SINF MA'LUMOTLARI
   final RxList<Map<String, dynamic>> classLevels = <Map<String, dynamic>>[].obs;
@@ -80,7 +80,8 @@ class AddStudentController extends GetxController {
       <Map<String, dynamic>>[].obs;
   final RxList<Map<String, dynamic>> teachers = <Map<String, dynamic>>[].obs;
   final RxList<Map<String, dynamic>> rooms = <Map<String, dynamic>>[].obs;
-
+  final RxBool isEditMode = false.obs;
+  String? editingStudentId;
   // TANLANGAN QIYMATLAR
   final Rx<String?> selectedClassLevelId = Rx<String?>(null);
   final Rx<String?> selectedClassId = Rx<String?>(null);
@@ -104,6 +105,27 @@ class AddStudentController extends GetxController {
   void onInit() {
     super.onInit();
     _initialize();
+
+    // YANGI: Argumentlarni to'g'ri tekshirish
+    if (Get.arguments != null && Get.arguments is Map) {
+      final args = Get.arguments as Map;
+
+      // EDIT REJIMI
+      if (args['isEdit'] == true && args['studentId'] != null) {
+        isEditMode.value = true;
+        editingStudentId = args['studentId'];
+        print('🔄 Edit rejimi faollashtirildi: $editingStudentId');
+      }
+      // VISITOR dan kelgan
+      else if (args['visitor'] != null) {
+        final visitor = args['visitor'];
+        if (visitor['branch_id'] != null) {
+          selectBranch(visitor['branch_id'], showMessage: false).then((_) {
+            onVisitorSelected(visitor['id']);
+          });
+        }
+      }
+    }
   }
 
   @override
@@ -111,19 +133,27 @@ class AddStudentController extends GetxController {
     _disposeControllers();
     super.onClose();
   }
-
-  Future<void> _initialize() async {
-    try {
-      isLoading.value = true;
-      await fetchBranches();
-    } catch (e) {
-      _showError('Boshlash xatosi', e.toString());
-    } finally {
-      isLoading.value = false;
+Future<void> _initialize() async {
+  try {
+    isLoading.value = true;
+    await fetchBranches();
+    
+    // EDIT REJIMI uchun ma'lumotlarni yuklash
+    if (isEditMode.value && editingStudentId != null) {
+      print('📥 Edit uchun ma\'lumotlar yuklanmoqda...');
+      // Biroz kutamiz, filiallar to'liq yuklanishi uchun
+      await Future.delayed(const Duration(milliseconds: 500));
+      await _loadStudentForEditing(editingStudentId!);
     }
+  } catch (e) {
+    _showError('Boshlash xatosi', e.toString());
+  } finally {
+    isLoading.value = false;
   }
+}
 
   void _disposeControllers() {
+    // ... (eski kod bilan bir xil)
     firstNameController.dispose();
     lastNameController.dispose();
     middleNameController.dispose();
@@ -145,8 +175,12 @@ class AddStudentController extends GetxController {
     medicalNotesController.dispose();
   }
 
-  // ========== FILIAL (MUKAMMAL LOGIKA) ==========
+  // ... (fetchBranches, selectBranch va boshqa funksiyalar eski kod bilan bir xil) ...
+  // Qisqartirish uchun faqat o'zgargan va kerakli joylarni yozaman.
+  // Asl kodingizdagi fetchBranches, selectBranch, _loadBranchData va boshqalarni joyida qoldiring.
+
   Future<void> fetchBranches() async {
+    // ... (Asl kodingiz)
     try {
       final currentUser = _authController.currentUser.value;
       if (currentUser == null) {
@@ -156,39 +190,23 @@ class AddStudentController extends GetxController {
 
       List<Map<String, dynamic>> branchesList = [];
 
-      // 1. Agar foydalanuvchi biror filialga biriktirilgan bo'lsa (Staff, Teacher, Admin)
       if (currentUser.branchId != null) {
-        // UI ni qulfaymiz
         canChangeBranch.value = false;
         showBranchSelector.value = false;
-
-        // Faqat o'sha filialni yuklaymiz
         final branchData = await Supabase.instance.client
             .from('branches')
             .select()
             .eq('id', currentUser.branchId!)
             .single();
-
         branchesList = [branchData];
-
-        // Avtomatik tanlash
         await selectBranch(currentUser.branchId!, showMessage: false);
-      }
-      // 2. Agar foydalanuvchi erkin bo'lsa (Owner, Super Admin)
-      else {
-        // UI ochiq
+      } else {
         canChangeBranch.value = true;
         showBranchSelector.value = true;
-
         branchesList = await _branchRepo.getAllBranches();
-
-        // Avvalgi tanlovni tiklash
         await _loadSavedBranch();
       }
-
       branches.value = branchesList;
-
-      // Agar ro'yxatda faqat bitta filial bo'lsa va hali tanlanmagan bo'lsa
       if (branches.length == 1 && selectedBranchId.value == null) {
         await selectBranch(branches.first['id'], showMessage: false);
       }
@@ -197,7 +215,101 @@ class AddStudentController extends GetxController {
     }
   }
 
+  Future<void> _loadStudentForEditing(String studentId) async {
+  try {
+    print('🔄 Tahrirlash uchun yuklanmoqda: $studentId');
+    isLoading.value = true;
+    
+    final student = await _studentRepo.getStudentById(studentId);
+    
+    if (student == null) {
+      _showError('Xatolik', 'O\'quvchi topilmadi');
+      isLoading.value = false;
+      return;
+    }
+
+    print('✅ Student topildi: ${student.firstName} ${student.lastName}');
+
+    // 1. FILIAL - Avval filialni yuklash (bu boshqa ma'lumotlarni ham yuklaydi)
+    if (student.branchId != null) {
+      await selectBranch(student.branchId, showMessage: false);
+      print('✅ Filial yuklandi');
+    }
+
+    // 2. ASOSIY MA'LUMOTLAR
+    firstNameController.text = student.firstName;
+    lastNameController.text = student.lastName;
+    middleNameController.text = student.middleName ?? '';
+    phoneController.text = student.phone ?? '';
+    addressController.text = student.address ?? '';
+    regionController.text = student.region ?? '';
+    districtController.text = student.district ?? '';
+    
+    if (student.gender != null) selectedGender.value = student.gender!;
+    birthDate.value = student.birthDate;
+    
+    // 3. OTA-ONA MA'LUMOTLARI
+    parentFirstNameController.text = student.parentFirstName ?? '';
+    parentLastNameController.text = student.parentLastName ?? '';
+    parentMiddleNameController.text = student.parentMiddleName ?? '';
+    parentPhoneController.text = student.parentPhone ?? '';
+    parentPhone2Controller.text = student.parentPhone ?? ''; // To'g'ri nom
+    parentWorkplaceController.text = student.parentWorkplace ?? '';
+    if (student.parentRelation != null) {
+      parentRelation.value = student.parentRelation!;
+    }
+    
+    // 4. MOLIYAVIY
+    monthlyFeeController.text = student.monthlyFee.toStringAsFixed(0);
+    discountPercentController.text = student.discountPercent.toStringAsFixed(0);
+    discountAmountController.text = student.discountAmount.toStringAsFixed(0);
+    discountReasonController.text = student.discountReason ?? '';
+    updateDiscountAmount();
+    
+    // 5. QO'SHIMCHA
+    notesController.text = student.notes ?? '';
+    medicalNotesController.text = student.medicalNotes ?? '';
+    
+    // 6. RASM
+    if (student.photoUrl != null && student.photoUrl!.isNotEmpty) {
+      photoUrl.value = student.photoUrl!;
+    }
+
+    // 7. SINF - Oxirida, chunki classes yuklangan bo'lishi kerak
+    if (student.classId != null) {
+      // classes ro'yxatida borligini tekshirish
+      await Future.delayed(const Duration(milliseconds: 300));
+      
+      final targetClass = classes.firstWhereOrNull((c) => c['id'] == student.classId);
+      if (targetClass != null) {
+        print('✅ Sinf topildi: ${targetClass['name']}');
+        
+        // Avval class_level_id ni tanlash
+        if (targetClass['class_level_id'] != null) {
+          selectedClassLevelId.value = targetClass['class_level_id'];
+          filteredClasses.value = classes
+              .where((c) => c['class_level_id'] == targetClass['class_level_id'])
+              .toList();
+        }
+        
+        // Keyin sinfni tanlash
+        selectClass(targetClass['id']);
+      } else {
+        print('⚠️ Sinf topilmadi: ${student.classId}');
+      }
+    }
+
+    print('✅ Barcha ma\'lumotlar yuklandi');
+    
+  } catch (e) {
+    print('❌ Load for editing error: $e');
+    _showError('Xatolik', 'Ma\'lumotlarni yuklashda xatolik: $e');
+  } finally {
+    isLoading.value = false;
+  }
+}
   Future<void> _loadSavedBranch() async {
+    // ... (Asl kodingiz)
     try {
       final prefs = await SharedPreferences.getInstance();
       final savedBranchId = prefs.getString('selected_branch_id');
@@ -206,7 +318,6 @@ class AddStudentController extends GetxController {
           branches.any((b) => b['id'] == savedBranchId)) {
         await selectBranch(savedBranchId, showMessage: false);
       } else if (branches.isNotEmpty) {
-        // Agar saqlangan bo'lmasa, lekin ro'yxat bo'sh bo'lmasa, tanlovni ko'rsatish
         showBranchSelector.value = true;
       }
     } catch (e) {
@@ -215,9 +326,9 @@ class AddStudentController extends GetxController {
   }
 
   Future<void> selectBranch(String? branchId, {bool showMessage = true}) async {
+    // ... (Asl kodingiz)
     if (branchId == null || branchId.isEmpty) return;
 
-    // XAVFSIZLIK: Agar user qulflangan bo'lsa, u boshqa filialni tanlay olmasligi kerak
     final currentUser = _authController.currentUser.value;
     if (currentUser?.branchId != null && branchId != currentUser!.branchId) {
       _showError(
@@ -234,12 +345,11 @@ class AddStudentController extends GetxController {
       selectedBranchId.value = branchId;
       selectedBranchName.value = _getBranchName(branchId);
 
-      // Faqat ruxsati borlar uchun tanlovni saqlash
       if (canChangeBranch.value) {
         await _saveBranch(branchId);
       }
 
-      await _loadBranchData(branchId);
+      await _loadBranchData(branchId); // <--- BU YERDA VISITORS HAM YUKLANADI
 
       if (showMessage) {
         Get.snackbar(
@@ -259,7 +369,7 @@ class AddStudentController extends GetxController {
   }
 
   void changeBranch() {
-    // Agar foydalanuvchi qulflangan bo'lsa, o'zgartirishga ruxsat bermaymiz
+    // ... (Asl kodingiz)
     if (!canChangeBranch.value) {
       Get.snackbar(
         'Cheklov',
@@ -276,6 +386,7 @@ class AddStudentController extends GetxController {
   }
 
   String _getBranchName(String? branchId) {
+    // ... (Asl kodingiz)
     if (branchId == null) return '';
     try {
       final branch = branches.firstWhere(
@@ -289,6 +400,7 @@ class AddStudentController extends GetxController {
   }
 
   Future<void> _saveBranch(String branchId) async {
+    // ... (Asl kodingiz)
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('selected_branch_id', branchId);
@@ -302,7 +414,6 @@ class AddStudentController extends GetxController {
     try {
       print('🔄 ========== FILIAL MA\'LUMOTLARI YUKLANMOQDA ==========');
 
-      // Avvalgi ma'lumotlarni tozalash
       classLevels.clear();
       classes.clear();
       teachers.clear();
@@ -311,7 +422,7 @@ class AddStudentController extends GetxController {
       _clearSelection();
 
       await Future.wait([
-        _loadVisitors(branchId),
+        _loadVisitors(branchId), // <--- BU QATOR BORLIGIGA ISHONCH HOSIL QILING
         _loadClassLevels(),
         _loadClasses(branchId),
         _loadTeachers(branchId),
@@ -325,6 +436,7 @@ class AddStudentController extends GetxController {
     }
   }
 
+  // ... (boshqa yuklash funksiyalari: _loadClassLevels, _loadClasses va h.k. O'ZGARISHLARSIZ) ...
   Future<void> _loadClassLevels() async {
     try {
       final result = await _classRepo.getClassLevels();
@@ -491,8 +603,9 @@ class AddStudentController extends GetxController {
     }
   }
 
-  // =========== SELECT LOGIC (CLASS, TEACHER, ROOM) ==========
+  // ... (Select class/teacher/room logic - O'ZGARISHLARSIZ) ...
   void selectClass(String? classId) {
+    // ... (Asl kodingiz)
     if (classId == null) {
       selectedClassId.value = null;
       _clearClassInfo();
@@ -542,6 +655,7 @@ class AddStudentController extends GetxController {
   }
 
   void selectTeacher(String? teacherId) {
+    // ... (Asl kodingiz)
     selectedTeacherId.value = teacherId;
 
     if (teacherId == null) {
@@ -573,6 +687,7 @@ class AddStudentController extends GetxController {
   }
 
   void selectRoom(String? roomId) {
+    // ... (Asl kodingiz)
     selectedRoomId.value = roomId;
 
     if (roomId == null) {
@@ -601,6 +716,7 @@ class AddStudentController extends GetxController {
   }
 
   void _clearClassInfo() {
+    // ... (Asl kodingiz)
     selectedClassName.value = '';
     selectedTeacherName.value = '';
     selectedClassRoom.value = '';
@@ -609,41 +725,79 @@ class AddStudentController extends GetxController {
     updateDiscountAmount();
   }
 
-  // =========== MEHMONLAR (VISITORS) =========
+  // =========== MEHMONLAR (VISITORS) - YANGILANGAN =========
   Future<void> _loadVisitors(String branchId) async {
     try {
-      final result = await _visitorRepo.getPotentialStudents(branchId);
-      visitors.value = result;
+      isLoadingVisitors.value = true;
+      // VisitorRepository dan olinayotgan ma'lumotni Map listiga o'tkazamiz
+      // Agar repoda getUnconvertedVisitors bo'lmasa, getPotentialStudents ni ishlating va map qiling:
+
+      final response = await Supabase.instance.client
+          .from('visitors')
+          .select()
+          .eq('branch_id', branchId)
+          .eq('is_converted', false) // Faqat hali o'quvchi bo'lmaganlar
+          .eq(
+            'visitor_type',
+            'student',
+          ); // Faqat o'quvchi bo'lmoqchi bo'lganlar
+
+      visitors.value = List<Map<String, dynamic>>.from(response);
     } catch (e) {
       print('Mehmonlarni yuklashda xato: $e');
       visitors.value = [];
+    } finally {
+      isLoadingVisitors.value = false;
     }
   }
 
-  void selectVisitor(String? visitorId) {
+  // YANGI: Visitor tanlanganda ishlaydigan funksiya
+  void onVisitorSelected(String? visitorId) {
     selectedVisitorId.value = visitorId;
 
-    if (visitorId == null) {
+    if (visitorId != null) {
+      final visitor = visitors.firstWhereOrNull((v) => v['id'] == visitorId);
+      if (visitor != null) {
+        _fillFromVisitor(visitor);
+      }
+    } else {
+      // Agar "Yangi o'quvchi" tanlansa, formani tozalaymiz (lekin filial qoladi)
       _clearStudentInfo();
-      return;
     }
-
-    final visitor = visitors.firstWhereOrNull((v) => v.id == visitorId);
-    if (visitor == null) return;
-
-    firstNameController.text = visitor.firstName ?? '';
-    lastNameController.text = visitor.lastName ?? '';
-    middleNameController.text = visitor.middleName ?? '';
-    phoneController.text = visitor.phone ?? '';
-    addressController.text = visitor.address ?? '';
-    regionController.text = visitor.region ?? '';
-    districtController.text = visitor.district ?? '';
-    selectedGender.value = visitor.gender ?? 'male';
-    birthDate.value = visitor.birthDate;
-    parentPhoneController.text = visitor.phone ?? '';
-    notesController.text = visitor.notes ?? '';
   }
 
+  // YANGI: Formani visitordan to'ldirish
+  void _fillFromVisitor(Map<String, dynamic> visitor) {
+    firstNameController.text = visitor['first_name'] ?? '';
+    lastNameController.text = visitor['last_name'] ?? '';
+    middleNameController.text = visitor['middle_name'] ?? '';
+    phoneController.text = visitor['phone'] ?? '';
+    parentPhoneController.text =
+        visitor['phone_secondary'] ?? ''; // Ota-ona telefoni sifatida
+    addressController.text = visitor['address'] ?? '';
+    regionController.text = visitor['region'] ?? '';
+    districtController.text = visitor['district'] ?? '';
+
+    if (visitor['gender'] != null) {
+      selectedGender.value = visitor['gender'];
+    }
+
+    if (visitor['birth_date'] != null) {
+      try {
+        birthDate.value = DateTime.parse(visitor['birth_date'].toString());
+      } catch (_) {}
+    }
+
+    notesController.text = visitor['notes'] ?? '';
+  }
+
+  void clearVisitorSelection() {
+    selectedVisitorId.value = null;
+    _clearStudentInfo();
+  }
+
+  // --- XATO TUZATILDI: _clearStudentInfo funksiyasi qo'shildi ---
+  // --- YANGI QO'SHILGAN QISM ---
   void _clearStudentInfo() {
     firstNameController.clear();
     lastNameController.clear();
@@ -656,15 +810,25 @@ class AddStudentController extends GetxController {
     birthDate.value = null;
     selectedImage.value = null;
     photoUrl.value = '';
-  }
-
-  // =========== SINF BOSHQARUVI ==========
-  void changeSelectionMode(String mode) {
-    selectionMode.value = mode;
-    _clearSelection();
+    parentFirstNameController.clear();
+    parentLastNameController.clear();
+    parentMiddleNameController.clear();
+    parentPhoneController.clear();
+    parentPhone2Controller.clear();
+    parentWorkplaceController.clear();
+    parentRelation.value = 'Otasi';
+    monthlyFeeController.text = '900000';
+    discountPercentController.text = '0';
+    discountAmountController.text = '0';
+    discountReasonController.clear();
+    finalMonthlyFee.value = 900000.0;
+    notesController.clear();
+    medicalNotesController.clear();
+    // selectedVisitorId.value = null; // Buni tozalash shart emas
   }
 
   void _clearSelection() {
+    // ... (eski kod bilan bir xil)
     selectedClassId.value = null;
     selectedTeacherId.value = null;
     selectedRoomId.value = null;
@@ -676,8 +840,9 @@ class AddStudentController extends GetxController {
     selectedClassLevelName.value = '';
   }
 
-  // ==================== SANA TANLASH ====================
+  // ... (Sana tanlash, Rasm yuklash va Saqlash funksiyalari O'ZGARISHLARSIZ) ...
   Future<void> selectBirthDate(BuildContext context) async {
+    // ...
     final picked = await showDatePicker(
       context: context,
       initialDate:
@@ -700,8 +865,8 @@ class AddStudentController extends GetxController {
     }
   }
 
-  // =========== RASM YUKLASH =========
   Future<void> pickImage() async {
+    // ...
     try {
       final XFile? image = await _imagePicker.pickImage(
         source: ImageSource.gallery,
@@ -727,6 +892,7 @@ class AddStudentController extends GetxController {
   }
 
   Future<void> takePicture() async {
+    // ...
     try {
       final XFile? image = await _imagePicker.pickImage(
         source: ImageSource.camera,
@@ -757,6 +923,7 @@ class AddStudentController extends GetxController {
   }
 
   Future<String?> _uploadImage(String studentId) async {
+    // ...
     if (selectedImage.value == null) return null;
 
     try {
@@ -784,8 +951,8 @@ class AddStudentController extends GetxController {
     }
   }
 
-  // =========== MOLIYAVIY ==========
   void updateDiscountAmount() {
+    // ...
     final fee =
         double.tryParse(
           monthlyFeeController.text.replaceAll(',', '').replaceAll(' ', ''),
@@ -797,106 +964,213 @@ class AddStudentController extends GetxController {
     finalMonthlyFee.value = fee - discount;
   }
 
-  // ========== SAQLASH (ACCESS CONTROL BILAN) ==========
+  // Xodim qo'shish bilan bir xil mantiq, oxirida result: true qaytarish
+
+  // ==================== SAQLASH (CREATE / UPDATE) ====================
   Future<void> saveStudent() async {
+    // 1. Validatsiya
     if (!_validateForm()) return;
 
     try {
       isSaving.value = true;
       final currentUser = _authController.currentUser.value;
 
-      // XAVFSIZLIK: Yana bir bor tekshiramiz
+      // Xavfsizlik: Filial tekshiruvi
       if (currentUser?.branchId != null &&
           selectedBranchId.value != currentUser!.branchId) {
         _showError('Xatolik', 'Siz faqat o\'z filialingizga qo\'sha olasiz!');
         return;
       }
 
+      // Sinf ma'lumotlarini olish
       final selectedClass = classes.firstWhereOrNull(
         (c) => c['id'] == selectedClassId.value,
       );
+
       if (selectedClass == null) {
         _showError('Xatolik', 'Sinf ma\'lumotlari topilmadi');
         return;
       }
 
-      print('💾 1. Students jadvaliga yozilmoqda...');
+      // Rasm yuklash logikasi
+      String? uploadedPhotoUrl;
+      // Agar yangi rasm tanlangan bo'lsa
+      if (selectedImage.value != null) {
+        // ID hali yo'q bo'lsa (Create), vaqtincha nom beramiz, keyin o'zgartirish shart emas
+        // Yoki tahrirlash bo'lsa o'z ID si bilan
+        uploadedPhotoUrl = await _uploadImage(
+          editingStudentId ?? 'temp_${DateTime.now().millisecondsSinceEpoch}',
+        );
+      }
+      // Agar tahrirlash bo'lsa va rasm o'zgarmagan bo'lsa, eskisini saqlaymiz
+      else if (isEditMode.value && photoUrl.value.isNotEmpty) {
+        uploadedPhotoUrl = photoUrl.value;
+      }
 
-      final student = await _studentRepo.createStudent(
-        branchId: selectedBranchId.value!,
-        firstName: firstNameController.text.trim(),
-        lastName: lastNameController.text.trim(),
-        middleName: middleNameController.text.trim(),
-        gender: selectedGender.value,
-        birthDate: birthDate.value!,
-        phone: phoneController.text.trim(),
-        address: addressController.text.trim(),
-        region: regionController.text.trim(),
-        district: districtController.text.trim(),
-        parentFirstName: parentFirstNameController.text.trim(),
-        parentLastName: parentLastNameController.text.trim(),
-        parentMiddleName: parentMiddleNameController.text.trim(),
-        parentPhone: parentPhoneController.text.trim(),
-        parentPhone2: parentPhone2Controller.text.trim(),
-        parentWorkplace: parentWorkplaceController.text.trim(),
-        parentRelation: parentRelation.value,
-        monthlyFee:
-            double.tryParse(monthlyFeeController.text.replaceAll(',', '')) ??
-            0.0,
-        discountPercent: double.tryParse(discountPercentController.text) ?? 0.0,
-        discountAmount: double.tryParse(discountAmountController.text) ?? 0.0,
-        discountReason: discountReasonController.text.trim(),
-        notes: notesController.text.trim(),
-        medicalNotes: medicalNotesController.text.trim(),
-        visitorId: selectedVisitorId.value,
-        createdBy: currentUser!.id,
-        classId: selectedClass['id'],
-        mainTeacherId: selectedClass['main_teacher_id'],
-        roomId: selectedClass['default_room_id'],
-      );
+      // ---------------------------------------------------------
+      // A. TAHRIRLASH REJIMI (UPDATE)
+      // ---------------------------------------------------------
+    // A. TAHRIRLASH REJIMI (UPDATE)
+if (isEditMode.value && editingStudentId != null) {
+  print('💾 Tahrirlanmoqda: $editingStudentId');
+  
+  final success = await _studentRepo.updateStudent(
+    studentId: editingStudentId!,
+    // Asosiy
+    firstName: firstNameController.text.trim(),
+    lastName: lastNameController.text.trim(),
+    middleName: middleNameController.text.trim(),
+    phone: phoneController.text.trim(),
+    address: addressController.text.trim(),
+    region: regionController.text.trim(),
+    district: districtController.text.trim(),
+    gender: selectedGender.value, // Gender ham qo'shing
+    birthDate: birthDate.value, // Tug'ilgan sana ham qo'shing
+    // Ota-ona
+    parentFirstName: parentFirstNameController.text.trim(),
+    parentLastName: parentLastNameController.text.trim(),
+    parentMiddleName: parentMiddleNameController.text.trim(),
+    parentPhone: parentPhoneController.text.trim(),
+    parentPhone2: parentPhone2Controller.text.trim(),
+    parentWorkplace: parentWorkplaceController.text.trim(),
+    parentRelation: parentRelation.value,
+    // Moliyaviy
+    monthlyFee: double.tryParse(monthlyFeeController.text.replaceAll(',', '')) ?? 0.0,
+    discountPercent: double.tryParse(discountPercentController.text) ?? 0.0,
+    discountAmount: double.tryParse(discountAmountController.text) ?? 0.0,
+    discountReason: discountReasonController.text.trim(),
+    // Qo'shimcha
+    notes: notesController.text.trim(),
+    medicalNotes: medicalNotesController.text.trim(),
+    photoUrl: uploadedPhotoUrl,
+    // Sinf
+    classId: selectedClass['id'],
+    classLevelId: selectedClass['class_level_id'],
+    classLevelName: selectedClass['class_level_name'],
+    className: selectedClass['name'],
+    roomId: selectedClass['default_room_id'],
+    roomName: selectedClass['room'],
+    mainTeacherId: selectedClass['main_teacher_id'],
+    mainTeacherName: selectedClass['teacher'],
+  );
 
-      if (student != null) {
-        print('✅ Student ID: ${student.id}');
+  if (success) {
+    // Enrollment ni ham yangilash
+    try {
+      await Supabase.instance.client
+          .from('enrollments')
+          .update({'class_id': selectedClass['id']})
+          .eq('student_id', editingStudentId!)
+          .eq('is_active', true);
+    } catch (e) {
+      print('⚠️ Enrollment yangilanmadi: $e');
+    }
 
-        print('💾 2. Enrollments jadvaliga yozilmoqda...');
-        try {
-          await Supabase.instance.client.from('enrollments').insert({
-            'student_id': student.id,
-            'class_id': selectedClass['id'],
-            'enrolled_at': DateTime.now().toIso8601String(),
-            'is_active': true,
-            'academic_year_id': selectedClass['academic_year_id'],
-            'created_by': currentUser.id,
-            'custom_monthly_fee':
-                double.tryParse(
-                  monthlyFeeController.text.replaceAll(',', ''),
-                ) ??
-                0.0,
-            'custom_discount_percent':
-                double.tryParse(discountPercentController.text) ?? 0.0,
-          });
-          print('✅ Enrollment muvaffaqiyatli yaratildi');
-        } catch (e) {
-          print('❌ Enrollment yozishda xato: $e');
-        }
+    Get.snackbar(
+      'Muvaffaqiyatli',
+      'O\'quvchi ma\'lumotlari yangilandi',
+      backgroundColor: Colors.green.shade100,
+      colorText: Colors.green.shade900,
+    );
+    Get.back(result: true);
+  } else {
+    _showError('Xatolik', 'Yangilashda xatolik yuz berdi');
+  }
+  return; // MUHIM: Keyingi create kodiga o'tmasligi uchun
+}
+      // ---------------------------------------------------------
+      // B. YANGI QO'SHISH REJIMI (CREATE)
+      // ---------------------------------------------------------
+      else {
+        print('💾 Yangi qo\'shilmoqda...');
 
-        if (selectedImage.value != null) {
-          final imageUrl = await _uploadImage(student.id);
-          if (imageUrl != null) {
+        final student = await _studentRepo.createStudent(
+          branchId: selectedBranchId.value!,
+          firstName: firstNameController.text.trim(),
+          lastName: lastNameController.text.trim(),
+          middleName: middleNameController.text.trim(),
+          gender: selectedGender.value,
+          birthDate: birthDate.value!,
+          phone: phoneController.text.trim(),
+          address: addressController.text.trim(),
+          region: regionController.text.trim(),
+          district: districtController.text.trim(),
+          parentFirstName: parentFirstNameController.text.trim(),
+          parentLastName: parentLastNameController.text.trim(),
+          parentMiddleName: parentMiddleNameController.text.trim(),
+          parentPhone: parentPhoneController.text.trim(),
+          parentPhone2: parentPhone2Controller.text.trim(),
+          parentWorkplace: parentWorkplaceController.text.trim(),
+          parentRelation: parentRelation.value,
+          monthlyFee:
+              double.tryParse(monthlyFeeController.text.replaceAll(',', '')) ??
+              0.0,
+          discountPercent:
+              double.tryParse(discountPercentController.text) ?? 0.0,
+          discountAmount: double.tryParse(discountAmountController.text) ?? 0.0,
+          discountReason: discountReasonController.text.trim(),
+          notes: notesController.text.trim(),
+          medicalNotes: medicalNotesController.text.trim(),
+          visitorId: selectedVisitorId.value,
+          createdBy: currentUser!.id,
+
+          // Sinf ma'lumotlari
+          classId: selectedClass['id'],
+          classLevelId: selectedClass['class_level_id'],
+          classLevelName: selectedClass['class_level_name'],
+          className: selectedClass['name'],
+          mainTeacherId: selectedClass['main_teacher_id'],
+          mainTeacherName: selectedClass['teacher'],
+          roomId: selectedClass['default_room_id'],
+          roomName: selectedClass['room'],
+        );
+
+        if (student != null) {
+          print('✅ Student ID: ${student.id}');
+
+          // Enrollment yaratish
+          try {
+            await Supabase.instance.client.from('enrollments').insert({
+              'student_id': student.id,
+              'class_id': selectedClass['id'],
+              'enrolled_at': DateTime.now().toIso8601String(),
+              'is_active': true,
+              'academic_year_id': selectedClass['academic_year_id'],
+              'created_by': currentUser.id,
+              'custom_monthly_fee':
+                  double.tryParse(
+                    monthlyFeeController.text.replaceAll(',', ''),
+                  ) ??
+                  0.0,
+              'custom_discount_percent':
+                  double.tryParse(discountPercentController.text) ?? 0.0,
+            });
+          } catch (e) {
+            print('❌ Enrollment yozishda xato: $e');
+          }
+
+          // Rasmni yangilash (agar yuklangan bo'lsa va createStudent da ketmagan bo'lsa)
+          if (uploadedPhotoUrl != null) {
             await _studentRepo.updateStudent(
               studentId: student.id,
-              photoUrl: imageUrl,
+              photoUrl: uploadedPhotoUrl,
             );
           }
-        }
 
-        Get.snackbar(
-          'Muvaffaqiyatli',
-          'O\'quvchi ${selectedClassName.value} sinfiga qabul qilindi',
-          backgroundColor: Colors.green.shade100,
-          colorText: Colors.green.shade900,
-        );
-        Get.offNamed(AppRoutes.studentDetail, arguments: student.id);
+          Get.snackbar(
+            'Muvaffaqiyatli',
+            'O\'quvchi ${selectedClassName.value} sinfiga qabul qilindi',
+            backgroundColor: Colors.green.shade100,
+            colorText: Colors.green.shade900,
+          );
+
+          // Visitor dan kelgan bo'lsa
+          if (selectedVisitorId.value != null) {
+            Get.back(result: true);
+          } else {
+            Get.offNamed(AppRoutes.studentDetail, arguments: student.id);
+          }
+        }
       }
     } catch (e) {
       print('❌ Umumiy xatolik: $e');
@@ -907,13 +1181,13 @@ class AddStudentController extends GetxController {
   }
 
   bool _validateForm() {
+    // ... (Asl kodingiz)
     final currentUser = _authController.currentUser.value;
 
-    // VALIDATSIYA: Filial to'g'riligini tekshirish
     if (currentUser?.branchId != null) {
       if (selectedBranchId.value != currentUser!.branchId) {
         _showError('Xatolik', 'Filial noto\'g\'ri tanlangan!');
-        selectedBranchId.value = currentUser.branchId; // Tuzatib qo'yamiz
+        selectedBranchId.value = currentUser.branchId;
         return false;
       }
     }
@@ -941,31 +1215,7 @@ class AddStudentController extends GetxController {
   }
 
   void _clearForm() {
-    firstNameController.clear();
-    lastNameController.clear();
-    middleNameController.clear();
-    phoneController.clear();
-    addressController.clear();
-    regionController.clear();
-    districtController.clear();
-    selectedGender.value = 'male';
-    birthDate.value = null;
-    selectedImage.value = null;
-    photoUrl.value = '';
-    parentFirstNameController.clear();
-    parentLastNameController.clear();
-    parentMiddleNameController.clear();
-    parentPhoneController.clear();
-    parentPhone2Controller.clear();
-    parentWorkplaceController.clear();
-    parentRelation.value = 'Otasi';
-    monthlyFeeController.text = '900000';
-    discountPercentController.text = '0';
-    discountAmountController.text = '0';
-    discountReasonController.clear();
-    finalMonthlyFee.value = 900000.0;
-    notesController.clear();
-    medicalNotesController.clear();
+    _clearStudentInfo(); // Endi bu yerda ham ishlatsa bo'ladi
     _clearSelection();
     selectedVisitorId.value = null;
     filteredClasses.value = [];
@@ -980,5 +1230,10 @@ class AddStudentController extends GetxController {
       snackPosition: SnackPosition.TOP,
       duration: const Duration(seconds: 3),
     );
+  }
+
+  void changeSelectionMode(String mode) {
+    selectionMode.value = mode;
+    _clearSelection();
   }
 }

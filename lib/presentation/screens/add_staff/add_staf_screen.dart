@@ -42,7 +42,7 @@ class AddStaffScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildHeader() {
+   Widget _buildHeader() {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -64,25 +64,31 @@ class AddStaffScreen extends StatelessWidget {
                 onPressed: () => Get.back(),
               ),
               const SizedBox(width: 16),
-              const Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Yangi xodim qo\'shish',
-                    style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black87,
+              // --- O'ZGARTIRILGAN QISM BOSHLANDI ---
+              Expanded( // Expanded qo'shildi, matn sig'may qolsa muammo bo'lmasligi uchun
+                child: Obx(() => Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      controller.isEditMode.value 
+                          ? 'Xodim ma\'lumotlarini yangilash' 
+                          : 'Yangi xodim qo\'shish',
+                      style: const TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black87,
+                      ),
                     ),
-                  ),
-                  SizedBox(height: 4),
-                  Text(
-                    'Barcha ma\'lumotlarni to\'ldiring',
-                    style: TextStyle(fontSize: 14, color: Colors.grey),
-                  ),
-                ],
-              ),
-            ],
+                    const SizedBox(height: 4),
+                    Text(
+                      controller.isEditMode.value
+                          ? 'Mavjud ma\'lumotlarni o\'zgartiring'
+                          : 'Barcha ma\'lumotlarni to\'ldiring',
+                      style: const TextStyle(fontSize: 14, color: Colors.grey),
+                    ),
+                  ],
+                )),
+              ),    ],
           ),
         ),
       ),
@@ -951,12 +957,12 @@ _buildAvatarPicker(), // <--- 1. MANA SHU YERGA QO'SHILDI
                // ... _buildUserCreation funksiyasining ichida ...
 
                 const SizedBox(height: 12),
-                Obx(
+           Obx(
                   () => Wrap(
                     spacing: 12,
                     runSpacing: 12,
                     children: [
-                      // 1. O'QITUVCHI (Key: teacher)
+                      // 1. O'QITUVCHI
                       _buildRoleChip(
                         "O'qituvchi",
                         'teacher',
@@ -964,7 +970,7 @@ _buildAvatarPicker(), // <--- 1. MANA SHU YERGA QO'SHILDI
                         Colors.blue,
                       ),
                       
-                      // 2. QABULXONA (Key: admin - Controllerda shunday belgiladik)
+                      // 2. QABULXONA
                       _buildRoleChip(
                         'Qabulxona',
                         'admin', 
@@ -972,7 +978,7 @@ _buildAvatarPicker(), // <--- 1. MANA SHU YERGA QO'SHILDI
                         Colors.teal,
                       ),
 
-                      // 3. KASSIR (Key: manager - Controllerda shunday belgiladik)
+                      // 3. KASSIR
                       _buildRoleChip(
                         'Kassir',
                         'manager', 
@@ -980,7 +986,7 @@ _buildAvatarPicker(), // <--- 1. MANA SHU YERGA QO'SHILDI
                         Colors.orange,
                       ),
 
-                      // 4. DIREKTOR (Key: director)
+                      // 4. DIREKTOR
                       _buildRoleChip(
                         'Direktor',
                         'director',
@@ -988,11 +994,20 @@ _buildAvatarPicker(), // <--- 1. MANA SHU YERGA QO'SHILDI
                         Colors.purple,
                       ),
 
-                      // 5. TA'SISCHI (Key: owner)
-                     
+                      // 5. TA'SISCHI (Agar kerak bo'lsa)
+                      // ...
+
+                      // 6. XODIM (YANGI QO'SHILDI)
+                      _buildRoleChip(
+                        'Xodim',
+                        'staff', // Controllerdagi key bilan bir xil bo'lishi shart
+                        Icons.person,
+                        Colors.grey,
+                      ),
                     ],
                   ),
                 ),  
+
                 const SizedBox(height: 24),
 
 // ... qolgan kod davom etadi ...
@@ -1197,7 +1212,7 @@ _buildAvatarPicker(), // <--- 1. MANA SHU YERGA QO'SHILDI
     );
   }
 
-  Widget _buildActionButtons() {
+    Widget _buildActionButtons() {
     return Row(
       mainAxisAlignment: MainAxisAlignment.end,
       children: [
@@ -1226,7 +1241,8 @@ _buildAvatarPicker(), // <--- 1. MANA SHU YERGA QO'SHILDI
                       strokeWidth: 2,
                     ),
                   )
-                : const Text('Saqlash'),
+                // --- O'ZGARTIRILGAN QISM: Tugma matni ---
+                : Text(controller.isEditMode.value ? 'Yangilash' : 'Saqlash'),
           ),
         ),
       ],
